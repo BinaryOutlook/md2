@@ -8,6 +8,7 @@ owner:
 affects:
 agents:
 policy:
+after: 2775052a-2e84-4466-a320-155c8ec05bac
 ---
 We generated a squence diagram (json file), of the action popup and its interactions. There, you can see that input sent by the user to the agent, first goes to backend and back to frontend before it is shown in the chatlog. This is too late.
 

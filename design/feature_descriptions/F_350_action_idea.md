@@ -3,13 +3,13 @@ author:
 id: F_350
 internalId: eb1707b3-15c4-4a42-b86e-db35fbfd9060
 title: Action idea
-status: design
+status: ready for implementation
 owner: 
 affects:
 agents:
   - design/activity/card__eb1707b3-15c4-4a42-b86e-db35fbfd9060.json
 policy:
-after: 2775052a-2e84-4466-a320-155c8ec05bac
+after: da8a9e63-eeee-4911-a83c-5f1f9a38d911
 ---
 ## Goal
 
