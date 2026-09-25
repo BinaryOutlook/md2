@@ -9,4 +9,6 @@ affects:
 agents:
 policy:
 ---
+On the action popup, we no show the action buttons with a wrap.
 
+We should remove the wrap and replace with the new scrollbox we recently added for the markdown toolbar (with left / right scroll buttons  and scrollwheel)
