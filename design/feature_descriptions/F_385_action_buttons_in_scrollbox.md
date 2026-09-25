@@ -7,6 +7,7 @@ status: design
 owner: 
 affects:
 agents:
+  - design/activity/card__fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0.json
 policy:
 ---
 On the action popup, we no show the action buttons with a wrap.
