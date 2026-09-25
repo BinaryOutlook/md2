@@ -3,15 +3,14 @@ author:
 id: F_350
 internalId: eb1707b3-15c4-4a42-b86e-db35fbfd9060
 title: Action idea
-status: new
+status: design
 owner: 
 affects:
 agents:
 policy:
-after: f8789999-e317-4713-b43f-c4c737979d19
+after: 2775052a-2e84-4466-a320-155c8ec05bac
 ---
-
-Write a script that accepts a version number and updates the code files so that the new version number is applied. Exif there is a package.json, update the version field.
+Write a script that accepts a version number through a placeholder and updates the code files (ex package.json, depends on coding language) so that the new version number is applied. Ex: if there is a package.json, update the version field.
 
 New feature required in actions: ask user for info. Currently, only version number supported, which is predefined. Once the user has given this info, it can be reused for the release function.
 

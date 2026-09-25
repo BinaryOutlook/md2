@@ -8,7 +8,7 @@ owner:
 affects:
 agents:
 policy:
-after: eb1707b3-15c4-4a42-b86e-db35fbfd9060
+after: f8789999-e317-4713-b43f-c4c737979d19
 ---
 
 for instance, so we can let claude now to use the edit tool when changing single code files instead of generating a python script
