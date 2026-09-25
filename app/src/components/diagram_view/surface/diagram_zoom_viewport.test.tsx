@@ -696,4 +696,83 @@ describe('DiagramZoomViewport', () => {
 
         expect(selection.getSelectionSnapshot()).toEqual([])
     })
+
+    it('keeps rectangle selection when the trailing click lands on a node', () => {
+        const { geometry, selection, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} selection={selection} session={session} />)
+        const surface = screen.getByLabelText('New diagram')
+
+        fireEvent.pointerDown(surface, { button: 0, clientX: 0, clientY: 0, pointerId: 1 })
+        fireEvent.pointerMove(surface, { clientX: 800, clientY: 400, pointerId: 1 })
+        fireEvent.pointerUp(surface, { clientX: 800, clientY: 400, pointerId: 1 })
+        fireEvent.click(screen.getByRole('button', { name: 'Orders' }))
+
+        expect(selection.getSelectionSnapshot()).toEqual([
+            { objectId: 'orders', objectKind: 'node' },
+            { objectId: 'store', objectKind: 'node' },
+            { objectId: 'orders-store', objectKind: 'edge' },
+            { objectId: 'backend', objectKind: 'group' },
+        ])
+        expect(session.getDirtySnapshot()).toBe(false)
+    })
+
+    it('cancels a touch rectangle when a second finger starts a pinch', () => {
+        const { geometry, selection, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} selection={selection} session={session} />)
+        const scroller = screen.getByLabelText('New diagram scroller')
+        const surface = screen.getByLabelText('New diagram')
+        act(() => { selection.replace([{ objectId: 'orders', objectKind: 'node' }]) })
+        const previousSelection = selection.getSelectionSnapshot()
+
+        fireEvent.pointerDown(surface, { button: 0, clientX: 0, clientY: 0, isPrimary: true, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerMove(surface, { clientX: 30, clientY: 30, pointerId: 1, pointerType: 'touch' })
+        expect(selection.getRectangleSnapshot()).not.toBeNull()
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 100, clientY: 0, isPrimary: false, pointerId: 2, pointerType: 'touch' })
+        expect(selection.getRectangleSnapshot()).toBeNull()
+        fireEvent.pointerMove(scroller, { clientX: 150, clientY: 0, pointerId: 2, pointerType: 'touch' })
+        expect(session.getViewportScaleSnapshot()).toBeGreaterThan(1)
+        fireEvent.pointerUp(scroller, { pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerUp(scroller, { pointerId: 1, pointerType: 'touch' })
+
+        expect(selection.getSelectionSnapshot()).toBe(previousSelection)
+        expect(session.getDirtySnapshot()).toBe(false)
+    })
+
+    it('cancels touch movement before pinch zoom changes New viewport scale', () => {
+        const { geometry, movement, selection, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} movement={movement} selection={selection} session={session} />)
+        const scroller = screen.getByLabelText('New diagram scroller')
+        const node = screen.getByRole('button', { name: 'Orders' })
+
+        fireEvent.pointerDown(node, { button: 0, clientX: 250, clientY: 130, isPrimary: true, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerMove(scroller, { clientX: 280, clientY: 160, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 350, clientY: 130, isPrimary: false, pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerMove(scroller, { clientX: 400, clientY: 130, pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerCancel(scroller, { pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerUp(scroller, { pointerId: 1, pointerType: 'touch' })
+
+        expect(session.getViewportScaleSnapshot()).toBeGreaterThan(1)
+        expect(session.getNodeSnapshot('orders')).toMatchObject({ x: 240, y: 120 })
+        expect(session.getDirtySnapshot()).toBe(false)
+    })
+
+    it('keeps the touched diagram point under the moving midpoint while New pinch zooms', () => {
+        const { geometry, selection, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} selection={selection} session={session} />)
+        const scroller = screen.getByLabelText('New diagram scroller')
+        scroller.scrollLeft = 120
+        scroller.scrollTop = 80
+        vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({ bottom: 420, height: 400, left: 10, right: 410, toJSON: () => ({}), top: 20, width: 400, x: 10, y: 20 })
+
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 110, clientY: 120, isPrimary: true, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 210, clientY: 120, isPrimary: false, pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerMove(scroller, { clientX: 260, clientY: 120, pointerId: 2, pointerType: 'touch' })
+
+        expect(session.getViewportScaleSnapshot()).toBeCloseTo(1.5)
+        expect(scroller.scrollLeft).toBeCloseTo(230)
+        expect(scroller.scrollTop).toBeCloseTo(170)
+        expect(session.getDirtySnapshot()).toBe(false)
+        fireEvent.pointerUp(scroller, { pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerUp(scroller, { pointerId: 1, pointerType: 'touch' })
+    })
 })

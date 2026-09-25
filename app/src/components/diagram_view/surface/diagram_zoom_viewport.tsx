@@ -41,6 +41,7 @@ import { useDiagramCtrlWheelZoom } from '../editing/use_diagram_ctrl_wheel_zoom'
 import { usePreserveDiagramZoomCenter } from './use_preserve_diagram_zoom_center'
 import { useDiagramSurfacePan } from '../editing/use_diagram_surface_pan'
 import { useActiveDiagramTool } from '../editing/use_diagram_tool'
+import { useDiagramPinchZoom } from './use_diagram_pinch_zoom'
 
 interface DiagramZoomViewportProps {
     details?: DiagramObjectDetailsService
@@ -125,7 +126,6 @@ export function DiagramZoomViewport({
         session.getViewportScaleSnapshot,
         session.getViewportScaleSnapshot,
     )
-    usePreserveDiagramZoomCenter(scrollerRef, scale)
     useDiagramCtrlWheelZoom(scrollerRef, session)
     const panToolActive = useActiveDiagramTool(session, 'pan')
     const canStartPan = useCallback(() => session.getActiveToolSnapshot() === 'pan', [session])
@@ -166,6 +166,23 @@ export function DiagramZoomViewport({
 
         scrollerRef.current?.releasePointerCapture?.(pointerId)
     }, [])
+
+    const cancelActiveGestureForPinch = useCallback(() => {
+        const gesture = activePointerGestureRef.current
+        if (gesture === 'pan') pan.cancelPan()
+        else if (gesture === 'placement') placement.cancelPlacement()
+        else if (gesture === 'group') groupDrawing.cancelDrawing()
+        else if (gesture === 'resize') resize.cancelResize()
+        else if (gesture === 'move') movement.cancelMove()
+        if (drawing.isDrawingActive()) drawing.cancelDrawing()
+        if (placement.isPlacementActive()) placement.cancelPlacement()
+        selection.cancelRectangleSelection()
+        activePointerGestureRef.current = null
+        releaseActivePointer()
+        suppressClickRef.current = true
+    }, [drawing, groupDrawing, movement, pan, placement, releaseActivePointer, resize, selection])
+    const pinch = useDiagramPinchZoom(scrollerRef, session, cancelActiveGestureForPinch)
+    usePreserveDiagramZoomCenter(scrollerRef, scale, pinch.anchorRef)
 
     const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
         if (activePointerIdRef.current !== null || event.button !== 0 || event.isPrimary === false) return
@@ -316,13 +333,19 @@ export function DiagramZoomViewport({
     }, [endPanGesture, groupDrawing, movement, pan, placement, resize])
 
     const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+        const pinchSuppressed = pinch.consumeSuppressedClick()
         const panSuppressed = pan.consumeSuppressedClick()
-        if (!panSuppressed && !suppressClickRef.current) return
+        if (!pinchSuppressed && !panSuppressed && !suppressClickRef.current) return
 
         suppressClickRef.current = false
         event.preventDefault()
         event.stopPropagation()
-    }, [pan])
+    }, [pan, pinch])
+
+    const handlePointerUpCapture = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+        pinch.endPointerCapture(event)
+        if (selection.getRectangleSnapshot()) suppressClickRef.current = true
+    }, [pinch, selection])
 
     const handleWindowKeyDown = useCallback((event: KeyboardEvent) => {
         if (event.defaultPrevented || event.key !== 'Escape') return
@@ -429,12 +452,16 @@ export function DiagramZoomViewport({
             onClickCapture={handleClickCapture}
             onKeyDown={handleKeyDown}
             onLostPointerCapture={handleLostPointerCapture}
+            onPointerCancelCapture={pinch.endPointerCapture}
             onPointerCancel={handlePointerCancel}
+            onPointerDownCapture={pinch.handlePointerDownCapture}
             onPointerDown={handlePointerDown}
+            onPointerMoveCapture={pinch.handlePointerMoveCapture}
             onPointerMove={handlePointerMove}
+            onPointerUpCapture={handlePointerUpCapture}
             onPointerUp={handlePointerUp}
             ref={scrollerRef}
-            sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', px: 2, pb: 2, pt: 1, touchAction: panToolActive ? 'none' : 'auto' }}
+            sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', px: 2, pb: 2, pt: 1, touchAction: panToolActive ? 'none' : 'pan-x pan-y' }}
         >
             <Box data-testid="new-diagram-zoom-surface" sx={{ transformOrigin: 'top left', zoom: scale }}>
                 <NewDiagram

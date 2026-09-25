@@ -1,4 +1,4 @@
-import { Slider } from '@mui/material'
+import { Slider, useMediaQuery, useTheme } from '@mui/material'
 import { useCallback, useSyncExternalStore } from 'react'
 import { MAXIMUM_DIAGRAM_ZOOM, MINIMUM_DIAGRAM_ZOOM, DIAGRAM_ZOOM_STEP } from '../../../services/diagrams/diagram_zoom'
 
@@ -23,6 +23,8 @@ function percentageText(value: number) {
 
 /** Floating direct-scale control shared by Current and New diagram viewports. */
 export function DiagramZoomSlider({ diagramIdentity, store }: DiagramZoomSliderProps) {
+    const theme = useTheme()
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'))
     const scale = useSyncExternalStore(
         store.subscribeViewportScale,
         store.getViewportScaleSnapshot,
@@ -32,6 +34,7 @@ export function DiagramZoomSlider({ diagramIdentity, store }: DiagramZoomSliderP
         if (typeof value !== 'number') throw new Error('Diagram zoom slider requires one numeric value')
         store.setViewportScale(value)
     }, [store])
+    if (isMobile) return null
 
     return (
         <Slider

@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
     DEFAULT_DIAGRAM_ZOOM,
     DIAGRAM_ZOOM_STEP,
@@ -29,6 +29,11 @@ class ZoomStoreStub extends EventTarget implements DiagramZoomStore {
         return () => this.removeEventListener('changed', listener)
     }
 }
+
+afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+})
 
 describe('DiagramZoomSlider', () => {
     it('sets direct values and exposes identity, bounds, and percentage text', () => {
@@ -68,5 +73,21 @@ describe('DiagramZoomSlider', () => {
         fireEvent.change(slider, { target: { value: String(MAXIMUM_DIAGRAM_ZOOM) } })
         await user.keyboard('{ArrowRight}')
         expect(store.getViewportScaleSnapshot()).toBe(MAXIMUM_DIAGRAM_ZOOM)
+    })
+
+    it('hides Current and New sliders below the mobile breakpoint', () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+            addEventListener: vi.fn(),
+            matches: query.includes('max-width'),
+            removeEventListener: vi.fn(),
+        })))
+        const store = new ZoomStoreStub()
+        render(<>
+            <DiagramZoomSlider diagramIdentity="Current" store={store} />
+            <DiagramZoomSlider diagramIdentity="New" store={store} />
+        </>)
+
+        expect(screen.queryByRole('slider', { name: 'Current diagram zoom' })).toBeNull()
+        expect(screen.queryByRole('slider', { name: 'New diagram zoom' })).toBeNull()
     })
 })

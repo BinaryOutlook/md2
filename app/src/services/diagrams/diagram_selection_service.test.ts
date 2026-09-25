@@ -22,7 +22,12 @@ const edge: DiagramSelectionIdentity = { objectId: 'orders-store', objectKind: '
 const group: DiagramSelectionIdentity = { objectId: 'backend', objectKind: 'group' }
 
 class DiagramSourceStub extends EventTarget {
-    private source: DiagramViewSourceSnapshot | null = { diagram, record }
+    private source: DiagramViewSourceSnapshot | null
+
+    constructor(sourceDiagram: DiagramData = diagram) {
+        super()
+        this.source = { diagram: sourceDiagram, record }
+    }
 
     getSourceSnapshot = () => this.source
 
@@ -50,6 +55,7 @@ function createRectangleHarness() {
     }
     const groupBoxes = { backend: { height: 20, width: 20, x: 50, y: 50 } }
     const geometry = {
+        getEdgeControlPointSnapshot: () => null,
         getEdgeRouteSnapshot: (edgeId: string) => (
             edgeId === 'orders-store' ? [{ x: 0, y: 40 }, { x: 80, y: 40 }] : []
         ),
@@ -65,6 +71,21 @@ function createRectangleHarness() {
     session.bindProject(project)
     session.start()
 
+    return { selection, session }
+}
+
+function createCurvedRectangleHarness() {
+    const source = new DiagramSourceStub({ ...diagram, meta: { ...diagram.meta, type: 'mindmap' } })
+    const session = new DiagramEditSessionService(source)
+    session.bindProject(project)
+    session.start()
+    const geometry = {
+        getEdgeControlPointSnapshot: () => ({ x: 40, y: 100 }),
+        getEdgeRouteSnapshot: () => [{ x: 0, y: 0 }, { x: 80, y: 0 }],
+        getGroupGeometryFieldSnapshot: () => null,
+        getNodeGeometryFieldSnapshot: () => null,
+    }
+    const selection = new DiagramSelectionService(session, geometry)
     return { selection, session }
 }
 
@@ -276,6 +297,19 @@ describe('DiagramSelectionService', () => {
         session.setActiveTool('node:component')
         expect(selection.getRectangleSnapshot()).toBeNull()
         expect(selection.getSelectionSnapshot()).toBe(selectionSnapshot)
+    })
+
+    it('selects visible mindmap curve when its straight chord misses the rectangle', () => {
+        const { selection, session } = createCurvedRectangleHarness()
+        selection.beginRectangleSelection({ x: 35, y: 45 })
+        selection.completeRectangleSelection({ x: 45, y: 55 })
+
+        expect(selection.getSelectionSnapshot()).toEqual([edge])
+        expect(session.getDirtySnapshot()).toBe(false)
+
+        selection.beginRectangleSelection({ x: 45, y: 55 })
+        selection.completeRectangleSelection({ x: 35, y: 45 })
+        expect(selection.getSelectionSnapshot()).toEqual([edge])
     })
 
     it('rejects non-finite rectangle coordinates and ignores completion without a start', () => {

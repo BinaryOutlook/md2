@@ -279,4 +279,19 @@ describe('EditableDiagram direct selection', () => {
         expect(screen.queryByTestId('diagram-selection-rectangle')).toBeNull()
         expect(selection.getSelectionSnapshot()).toBe(selectionSnapshot)
     })
+
+    it('selects with one touch pointer through a translucent overlay', () => {
+        const { selection, session } = renderHarness()
+        const surface = screen.getByLabelText('New diagram')
+
+        fireEvent.pointerDown(surface, { button: 0, clientX: 0, clientY: 0, isPrimary: true, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerMove(surface, { clientX: 800, clientY: 400, pointerId: 1, pointerType: 'touch' })
+        const rectangle = screen.getByTestId('diagram-selection-rectangle')
+        expect(rectangle).toHaveStyle({ pointerEvents: 'none' })
+        expect(getComputedStyle(rectangle).backgroundColor).toMatch(/rgba\(.+, 0\.12\)/u)
+        fireEvent.pointerUp(surface, { clientX: 800, clientY: 400, pointerId: 1, pointerType: 'touch' })
+
+        expect(selection.getSelectionSnapshot()).toHaveLength(4)
+        expect(session.getDirtySnapshot()).toBe(false)
+    })
 })

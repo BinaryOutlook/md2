@@ -1,4 +1,5 @@
 import { Box } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { useSyncExternalStore } from 'react';
 import {
     diagramSelectionService,
@@ -23,7 +24,7 @@ export function DiagramSelectionRectangle({selection = diagramSelectionService}:
             aria-hidden="true"
             data-testid="diagram-selection-rectangle"
             sx={{
-                bgcolor: 'custom.primaryBg',
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
                 border: '1px dashed',
                 borderColor: 'primary.main',
                 boxSizing: 'border-box',

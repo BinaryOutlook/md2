@@ -175,4 +175,30 @@ describe('DiagramCurrentViewport', () => {
         expect(scroller.scrollTop).toBe(110)
         expect(service.getViewportScaleSnapshot()).toBe(2)
     })
+
+    it('pinches around the touch midpoint, cancels pan, and respects zoom limits', () => {
+        const { scroller, service } = renderCurrentViewport()
+        scroller.scrollLeft = 120
+        scroller.scrollTop = 160
+        vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({ bottom: 420, height: 400, left: 10, right: 410, toJSON: () => ({}), top: 20, width: 400, x: 10, y: 20 })
+
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 110, clientY: 120, isPrimary: true, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerMove(scroller, { clientX: 90, clientY: 120, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerMove(scroller, { clientX: 110, clientY: 120, pointerId: 1, pointerType: 'touch' })
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 210, clientY: 120, isPrimary: false, pointerId: 2, pointerType: 'touch' })
+        expect(scroller.scrollLeft).toBe(120)
+
+        fireEvent.pointerMove(scroller, { clientX: 260, clientY: 120, pointerId: 2, pointerType: 'touch' })
+        expect(service.getViewportScaleSnapshot()).toBeCloseTo(1.5)
+        expect(scroller.scrollLeft).toBeCloseTo(230)
+        expect(scroller.scrollTop).toBeCloseTo(290)
+
+        fireEvent.pointerMove(scroller, { clientX: 910, clientY: 120, pointerId: 2, pointerType: 'touch' })
+        expect(service.getViewportScaleSnapshot()).toBe(MAXIMUM_DIAGRAM_ZOOM)
+        fireEvent.pointerMove(scroller, { clientX: 111, clientY: 120, pointerId: 2, pointerType: 'touch' })
+        expect(service.getViewportScaleSnapshot()).toBe(MINIMUM_DIAGRAM_ZOOM)
+        fireEvent.pointerUp(scroller, { pointerId: 2, pointerType: 'touch' })
+        fireEvent.pointerUp(scroller, { pointerId: 1, pointerType: 'touch' })
+        expect(service.getViewportScaleSnapshot()).toBe(MINIMUM_DIAGRAM_ZOOM)
+    })
 })

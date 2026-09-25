@@ -1,0 +1,21 @@
+- generic [ref=f3e3]:
+  - generic "Current diagram scroller" [ref=f3e6]:
+    - generic [ref=f3e8]:
+      - generic [ref=f3e9]:
+        - heading "Touch check" [level=6] [ref=f3e10]
+        - paragraph [ref=f3e11]: Touch check
+      - generic "Touch check diagram" [ref=f3e12]:
+        - img "Diagram connections" [ref=f3e13]
+        - button "Item" [ref=f3e14] [cursor=pointer]:
+          - paragraph [ref=f3e17]: Item
+  - generic "New diagram scroller" [ref=f3e19]:
+    - generic "New diagram editor" [ref=f3e21]:
+      - generic [ref=f3e22]:
+        - textbox "Diagram title" [ref=f3e25]: Touch check
+        - textbox "Diagram subtitle" [ref=f3e28]: Touch check
+      - generic "New diagram" [ref=f3e29]:
+        - img "New diagram connections"
+        - button "Item" [ref=f3e30] [cursor=pointer]
+        - generic:
+          - textbox "Edit Item label" [ref=f3e35]: Item
+          - button "Details for Item" [ref=f3e36] [cursor=pointer]

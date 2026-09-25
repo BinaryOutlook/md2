@@ -11,6 +11,7 @@ import { diagramGeometryService, type DiagramGeometryService } from './diagram_g
 import {
     diagramRectangleBetween,
     diagramRectangleIntersectsBox,
+    diagramRectangleIntersectsQuadraticCurve,
     diagramRectangleIntersectsRoute,
     type DiagramPoint,
     type DiagramRectangle,
@@ -36,6 +37,7 @@ type DiagramSelectionSession = Pick<
     | 'getNodeSnapshot'
     | 'getNodeIdsSnapshot'
     | 'getSessionSnapshot'
+    | 'getMetadataFieldSnapshot'
     | 'getActiveToolSnapshot'
     | 'removeObjects'
     | 'subscribeActiveTool'
@@ -45,7 +47,7 @@ type DiagramSelectionSession = Pick<
 
 type DiagramSelectionGeometry = Pick<
     DiagramGeometryService,
-    'getEdgeRouteSnapshot' | 'getGroupGeometryFieldSnapshot' | 'getNodeGeometryFieldSnapshot'
+    'getEdgeControlPointSnapshot' | 'getEdgeRouteSnapshot' | 'getGroupGeometryFieldSnapshot' | 'getNodeGeometryFieldSnapshot'
 >
 
 function selectionKey({ objectId, objectKind }: DiagramSelectionIdentity) {
@@ -250,8 +252,15 @@ export class DiagramSelectionService extends EventTarget {
                 identities.push({ objectId: nodeId, objectKind: 'node' })
             }
         }
+        const isMindmap = this.session.getMetadataFieldSnapshot('type') === 'mindmap'
         for (const edgeId of this.session.getEdgeIdsSnapshot()) {
-            if (diagramRectangleIntersectsRoute(rectangle, this.geometry.getEdgeRouteSnapshot(edgeId))) {
+            const route = this.geometry.getEdgeRouteSnapshot(edgeId)
+            const controlPoint = isMindmap ? this.geometry.getEdgeControlPointSnapshot(edgeId) : null
+            const intersects = isMindmap
+                ? !!controlPoint && route.length === 2
+                    && diagramRectangleIntersectsQuadraticCurve(rectangle, route[0], controlPoint, route[1])
+                : diagramRectangleIntersectsRoute(rectangle, route)
+            if (intersects) {
                 identities.push({ objectId: edgeId, objectKind: 'edge' })
             }
         }

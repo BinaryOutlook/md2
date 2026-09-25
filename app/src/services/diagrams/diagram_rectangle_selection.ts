@@ -84,3 +84,51 @@ export function diagramRectangleIntersectsRoute(
         rectangleSegments.some(([start, end]) => segmentsIntersect(points[index], point, start, end))
     ));
 }
+
+function quadraticCoordinate(start: number, control: number, end: number, progress: number) {
+    const remaining = 1 - progress;
+    return remaining * remaining * start + 2 * remaining * progress * control + progress * progress * end;
+}
+
+function quadraticBoundaryCrossings(start: number, control: number, end: number, boundary: number) {
+    const quadratic = start - 2 * control + end;
+    const linear = 2 * (control - start);
+    const constant = start - boundary;
+    if (quadratic === 0) return linear === 0 ? [] : [-constant / linear];
+
+    const discriminant = linear * linear - 4 * quadratic * constant;
+    if (discriminant < 0) return [];
+    const root = Math.sqrt(discriminant);
+    return [(-linear - root) / (2 * quadratic), (-linear + root) / (2 * quadratic)];
+}
+
+/** Tests the visible quadratic curve, including a tangency with the rectangle boundary. */
+export function diagramRectangleIntersectsQuadraticCurve(
+    rectangle: DiagramRectangle,
+    start: DiagramPoint,
+    control: DiagramPoint,
+    end: DiagramPoint,
+) {
+    if (pointInsideRectangle(start, rectangle) || pointInsideRectangle(end, rectangle)) return true;
+
+    const left = rectangle.x;
+    const right = left + rectangle.width;
+    const top = rectangle.y;
+    const bottom = top + rectangle.height;
+    const crossesVertical = [left, right].some((boundary) => (
+        quadraticBoundaryCrossings(start.x, control.x, end.x, boundary).some((progress) => {
+            if (progress < 0 || progress > 1) return false;
+            const y = quadraticCoordinate(start.y, control.y, end.y, progress);
+            return y >= top && y <= bottom;
+        })
+    ));
+    if (crossesVertical) return true;
+
+    return [top, bottom].some((boundary) => (
+        quadraticBoundaryCrossings(start.y, control.y, end.y, boundary).some((progress) => {
+            if (progress < 0 || progress > 1) return false;
+            const x = quadraticCoordinate(start.x, control.x, end.x, progress);
+            return x >= left && x <= right;
+        })
+    ));
+}

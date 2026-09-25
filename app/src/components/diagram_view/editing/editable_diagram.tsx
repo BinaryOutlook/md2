@@ -1,5 +1,5 @@
 import { Box } from '@mui/material'
-import { useRef, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import {
     diagramEditSessionService, type DiagramEditSessionService,
 } from '../../../services/diagrams/diagram_edit_session_service'
@@ -100,6 +100,7 @@ export function EditableDiagramSurface({
     const width = useDiagramSurfaceField('width', geometry)
     const activeTool = useActiveDiagramTool(session)
     const activePointerIdRef = useRef<number | null>(null)
+    const surfaceRef = useRef<HTMLDivElement>(null)
     const suppressNextClickRef = useRef(false)
     const diagramPointFromPointer = (event: PointerEvent<HTMLDivElement>) => {
         const bounds = event.currentTarget.getBoundingClientRect()
@@ -108,7 +109,9 @@ export function EditableDiagramSurface({
         return convertClientToDiagramCoordinates(event, viewportMetrics, session.getViewportScaleSnapshot()).diagramPoint
     }
     const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0 || session.getActiveToolSnapshot() !== 'select') return
+        if (activePointerIdRef.current !== null || event.button !== 0
+            || (event.pointerType === 'touch' && event.isPrimary === false)
+            || session.getActiveToolSnapshot() !== 'select') return
         if ((event.target as Element).closest('[data-diagram-id], [data-diagram-resize-handle]')) return
 
         event.preventDefault()
@@ -152,6 +155,11 @@ export function EditableDiagramSurface({
 
         selection.clear()
     }
+    const handleLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
+        if (activePointerIdRef.current !== event.pointerId) return
+        selection.cancelRectangleSelection()
+        activePointerIdRef.current = null
+    }
     const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
         const objectElement = (event.target as Element).closest<HTMLElement>('[data-diagram-id][data-diagram-kind]')
         const objectKind = objectElement?.dataset.diagramKind
@@ -173,16 +181,35 @@ export function EditableDiagramSurface({
         })
     }
 
+    useEffect(() => {
+        if (activeTool === 'select') return
+        const pointerId = activePointerIdRef.current
+        if (pointerId === null) return
+        selection.cancelRectangleSelection()
+        if (surfaceRef.current?.hasPointerCapture?.(pointerId)) surfaceRef.current.releasePointerCapture(pointerId)
+        activePointerIdRef.current = null
+    }, [activeTool, selection])
+
+    useEffect(() => selection.subscribeRectangle(() => {
+        if (selection.getRectangleSnapshot()) return
+        const pointerId = activePointerIdRef.current
+        if (pointerId === null) return
+        activePointerIdRef.current = null
+        if (surfaceRef.current?.hasPointerCapture?.(pointerId)) surfaceRef.current.releasePointerCapture(pointerId)
+    }), [selection])
+
     return (
         <Box
             aria-label="New diagram"
             onClick={handleClick}
             onContextMenu={handleContextMenu}
+            onLostPointerCapture={handleLostPointerCapture}
             onPointerCancel={handlePointerCancel}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            sx={{ height, position: 'relative', touchAction: activeTool === 'select' ? 'auto' : 'none', width }}
+            ref={surfaceRef}
+            sx={{ height, position: 'relative', touchAction: 'none', width }}
         >
             {children}
         </Box>

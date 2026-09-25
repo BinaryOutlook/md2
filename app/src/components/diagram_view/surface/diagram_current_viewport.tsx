@@ -14,6 +14,7 @@ import { usePreserveDiagramZoomCenter } from './use_preserve_diagram_zoom_center
 import { useDiagramSurfacePan } from '../editing/use_diagram_surface_pan'
 import { diagramEmphasisService, type DiagramEmphasisService } from '../../../services/diagrams/diagram_emphasis_service'
 import { DiagramEmphasisExitButton } from './diagram_emphasis_exit_button'
+import { useDiagramPinchZoom } from './use_diagram_pinch_zoom'
 
 /** Pans only from empty diagram background, so node, edge, and group activation keeps working. */
 function isEmptyDiagramBackground(target: EventTarget | null) {
@@ -49,13 +50,15 @@ export function DiagramCurrentViewport(props: DiagramCurrentViewportProps) {
         service.getViewportScaleSnapshot,
         service.getViewportScaleSnapshot,
     )
-    usePreserveDiagramZoomCenter(scrollerRef, scale)
     useDiagramCtrlWheelZoom(scrollerRef, service)
     const canStartPan = useCallback(
         (event: ReactPointerEvent<HTMLElement>) => isEmptyDiagramBackground(event.target),
         [],
     )
     const pan = useDiagramSurfacePan(scrollerRef, { canStartPan })
+    const cancelActiveGesture = useCallback(() => { pan.cancelPan() }, [pan])
+    const pinch = useDiagramPinchZoom(scrollerRef, service, cancelActiveGesture)
+    usePreserveDiagramZoomCenter(scrollerRef, scale, pinch.anchorRef)
     const handleWindowKeyDown = useCallback((event: KeyboardEvent) => {
         if (event.defaultPrevented || event.key !== 'Escape') return
         if (pan.cancelPan()) {
@@ -68,11 +71,12 @@ export function DiagramCurrentViewport(props: DiagramCurrentViewportProps) {
         emphasis.clear()
     }, [emphasis, pan])
     const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-        if (!pan.consumeSuppressedClick()) return
+        const pinchSuppressed = pinch.consumeSuppressedClick()
+        if (!pinchSuppressed && !pan.consumeSuppressedClick()) return
 
         event.preventDefault()
         event.stopPropagation()
-    }, [pan])
+    }, [pan, pinch])
     const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => { pan.beginPan(event) }, [pan])
     const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => { pan.updatePan(event) }, [pan])
     const handlePointerUp = useCallback(() => { pan.completePan() }, [pan])
@@ -89,12 +93,16 @@ export function DiagramCurrentViewport(props: DiagramCurrentViewportProps) {
             <Box
                 aria-label="Current diagram scroller"
                 onClickCapture={handleClickCapture}
+                onPointerCancelCapture={pinch.endPointerCapture}
                 onPointerCancel={handlePointerCancel}
+                onPointerDownCapture={pinch.handlePointerDownCapture}
                 onPointerDown={handlePointerDown}
+                onPointerMoveCapture={pinch.handlePointerMoveCapture}
                 onPointerMove={handlePointerMove}
+                onPointerUpCapture={pinch.endPointerCapture}
                 onPointerUp={handlePointerUp}
                 ref={scrollerRef}
-                sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', p: 2 }}
+                sx={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'auto', p: 2, touchAction: 'pan-x pan-y' }}
             >
                 <Box data-testid="current-diagram-zoom-surface" sx={{ transformOrigin: 'top left', zoom: scale }}>
                     <CurrentDiagram data={data} emphasis={emphasis} onContextMenu={onContextMenu} onSelect={onSelect} service={service} />

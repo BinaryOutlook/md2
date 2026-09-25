@@ -26,6 +26,7 @@ class DiagramSourceStub extends EventTarget {
 }
 
 const geometryStub = {
+    getEdgeControlPointSnapshot: () => null,
     getEdgeRouteSnapshot: () => [],
     getGroupGeometryFieldSnapshot: () => null,
     getNodeGeometryFieldSnapshot: () => null,
