@@ -3,7 +3,7 @@ author:
 id: J_56
 internalId: da8a9e63-eeee-4911-a83c-5f1f9a38d911
 title: diagram improvements 3
-status: ready
+status: ready for implementation
 owner: 
 affects:
 agents:
