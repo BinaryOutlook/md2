@@ -453,20 +453,28 @@
           "sequence": 32,
           "timestamp": "2026-09-25T15:06:51.696Z",
           "type": "agentQuestion"
+        },
+        {
+          "content": "claude-question-0: connect button should not open the 'open project folder' it should not be visible when not running in electron (so when remote\nclaude-question-1: Repo view, both modes (Recommended)",
+          "id": "agent-turn-968b279f-e949-4a8d-9476-d5c518fad64d-answer-32",
+          "kind": "message",
+          "role": "user",
+          "sequence": 33,
+          "timestamp": "2026-09-25T15:13:09.637Z"
         }
       ],
       "hasExplicitTitle": true,
       "id": "agent-cf975ccc-a3e0-4a7f-a13c-c76a22763f53",
       "providerSessions": [],
       "startedAt": "2026-09-25T15:06:06.281Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 11049,
           "toolMs": 17650
         },
         "elapsedMs": 45415,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-25T15:13:09.637Z"
       },
       "title": "complete",
       "usageSchemaVersion": 1,
