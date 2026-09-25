@@ -171,14 +171,15 @@ describe('MainWindow', () => {
 
     it('shows the spinner while the open workflow loads a project', async () => {
         const opened = createDeferred<null>()
-        vi.spyOn(projectSessionService, 'configureRemote').mockImplementation(() => undefined)
+        const repository = { branch: 'main', id: 'octo/demo', owner: 'octo', repository: 'demo' }
+        vi.spyOn(projectSessionService, 'findGithubRepositoryBranches').mockResolvedValue({ branches: [], repository })
         vi.spyOn(projectSessionService, 'openProject').mockReturnValue(opened.promise)
         renderWindow()
 
         let opening: Promise<void> = Promise.resolve()
         act(() => {
-            projectOpenFlowService.show({ source: 'remote' })
-            opening = projectOpenFlowService.submit({source: 'remote', endpoint: 'https://remote.example', rootPath: '/project', branch: 'main'})
+            projectOpenFlowService.show({ source: 'personal' })
+            opening = projectOpenFlowService.submit({ source: 'personal', owner: 'octo', repository: 'demo', branch: 'main' })
         })
 
         expect(screen.getByRole('status', { name: 'Loading project' })).toBeInTheDocument()

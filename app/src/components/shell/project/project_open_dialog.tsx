@@ -1,4 +1,5 @@
 import {
+    Alert,
     Button,
     Dialog,
     DialogActions,
@@ -27,7 +28,6 @@ import {
     canBrowseProjectFolders,
     isDesktopProjectMode,
     projectOpenFlowService,
-    savedRemoteProjectEndpoint,
     type ProjectOpenRequest,
     type ProjectOpenSource,
 } from '../../../services/project/project_open_flow_service'
@@ -68,7 +68,7 @@ function projectKind(source: ProjectOpenSource): ProjectKind {
     return source === 'personal' || source === 'public' ? 'repository' : 'folder'
 }
 
-/** Project open dialog for GitHub, local and remote project sources. */
+/** Project open dialog for GitHub and local project sources. */
 export function ProjectOpenDialog() {
     const branches = useProjectOpenValue('branches')
     const repositories = useProjectOpenValue('repositories')
@@ -77,16 +77,13 @@ export function ProjectOpenDialog() {
     const selectedSource = useProjectOpenValue('source')
     const folderValuesState = useProjectOpenValue('folderValues')
     const isGithubAuthenticated = useProjectOpenValue('isGithubAuthenticated')
-    const flow = projectOpenFlowService.getSnapshot()
     const { isLoading, pendingGithubConflictProject } = useProjectSession()
     const isDesktopMode = isDesktopProjectMode()
     const [githubOwner, setGithubOwner] = useState('')
     const [githubRepository, setGithubRepository] = useState('')
     const [localRootPath, setLocalRootPath] = useState('')
     const [repositoryFilter, setRepositoryFilter] = useState('')
-    const [remoteEndpoint, setRemoteEndpoint] = useState(savedRemoteProjectEndpoint)
-    const [remoteRootPath, setRemoteRootPath] = useState(flow.remoteProject?.rootPath ?? '')
-    const [selectedBranch, setSelectedBranch] = useState(flow.remoteProject?.branch ?? '')
+    const [selectedBranch, setSelectedBranch] = useState('')
     const [selectedRepositoryId, setSelectedRepositoryId] = useState('')
     const defaultSource: ProjectOpenSource = isDesktopMode ? 'local' : 'personal'
     const source = selectedSource ?? defaultSource
@@ -99,18 +96,17 @@ export function ProjectOpenDialog() {
     const folderValuesMessage = projectFolderSetup ? folderValuesError(folderValues) : null
     const filteredRepositories = repositories.filter((repository) => repositoryMatchesFilter(repository, repositoryFilter))
     const filteredRepositoryIds = filteredRepositories.map(({ id }) => id)
-    const isRemoteComplete = remoteEndpoint.length > 0 && remoteRootPath.length > 0
     const branchNames = branches.map(({ name }) => name)
     const branchSelectValue = selectValueExists(branchNames, selectedBranch) ? selectedBranch : ''
     const repositorySelectValue = selectValueExists(filteredRepositoryIds, selectedRepositoryId) ? selectedRepositoryId : ''
     const selectedProjectKind = projectKind(source)
     const isLocalRootPathEmpty = localRootPath.trim().length === 0
+    const isRepositoryView = !projectOpenResolution && selectedProjectKind === 'repository'
     const isGithubOpenDisabled = (source === 'personal' || source === 'public')
         && (!isGithubAuthenticated || githubOwner.length === 0 || githubRepository.length === 0)
-    const isRemoteOpenDisabled = source === 'remote' && !isRemoteComplete
     const isLocalOpenDisabled = source === 'local' && isLocalRootPathEmpty
     const isOpenDisabled = isLoading || folderValuesMessage !== null
-        || (!projectFolderSetup && (isGithubOpenDisabled || isRemoteOpenDisabled || isLocalOpenDisabled))
+        || (!projectFolderSetup && (isGithubOpenDisabled || isLocalOpenDisabled))
 
     const handleChooseLocalFolderClick = () => {
         void projectOpenFlowService.chooseLocalFolder()
@@ -124,7 +120,7 @@ export function ProjectOpenDialog() {
     const handleProjectKindChange = (_event: MouseEvent<HTMLElement>, nextProjectKind: ProjectKind | null) => {
         if (!nextProjectKind) return
 
-        projectOpenFlowService.setSource(nextProjectKind === 'repository' ? 'personal' : isDesktopMode ? 'local' : 'remote')
+        projectOpenFlowService.setSource(nextProjectKind === 'repository' ? 'personal' : 'local')
         setSelectedBranch('')
         setSelectedRepositoryId('')
     }
@@ -145,14 +141,6 @@ export function ProjectOpenDialog() {
 
     const handleGithubRepositoryChange = (event: ChangeEvent<HTMLInputElement>) => {
         setGithubRepository(event.target.value)
-    }
-
-    const handleRemoteEndpointChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setRemoteEndpoint(event.target.value)
-    }
-
-    const handleRemoteRootPathChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setRemoteRootPath(event.target.value)
     }
 
     const handleLocalRootPathChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -184,10 +172,6 @@ export function ProjectOpenDialog() {
 
         setSelectedRepositoryId(result.repository.id)
         setSelectedBranch(result.branch)
-    }
-
-    const handleLoadRemoteBranchesClick = async () => {
-        setSelectedBranch(await projectOpenFlowService.loadRemoteBranches(remoteEndpoint, remoteRootPath, selectedBranch))
     }
 
     const handleRecentLocalRepositorySelect = (rootPath: string) => {
@@ -225,15 +209,7 @@ export function ProjectOpenDialog() {
 
             return
         }
-        if (source === 'local') {
-            const request: ProjectOpenRequest = { source, rootPath: localRootPath }
-            void projectOpenFlowService.submit(request)
-
-            return
-        }
-        if (!isRemoteComplete) return
-
-        const request: ProjectOpenRequest = {source, endpoint: remoteEndpoint, rootPath: remoteRootPath, branch: selectedBranch}
+        const request: ProjectOpenRequest = { source, rootPath: localRootPath }
         void projectOpenFlowService.submit(request)
     }
 
@@ -263,7 +239,7 @@ export function ProjectOpenDialog() {
                             </Button>
                         </Stack>
                     ) : null}
-                    {!projectOpenResolution ? (
+                    {isDesktopMode && !projectOpenResolution ? (
                         <ToggleButtonGroup
                             aria-label="Project kind"
                             exclusive
@@ -299,6 +275,16 @@ export function ProjectOpenDialog() {
                             </ToggleButton>
                         </ToggleButtonGroup>
                     ) : null}
+                    {!isDesktopMode && !projectOpenResolution ? (
+                        <Alert severity="info">
+                            Local folders can&apos;t be opened from the browser. Use the md2 desktop app to open a local folder.
+                        </Alert>
+                    ) : null}
+                    {isRepositoryView && !isGithubAuthenticated ? (
+                        <Alert severity="warning">
+                            Repositories can&apos;t be loaded without a GitHub access token. Sign in with a personal access token first.
+                        </Alert>
+                    ) : null}
                     {!projectOpenResolution && (source === 'personal' || source === 'public') ? (
                         <>
                             <FormControl size="small">
@@ -329,19 +315,6 @@ export function ProjectOpenDialog() {
                             </Stack>
                             <Button disabled={!isGithubAuthenticated || githubOwner.length === 0 || githubRepository.length === 0 || isLoading} onClick={handleLoadManualBranchesClick} variant="outlined">
                                 Load branches
-                            </Button>
-                        </>
-                    ) : !projectOpenResolution && source === 'remote' ? (
-                        <>
-                            <TextField label="Endpoint" onChange={handleRemoteEndpointChange} size="small" value={remoteEndpoint} />
-                            <TextField label="Project root path" onChange={handleRemoteRootPathChange} size="small" value={remoteRootPath} />
-                            <TextField label="Branch" onChange={handleBranchTextChange} placeholder="main" size="small" value={selectedBranch} />
-                            <Button
-                                disabled={!isRemoteComplete || isLoading}
-                                onClick={handleLoadRemoteBranchesClick}
-                                variant="outlined"
-                            >
-                                Load remote branches
                             </Button>
                         </>
                     ) : !projectOpenResolution && source === 'local' ? (

@@ -92,19 +92,17 @@ describe('ProjectOpenFlowService', () => {
         expect(service.getSnapshot().folderValues).toEqual(values)
     })
 
-    it('configures the remote endpoint and passes the chosen branch to the project session', async () => {
+    it('opens a GitHub repository on the chosen branch and closes the flow', async () => {
         const service = new ProjectOpenFlowService()
-        const configureRemote = vi.spyOn(projectSessionService, 'configureRemote').mockImplementation(() => undefined)
+        const repository = { branch: 'main', id: 'octo/demo', owner: 'octo', repository: 'demo' }
+        vi.spyOn(projectSessionService, 'findGithubRepositoryBranches').mockResolvedValue({ branches: [{ name: 'develop' }], repository })
         const openProject = vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(null)
-        service.setAuthentication('token', false)
-        service.show({ source: 'remote' })
+        service.setAuthentication('token', true)
+        service.show({ source: 'personal' })
 
-        await service.submit({ source: 'remote', endpoint: 'https://remote.example', rootPath: '/project', branch: 'develop' })
+        await service.submit({ source: 'personal', owner: 'octo', repository: 'demo', branch: 'develop' })
 
-        expect(configureRemote).toHaveBeenCalledWith('https://remote.example')
-        expect(openProject).toHaveBeenCalledWith(
-            'remote', { branch: 'develop', id: '/project', rootPath: '/project' }, 'token',
-        )
+        expect(openProject).toHaveBeenCalledWith('github', { ...repository, branch: 'develop' }, 'token')
         expect(service.getPhase()).toBe('closed')
     })
 })

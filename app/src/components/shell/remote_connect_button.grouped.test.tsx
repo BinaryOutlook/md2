@@ -9,6 +9,7 @@ import { deriveAutoConnectSettings } from '../../data/remote_connect_string'
 import { projectSessionService } from '../../services/project/project_session_service'
 import { remoteConnectionService } from '../../services/data/remote_connection_service'
 import { configService } from '../../services/config/config_service'
+import { dialogService } from '../../services/dialog_service'
 import { OPEN_PROJECT_DIALOG_EVENT, type OpenProjectDialogDetail } from '../project_command_events'
 import { RemoteConnectButton } from './remote_connect_button'
 
@@ -136,8 +137,9 @@ describe('RemoteConnectButton', () => {
         expect(dialog.queryByLabelText('Token')).not.toBeInTheDocument()
     })
 
-    it('persists the settings, shows connected state and opens the remote project flow on confirm', async () => {
+    it('persists the settings, shows connected state and informs that the remote server has no open project', async () => {
         installWebSocket('error', 'open')
+        const info = vi.spyOn(dialogService, 'info')
         const openProjectListener = vi.fn()
         window.addEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
         render(<RemoteConnectButton />)
@@ -146,9 +148,8 @@ describe('RemoteConnectButton', () => {
 
         expect(await screen.findByRole('button', { name: 'Connected' })).toBeInTheDocument()
         expect(window.localStorage.getItem(REMOTE_CONTROL_ENDPOINT_KEY)).toBe('ws://192.168.0.10:1234')
-        await waitFor(() => expect(openProjectListener).toHaveBeenCalledOnce())
-        const detail = (openProjectListener.mock.calls[0][0] as CustomEvent<OpenProjectDialogDetail>).detail
-        expect(detail).toEqual({ source: 'remote' })
+        await waitFor(() => expect(info).toHaveBeenCalledWith('The remote md2 server has no open project. Open a project in the md2 desktop app first.'))
+        expect(openProjectListener).not.toHaveBeenCalled()
         window.removeEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
     })
 
@@ -198,15 +199,15 @@ describe('RemoteConnectButton', () => {
         expect(await screen.findByRole('button', { name: 'Connected' })).toBeInTheDocument()
         await waitFor(() => expect(openProjectListener).toHaveBeenCalledOnce())
         const detail = (openProjectListener.mock.calls[0][0] as CustomEvent<OpenProjectDialogDetail>).detail
-        expect(detail).toEqual({ project: activeProject, resolution, source: 'remote' })
+        expect(detail).toEqual({ resolution, source: undefined })
         window.removeEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
     })
 
-    it('falls back to the open-project dialog, prefilled with the active project, when loading it fails', async () => {
+    it('does not open the open-project dialog when loading the active project fails', async () => {
         installWebSocket('error', 'open')
         const activeProject = { branch: 'main', id: '/repo', rootPath: '/repo' }
         MockWebSocket.activeProject = activeProject
-        vi.spyOn(projectSessionService, 'openProject').mockRejectedValue(new Error('load failed'))
+        const openProjectSpy = vi.spyOn(projectSessionService, 'openProject').mockRejectedValue(new Error('load failed'))
         const openProjectListener = vi.fn()
         window.addEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
         render(<RemoteConnectButton />)
@@ -214,9 +215,8 @@ describe('RemoteConnectButton', () => {
         await connectTo('ws://192.168.0.10:1234')
 
         expect(await screen.findByRole('button', { name: 'Connected' })).toBeInTheDocument()
-        await waitFor(() => expect(openProjectListener).toHaveBeenCalledOnce())
-        const detail = (openProjectListener.mock.calls[0][0] as CustomEvent<OpenProjectDialogDetail>).detail
-        expect(detail).toEqual({ project: activeProject, source: 'remote' })
+        await waitFor(() => expect(openProjectSpy).toHaveBeenCalledOnce())
+        expect(openProjectListener).not.toHaveBeenCalled()
         window.removeEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
     })
 
@@ -232,15 +232,13 @@ describe('RemoteConnectButton', () => {
 
     it('auto-connects from same origin without a URL fragment', async () => {
         installWebSocket('open')
-        const openProjectListener = vi.fn()
-        window.addEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
+        const info = vi.spyOn(dialogService, 'info')
         render(<RemoteConnectButton />)
 
         expect(await screen.findByRole('button', { name: 'Connected' })).toBeInTheDocument()
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
         expect(window.localStorage.getItem(REMOTE_CONTROL_ENDPOINT_KEY)).toBe(`ws://${window.location.host}`)
-        await waitFor(() => expect(openProjectListener).toHaveBeenCalledOnce())
-        window.removeEventListener(OPEN_PROJECT_DIALOG_EVENT, openProjectListener)
+        await waitFor(() => expect(info).toHaveBeenCalledOnce())
     })
 
     it('reuses startup connection when same-origin auto-connect mounts', async () => {

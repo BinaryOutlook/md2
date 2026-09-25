@@ -5,7 +5,6 @@ import {
     recordRecentLocalRepository,
     removeRecentLocalRepository,
 } from '../../data/recent_local_repositories'
-import { tryReadRemoteControlConnection } from '../../data/remote_control_connection'
 import { toProjectFolderRelativePath, toRepositoryRelativePath } from '../../data/repository_relative_path'
 import type { StorageType } from '../../data/project_session'
 import { dialogService } from '../dialog_service'
@@ -17,18 +16,16 @@ import {
     type ProjectOpenResolution,
 } from './project_session_service'
 
-export type ProjectOpenSource = 'local' | 'personal' | 'public' | 'remote'
+export type ProjectOpenSource = 'local' | 'personal' | 'public'
 export type ProjectOpenPhase = 'closed' | 'selecting' | 'loading' | 'folder-setup'
 
 export type ProjectOpenRequest =
     | { source: 'local'; rootPath: string }
     | { source: 'personal' | 'public'; owner: string; repository: string; branch: string }
-    | { source: 'remote'; endpoint: string; rootPath: string; branch: string }
 
 export interface ProjectOpenFlowState {
     phase: ProjectOpenPhase
     source: ProjectOpenSource | null
-    remoteProject: ProjectReference | null
     resolution: ProjectOpenResolution | null
     folderValues: ProjectFolderValues | null
     branches: BranchReference[]
@@ -39,7 +36,6 @@ export interface ProjectOpenFlowState {
 
 interface ProjectOpenEntry {
     source?: ProjectOpenSource | null
-    project?: ProjectReference | null
     resolution?: ProjectOpenResolution | null
 }
 
@@ -63,10 +59,6 @@ export function canBrowseProjectFolders() {
     return !!getElectronDataBridge()?.selectProjectSubFolder
 }
 
-export function savedRemoteProjectEndpoint() {
-    return tryReadRemoteControlConnection()?.endpoint ?? ''
-}
-
 /** Owns the open-project workflow and its dialog-facing data across dialog mounts. */
 export class ProjectOpenFlowService extends EventTarget {
     private accessToken: string | null = null
@@ -75,7 +67,6 @@ export class ProjectOpenFlowService extends EventTarget {
     private state: ProjectOpenFlowState = {
         phase: 'closed',
         source: null,
-        remoteProject: null,
         resolution: null,
         folderValues: null,
         branches: [],
@@ -112,8 +103,7 @@ export class ProjectOpenFlowService extends EventTarget {
         this.pendingLocalRootPath = null
         this.update({
             phase: folderSetup ? 'folder-setup' : 'selecting',
-            source: entry.source ?? (resolution?.storageType === 'remote' ? 'remote' : null),
-            remoteProject: entry.project ?? (resolution?.storageType === 'remote' ? resolution.project : null),
+            source: entry.source ?? null,
             resolution,
             folderValues: folderSetup?.values ?? null,
             branches: [],
@@ -175,23 +165,6 @@ export class ProjectOpenFlowService extends EventTarget {
         }
     }
 
-    async loadRemoteBranches(endpoint: string, rootPath: string, branch: string) {
-        if (rootPath.length === 0) return ''
-
-        const project = { branch: branch || 'main', id: rootPath, rootPath }
-        projectSessionService.configureRemote(endpoint)
-        try {
-            const branches = await projectSessionService.listBranches('remote', project, this.accessToken)
-            this.update({ branches })
-
-            return branchValue(branches, project.branch)
-        } catch {
-            this.update({ branches: [] })
-
-            return ''
-        }
-    }
-
     async chooseLocalFolder() {
         const bridge = getElectronDataBridge()
         if (!bridge) {
@@ -212,9 +185,6 @@ export class ProjectOpenFlowService extends EventTarget {
         if (request.source === 'local' && request.rootPath.trim().length === 0) {
             throw new Error('Local project root path is required')
         }
-        if (request.source === 'remote' && (!request.endpoint || !request.rootPath)) {
-            throw new Error('Remote endpoint and project root path are required')
-        }
         if ((request.source === 'personal' || request.source === 'public') && (!request.owner || !request.repository)) {
             throw new Error('GitHub owner and repository are required')
         }
@@ -222,18 +192,6 @@ export class ProjectOpenFlowService extends EventTarget {
         this.update({ phase: 'loading' })
         if (request.source === 'local') {
             await this.openLocalPath(request.rootPath)
-
-            return
-        }
-        if (request.source === 'remote') {
-            const project = { branch: request.branch || 'main', id: request.rootPath, rootPath: request.rootPath }
-            try {
-                projectSessionService.configureRemote(request.endpoint)
-                await this.openResolvedProject('remote', project)
-            } catch (error) {
-                dialogService.error(error, { fallbackMessage: 'Remote project could not be opened' })
-                this.update({ phase: 'closed' })
-            }
 
             return
         }

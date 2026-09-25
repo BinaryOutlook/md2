@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ElectronDataBridge } from '../../../data/electron_data_bridge'
 import { RECENT_LOCAL_REPOSITORIES_STORAGE_KEY } from '../../../data/recent_local_repositories'
-import { configureRemoteControlConnection, REMOTE_CONTROL_ENDPOINT_KEY } from '../../../data/remote_control_connection'
+import { REMOTE_CONTROL_ENDPOINT_KEY } from '../../../data/remote_control_connection'
 import { projectSessionService, type ProjectOpenResolution } from '../../../services/project/project_session_service'
 import { projectOpenFlowService, type ProjectOpenSource } from '../../../services/project/project_open_flow_service'
 import { applicationStorage } from '../../../services/storage/application_storage'
@@ -18,7 +18,6 @@ const REPOSITORY = { branch: 'main', id: 'octo/demo', owner: 'octo', repository:
 interface DialogOptions {
     accessToken?: string | null
     initialSource?: ProjectOpenSource
-    initialRemoteProject?: typeof LOCAL_PROJECT
     initialProjectOpenResolution?: ProjectOpenResolution
     isGithubAuthenticated?: boolean
 }
@@ -34,7 +33,6 @@ function renderDialog(options: DialogOptions = {}) {
     projectOpenFlowService.setAuthentication(options.accessToken ?? 'token', options.isGithubAuthenticated ?? true)
     projectOpenFlowService.show({
         source: options.initialSource,
-        project: options.initialRemoteProject,
         resolution: options.initialProjectOpenResolution,
     })
     return render(<ProjectOpenDialogHost />, { wrapper: AppThemeProvider })
@@ -96,8 +94,9 @@ describe('ProjectOpenDialog', () => {
 
     it('shows repository sources in browser mode and folder sources in desktop mode', () => {
         const { unmount } = renderDialog()
-        expect(within(screen.getByRole('group', { name: 'Project kind' })).getByRole('button', { name: 'Repository' }))
-            .toHaveAttribute('aria-pressed', 'true')
+        expect(screen.queryByRole('group', { name: 'Project kind' })).toBeNull()
+        expect(screen.getByRole('combobox', { name: 'Repository access' })).toBeInTheDocument()
+        expect(screen.getByText(/Local folders can't be opened from the browser/)).toBeInTheDocument()
         unmount()
 
         setDesktopBridge()
@@ -105,6 +104,27 @@ describe('ProjectOpenDialog', () => {
         expect(within(screen.getByRole('group', { name: 'Project kind' })).getByRole('button', { name: 'Folder' }))
             .toHaveAttribute('aria-pressed', 'true')
         expect(screen.getByLabelText('Local repository folder')).toBeInTheDocument()
+        expect(screen.queryByText(/Local folders can't be opened from the browser/)).toBeNull()
+    })
+
+    it('warns that repositories need a GitHub access token until authenticated', async () => {
+        renderDialog({ accessToken: null, initialSource: 'personal', isGithubAuthenticated: false })
+        expect(screen.getByText(/Repositories can't be loaded without a GitHub access token/)).toBeInTheDocument()
+
+        await userEvent.click(screen.getByRole('combobox', { name: 'Repository access' }))
+        await userEvent.click(screen.getByRole('option', { name: 'Public' }))
+        expect(screen.getByText('Public repository')).toBeInTheDocument()
+        expect(screen.getByText(/Repositories can't be loaded without a GitHub access token/)).toBeInTheDocument()
+
+        act(() => projectOpenFlowService.setAuthentication('token', true))
+        expect(screen.queryByText(/Repositories can't be loaded without a GitHub access token/)).toBeNull()
+    })
+
+    it('does not warn about a missing GitHub access token for local folders', () => {
+        setDesktopBridge()
+        renderDialog({ accessToken: null, isGithubAuthenticated: false })
+
+        expect(screen.queryByText(/Repositories can't be loaded without a GitHub access token/)).toBeNull()
     })
 
     it('loads branches for a selected personal repository and opens that branch', async () => {
@@ -227,34 +247,6 @@ describe('ProjectOpenDialog', () => {
         fireEvent.doubleClick(screen.getByText('C:/recent'))
         await waitFor(() => expect(openProject).toHaveBeenCalledOnce())
         expect(resolveProject).toHaveBeenCalledWith({ branch: '', id: 'C:/recent', rootPath: 'C:/recent' })
-    })
-
-    it('prefills the endpoint, project path, and branch when opening an active remote project', () => {
-        configureRemoteControlConnection({ endpoint: 'https://remote.example' })
-        renderDialog({
-            initialRemoteProject: { branch: 'develop', id: '/work/project', rootPath: '/work/project' },
-            initialSource: 'remote',
-        })
-
-        expect(screen.getByRole('textbox', { name: 'Endpoint' })).toHaveValue('https://remote.example')
-        expect(screen.getByRole('textbox', { name: 'Project root path' })).toHaveValue('/work/project')
-        expect(screen.getByRole('textbox', { name: 'Branch' })).toHaveValue('develop')
-    })
-
-    it('loads and opens a remote project using its selected branch', async () => {
-        const configureRemote = vi.spyOn(projectSessionService, 'configureRemote').mockImplementation(() => undefined)
-        const listBranches = vi.spyOn(projectSessionService, 'listBranches').mockResolvedValue([{ name: 'develop' }])
-        const openProject = vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(null)
-        renderDialog({ initialSource: 'remote', isGithubAuthenticated: false })
-        await userEvent.type(screen.getByRole('textbox', { name: 'Endpoint' }), 'https://remote.example')
-        await userEvent.type(screen.getByRole('textbox', { name: 'Project root path' }), '/work/project')
-        await userEvent.clear(screen.getByRole('textbox', { name: 'Branch' }))
-        await userEvent.type(screen.getByRole('textbox', { name: 'Branch' }), 'develop')
-        fireEvent.click(screen.getByRole('button', { name: 'Load remote branches' }))
-        await waitFor(() => expect(listBranches).toHaveBeenCalledWith('remote', {branch: 'develop', id: '/work/project', rootPath: '/work/project'}, 'token'))
-        fireEvent.click(screen.getByRole('button', { name: 'Open' }))
-        await waitFor(() => expect(openProject).toHaveBeenCalledWith('remote', {branch: 'develop', id: '/work/project', rootPath: '/work/project'}, 'token'))
-        expect(configureRemote).toHaveBeenCalledWith('https://remote.example')
     })
 
     it('shows folder setup, validates the values, and confirms through the project session', async () => {
