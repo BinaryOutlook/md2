@@ -22,4 +22,4 @@ policy:
 * the label is editable, this is good, but it is not centered and has a white background. it should be transparent and centered.
 * the breadcrumbs are overlapping the title&#x20;
   * the div with aria label 'new diagram editor', give it a padding-bottom of 16px
-* on 'node details' popup, 'cancel' button does not work
+* on 'node details' popup, 'cancel' and 'button does not work
