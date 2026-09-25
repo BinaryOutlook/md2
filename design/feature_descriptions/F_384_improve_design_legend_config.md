@@ -3,7 +3,7 @@ author:
 id: F_384
 internalId: ef0c0e83-0726-460e-8331-55e6ef3e2ab9
 title: Improve design legend config
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -12,6 +12,21 @@ policy:
 after: c0629e16-a603-4a9c-b19d-5c7cac9772ec
 branch: f_384_improve_design_legend_config
 worktree: 2
+changedFiles:
+  - app/src/components/config/markdown_section_editor.tsx
+  - app/src/components/config/markdown_style_group.tsx
+  - app/src/components/diagram_view/formatting/diagram_connection_formatting_popover.test.tsx
+  - app/src/components/diagram_view/formatting/diagram_connection_formatting_popover.tsx
+  - app/src/components/diagram_view/formatting/diagram_font_family_select.tsx
+  - app/src/components/diagram_view/formatting/diagram_formatting_popover.test.tsx
+  - app/src/components/diagram_view/formatting/diagram_formatting_popover.tsx
+  - app/src/components/diagram_view/formatting/diagram_optional_formatting_fields.test.tsx
+  - app/src/components/diagram_view/formatting/optional_slider_field.tsx
+  - app/src/components/diagram_view/legend/diagram_session_legend_entries.test.tsx
+  - app/src/components/formatting_group.tsx
+  - app/src/components/optional_color_picker_field.tsx
+  - app/src/theme/theme_config.node.test.ts
+  - app/src/theme/theme_config.ts
 ---
 See F\_376 where we impoved the design of the markdown config popup. We grouped, used proper controls...
 
