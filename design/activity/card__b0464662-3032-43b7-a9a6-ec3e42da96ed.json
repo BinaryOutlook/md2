@@ -5366,7 +5366,7 @@
           "kind": "message",
           "role": "assistant",
           "sequence": 398,
-          "timestamp": "2026-09-25T09:20:16.092Z"
+          "timestamp": "2026-09-25T12:23:43.103Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -5376,19 +5376,19 @@
           "agent": "codex",
           "conversationId": "01a0d272-d8ad-71f1-9024-043c319be886",
           "createdAt": "2026-09-24T08:07:05.695Z",
-          "lastUsedAt": "2026-09-25T08:58:48.636Z",
-          "synchronizedThroughMessageId": "agent-turn-360c7eb1-f821-46da-84f3-367574e6c1ba-turn-1-assistant-2"
+          "lastUsedAt": "2026-09-25T09:20:16.092Z",
+          "synchronizedThroughMessageId": "agent-turn-360c7eb1-f821-46da-84f3-367574e6c1ba-turn-2-assistant-7"
         }
       ],
       "startedAt": "2026-09-24T08:05:36.285Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 696521,
           "toolMs": 578069
         },
-        "elapsedMs": 1353284,
-        "runningStartedAt": "2026-09-25T09:02:23.118Z"
+        "elapsedMs": 2426258,
+        "runningStartedAt": null
       },
       "title": "+",
       "usage": {
