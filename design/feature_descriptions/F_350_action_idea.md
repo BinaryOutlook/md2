@@ -10,6 +10,8 @@ agents:
   - design/activity/card__eb1707b3-15c4-4a42-b86e-db35fbfd9060.json
 policy:
 after: da8a9e63-eeee-4911-a83c-5f1f9a38d911
+branch: f_350_action_idea
+worktree: 1
 ---
 ## Goal
 
