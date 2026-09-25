@@ -10,8 +10,6 @@ agents:
   - design/activity/card__334525ff-6818-4450-8c04-b63d4c9886f1.json
 policy:
 after: cb27b171-7487-436d-ad9c-ed07ce7dd6f1
-branch: b_204_next_conversation_on_same_action_only_starts_if_previous_ended
-worktree: 1
 changedFiles:
   - app/src/components/actions/conversation/picker/action_conversation_picker.grouped.test.tsx
   - app/src/components/actions/conversation/picker/action_conversation_picker.tsx
