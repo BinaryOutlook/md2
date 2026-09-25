@@ -880,13 +880,50 @@
         "costUsd": 1.3206995999999995
       },
       "usageSchemaVersion": 1,
-      "viewed": true
+      "viewed": false
     }
   ],
   "origin": {
     "cardInternalId": "ef0c0e83-0726-460e-8331-55e6ef3e2ab9",
     "kind": "card"
   },
-  "records": [],
+  "records": [
+    {
+      "commits": [
+        {
+          "branch": "dev_main",
+          "commit": "2454290f5e0299b24e0e38bea1d1be9f1091b6ed",
+          "committedAt": "2026-09-25T19:55:28+02:00",
+          "deletions": 2,
+          "filePaths": [
+            "design/feature_descriptions/F_384_improve_design_legend_config.md"
+          ],
+          "filesChanged": 1,
+          "insertions": 72
+        }
+      ],
+      "completedAt": "2026-09-25T17:55:28.829Z",
+      "conversationIds": [
+        "agent-d39a852e-1653-46ef-bdc0-476eb7323a70"
+      ],
+      "details": {
+        "agent": "claude",
+        "model": "opus",
+        "permissionMode": "approve-for-me",
+        "thinkingLevel": "medium",
+        "type": "agent"
+      },
+      "runId": "action-7ea276ce-b958-4115-a3fb-4c65463f2699",
+      "origin": {
+        "cardInternalId": "ef0c0e83-0726-460e-8331-55e6ef3e2ab9",
+        "kind": "card"
+      },
+      "rootActionId": "5b88355d-f964-459a-bc67-6618650866ba",
+      "rootActionLabel": "complete",
+      "rootConversationId": "agent-d39a852e-1653-46ef-bdc0-476eb7323a70",
+      "startedAt": "2026-09-25T17:47:20.261Z",
+      "status": "completed"
+    }
+  ],
   "version": 5
 }
