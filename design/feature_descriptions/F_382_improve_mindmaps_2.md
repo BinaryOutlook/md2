@@ -3,7 +3,7 @@ author:
 id: F_382
 internalId: cb27b171-7487-436d-ad9c-ed07ce7dd6f1
 title: improve mindmaps 2
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -12,6 +12,26 @@ policy:
 after: 2775052a-2e84-4466-a320-155c8ec05bac
 branch: f_382_improve_mindmaps_2
 worktree: 3
+changedFiles:
+  - app/f382_touch_check.html
+  - app/f382_touch_check.tsx
+  - app/src/components/diagram_view/editing/diagram_selection_rectangle.tsx
+  - app/src/components/diagram_view/editing/editable_diagram.tsx
+  - app/src/components/diagram_view/editing/editable_diagram_selection.test.tsx
+  - app/src/components/diagram_view/surface/diagram_current_viewport.test.tsx
+  - app/src/components/diagram_view/surface/diagram_current_viewport.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_slider.test.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_slider.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_viewport.test.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_viewport.tsx
+  - app/src/components/diagram_view/surface/use_diagram_pinch_zoom.ts
+  - app/src/components/diagram_view/surface/use_preserve_diagram_zoom_center.ts
+  - app/src/services/diagrams/diagram_node_placement_service.test.ts
+  - app/src/services/diagrams/diagram_rectangle_selection.test.ts
+  - app/src/services/diagrams/diagram_rectangle_selection.ts
+  - app/src/services/diagrams/diagram_selection_service.test.ts
+  - app/src/services/diagrams/diagram_selection_service.ts
+  - f382_browser_check.js
 ---
 Things that need to be fixed/improved on the diagram editing in general and mind maps in particular:
 
