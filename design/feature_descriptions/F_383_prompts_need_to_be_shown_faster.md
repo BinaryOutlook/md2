@@ -3,7 +3,7 @@ author:
 id: F_383
 internalId: c0629e16-a603-4a9c-b19d-5c7cac9772ec
 title: Prompts need to be shown faster
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -12,6 +12,22 @@ policy:
 after: eb1707b3-15c4-4a42-b86e-db35fbfd9060
 branch: f_383_prompts_need_to_be_shown_faster
 worktree: 3
+changedFiles:
+  - app/src/components/actions/conversation/action_conversation_chat.grouped.test.tsx
+  - app/src/components/actions/conversation/state/action_conversation_store.node.test.ts
+  - app/src/components/actions/conversation/state/action_conversation_store.ts
+  - app/src/components/actions/conversation/transcript/action_conversation_chatlog_tracker.node.test.ts
+  - app/src/components/actions/conversation/transcript/action_conversation_chatlog_tracker.ts
+  - app/src/components/actions/conversation/transcript/action_conversation_pending_submissions.tsx
+  - app/src/components/actions/conversation/transcript/action_conversation_queued_prompts.tsx
+  - app/src/components/actions/conversation/transcript/action_conversation_rendering.test.tsx
+  - app/src/components/actions/conversation/transcript/action_conversation_transcript.tsx
+  - app/src/components/actions/conversation/transcript/action_pending_submission_row.tsx
+  - app/src/components/actions/conversation/transcript/action_queued_prompt.tsx
+  - app/src/components/actions/run/popup/action_popup.test.tsx
+  - app/src/components/actions/run/popup/action_popup_content.tsx
+  - app/src/components/actions/run/popup/action_popup_operations.node.test.ts
+  - app/src/components/actions/run/popup/action_popup_operations.ts
 ---
 We generated a squence diagram (json file), of the action popup and its interactions. There, you can see that input sent by the user to the agent, first goes to backend and back to frontend before it is shown in the chatlog. This is too late.
 
