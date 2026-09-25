@@ -11,6 +11,8 @@ agents:
 policy:
 after: 64876822-b48e-450e-b7c7-68fd8d2ba6bd
 changedFiles:
+  - app/src/components/color_picker_button.tsx
+  - app/src/components/color_picker_field.tsx
   - app/src/components/config/markdown_style_preview.tsx
 ---
 On the config dialog, makdown tab, we allow configuration of markdown style. This is currently split in preview and edit. This makes no sense. When user clicks on item in preview,  show popup with config. Drop edit section below.
