@@ -10,6 +10,8 @@ agents:
   - design/activity/card__ef0c0e83-0726-460e-8331-55e6ef3e2ab9.json
 policy:
 after: c0629e16-a603-4a9c-b19d-5c7cac9772ec
+branch: f_384_improve_design_legend_config
+worktree: 2
 ---
 See F\_376 where we impoved the design of the markdown config popup. We grouped, used proper controls...
 
