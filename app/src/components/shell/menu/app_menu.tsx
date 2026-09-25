@@ -25,6 +25,7 @@ import { workspaceNavigationService } from '../../../services/project/workspace_
 import { actionService } from '../../../services/actions/action_service'
 import { dialogService } from '../../../services/dialog_service'
 import { diagramEditSessionService } from '../../../services/diagrams/diagram_edit_session_service'
+import { diagramSaveService } from '../../../services/diagrams/diagram_save_service'
 import type { EmptyDiagramChoice } from '../../../services/diagrams/empty_diagram_factory'
 import { diagramViewService } from '../../../services/diagrams/diagram_view_service'
 import { sentryImportService } from '../../../services/sentry/sentry_import_service'
@@ -254,13 +255,12 @@ export function AppMenu(props: AppMenuProps) {
     }
 
     const handleCreateDiagram = async (choice: EmptyDiagramChoice) => {
-        if (diagramEditSessionService.getDirtySnapshot()) {
-            dialogService.warning('Save or discard current diagram changes before creating another diagram.', {title: 'Unsaved diagram changes'})
-
-            return
-        }
         setIsCreatingDiagram(true)
         try {
+            if (diagramEditSessionService.getDirtySnapshot()) {
+                await diagramSaveService.save()
+                if (diagramEditSessionService.getDirtySnapshot()) throw new Error('Diagram changed while saving; retry creation')
+            }
             await diagramViewService.open()
             const record = await diagramViewService.createEmptyDiagram(choice)
             workspaceViewService.setViewMode('diagrams')

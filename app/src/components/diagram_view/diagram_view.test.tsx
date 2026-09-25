@@ -756,6 +756,17 @@ describe('DiagramView', () => {
         expect(screen.getByRole('slider', { name: 'Current diagram zoom' })).toBeInTheDocument()
     })
 
+    it('shows the edited title in the current breadcrumb before persistence', () => {
+        const service = createService()
+        const { editSession, geometry } = createEditHarness()
+        render(<DiagramView editSession={editSession} geometry={geometry} service={service} />)
+
+        act(() => { editSession.setMetadataField('title', 'New title') })
+
+        expect(within(screen.getByLabelText('Diagram breadcrumb')).getByRole('button', { name: 'New title' })).toBeInTheDocument()
+        expect(service.getIndexSnapshot().diagrams['child-1'].label).toBe('Orders')
+    })
+
     it.each(['horizontal', 'vertical', 'tabbed'] as const)(
         'shows only editable New after restored creation with prior %s comparison selection',
         (comparisonMode) => {

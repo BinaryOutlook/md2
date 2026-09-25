@@ -99,6 +99,7 @@ import {
 } from './diagram_edit_events'
 import { diagramLegendEntryKey } from './diagram_legend_entry_key'
 const DIRTY_CHANGED_EVENT = 'dirtyChanged'
+const MODEL_MUTATION_EVENT = 'diagram:modelMutation'
 const ORIGINAL_DIAGRAM_CHANGED_EVENT = 'originalDiagramChanged'
 const SESSION_CHANGED_EVENT = 'sessionChanged'
 const ACTIVE_TOOL_CHANGED_EVENT = 'activeToolChanged'
@@ -368,6 +369,9 @@ export class DiagramEditSessionService extends EventTarget {
 
     subscribeDirty = (listener: () => void) => this.subscribe(DIRTY_CHANGED_EVENT, listener)
 
+    /** Signals a committed model edit so persistence can queue the current session data. */
+    subscribeModelMutation = (listener: () => void) => this.subscribe(MODEL_MUTATION_EVENT, listener)
+
     subscribeActiveTool = (listener: () => void) => this.subscribe(ACTIVE_TOOL_CHANGED_EVENT, listener)
 
     subscribeLastSelectedCreationTool = (listener: () => void) => (
@@ -545,6 +549,9 @@ export class DiagramEditSessionService extends EventTarget {
         this.groupNodeIdsById = new Map(editableDiagram.groups.map((group) => [group.id, Object.freeze([...group.nodeIds])]))
         this.savedRecord = savedRecord
         this.publish({ dirty: false, editableDiagram, originalDiagram, session })
+        if (creationSourceDiagramId !== null && editableDiagram.meta.type === 'mindmap' && editableDiagram.nodes.length === 0) {
+            this.setLastSelectedCreationTool('node:root')
+        }
         this.changeRegistry.publishPendingEvents(this, diagramChangeFieldChangedEvent)
     }
 
@@ -1675,6 +1682,7 @@ export class DiagramEditSessionService extends EventTarget {
         for (const { detail, eventName } of events) {
             this.dispatchEvent(new CustomEvent<DiagramMembershipChangeDetail>(eventName, { detail }))
         }
+        this.dispatchEvent(new Event(MODEL_MUTATION_EVENT))
     }
 
     private finishFieldChange(

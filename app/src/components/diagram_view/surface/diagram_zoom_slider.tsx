@@ -50,7 +50,7 @@ export function DiagramZoomSlider({ diagramIdentity, store }: DiagramZoomSliderP
                 left: 2,
                 position: 'absolute',
                 width: ZOOM_SLIDER_WIDTH,
-                zIndex: 'tooltip',
+                zIndex: 1,
             }}
             value={scale}
             valueLabelDisplay="auto"

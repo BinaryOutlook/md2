@@ -85,7 +85,7 @@ export function DiagramView({
     const rootActionIds = useMemo(() => rootActions.map(({ id }) => id), [rootActions])
     const rootDiagrams = index.activePath.length === 0 ? service.getRootDiagrams() : []
     const diagramTitle = (record: DiagramRecord) => {
-        const label = actions.find(({ id }) => id === record.actionId)?.label ?? record.label
+        const label = record.sourceDiagramId ? record.label : actions.find(({ id }) => id === record.actionId)?.label ?? record.label
 
         return record.createdAt ? `${label} - ${new Date(record.createdAt).toLocaleString()}` : label
     }
@@ -218,7 +218,7 @@ export function DiagramView({
                     session={editSessionSnapshot ? editSession : null}
                 />
             ) : null}
-            <DiagramBreadcrumbBar service={service} />
+            <DiagramBreadcrumbBar service={service} session={editSession} />
         </Box>
     )
 

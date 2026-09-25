@@ -26,6 +26,10 @@ class DiagramSourceStub extends EventTarget {
 }
 
 const geometryStub = {
+    subscribeEdgeGeometryField: () => () => {},
+    subscribeGroupGeometryField: () => () => {},
+    subscribeNodeGeometryField: () => () => {},
+    subscribeGeometrySession: () => () => {},
     getEdgeControlPointSnapshot: () => null,
     getEdgeRouteSnapshot: () => [],
     getGroupGeometryFieldSnapshot: () => null,
@@ -127,16 +131,21 @@ describe('DiagramNodePlacementService', () => {
         expect(placement.getPreviewSnapshot()).toBeNull()
     })
 
-    it('switches to Select after placing the only allowed mindmap root', () => {
+    it('switches to Topic after placing the only allowed mindmap root', () => {
         const source = diagram('mindmap')
         source.nodes = []
         source.edges = []
-        const { placement, session } = createHarness(source)
+        const { createId, placement, session } = createHarness(source)
+        createId.mockReset().mockReturnValueOnce('root-one').mockReturnValueOnce('topic-one').mockReturnValueOnce('topic-two')
         placement.activate({ defaults: { height: 128, label: 'Root', role: 'focal', width: 128 }, kind: 'root' })
         placement.updatePreview({ x: 40, y: 40 })
 
-        expect(placement.place({ x: 40, y: 40 })).toBe('existing')
-        expect(session.getActiveToolSnapshot()).toBe('select')
+        expect(placement.place({ x: 40, y: 40 })).toBe('root-one')
+        expect(session.getActiveToolSnapshot()).toBe('node:topic')
+        expect(placement.isNodeKindAvailable('root')).toBe(false)
+        expect(placement.place({ x: 100, y: 100 })).toBe('topic-one')
+        expect(placement.place({ x: 200, y: 200 })).toBe('topic-two')
+        expect(session.getActiveToolSnapshot()).toBe('node:topic')
     })
 
     it.each(['architecture', 'dependency'] as const)(

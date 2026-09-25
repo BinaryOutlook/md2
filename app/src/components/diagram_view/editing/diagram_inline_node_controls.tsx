@@ -68,9 +68,10 @@ export function DiagramInlineNodeControls({ node, onOpenDetails, session }: {
                 size="small"
                 slotProps={{ htmlInput: { 'aria-label': `Edit ${node.label} label` } }}
                 sx={{
-                    left: 8, maxWidth: 'calc(100% - 48px)', pointerEvents: 'auto', position: 'absolute',
-                    top: node.height / 2 - 18,
-                    '& .MuiInputBase-root': { bgcolor: 'background.paper' },
+                    left: '50%', maxWidth: 'calc(100% - 48px)', pointerEvents: 'auto', position: 'absolute',
+                    top: '50%', transform: 'translate(-50%, -50%)',
+                    '& .MuiInputBase-root': { bgcolor: 'transparent' },
+                    '& .MuiInputBase-input': { textAlign: 'center' },
                 }}
                 value={draft}
                 variant="standard"

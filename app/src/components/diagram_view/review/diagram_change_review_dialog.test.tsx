@@ -116,12 +116,21 @@ describe('DiagramChangeReviewDialog', () => {
         const review = new DiagramChangeReviewService(session, { replace: vi.fn(() => true) })
         review.open()
         const savedRecord = { ...record, id: 'copy', path: 'design/diagrams/overview-edited-copy.json', sourceDiagramId: record.id }
-        let finishSave: (saved: DiagramRecord) => void = () => undefined
-        const pendingSave = new Promise<DiagramRecord>((resolve) => { finishSave = resolve })
+        let finishSave: () => void = () => undefined
+        const pendingSave = new Promise<void>((resolve) => { finishSave = resolve })
+        let persist: ((record: DiagramRecord) => void) | null = null
         const persistence = {
-            saveEditedDiagramCopy: vi.fn<(
-                request: SaveEditedDiagramCopyRequest,
-            ) => Promise<DiagramRecord>>(async () => pendingSave),
+            queueEditedDiagramCopy: vi.fn<(
+                request: SaveEditedDiagramCopyRequest, onPersisted: (record: DiagramRecord) => void,
+            ) => Promise<DiagramRecord>>(async (_request, onPersisted) => {
+                    persist = onPersisted
+
+                    return savedRecord
+                }),
+            flushQueuedDiagrams: vi.fn(async () => {
+                await pendingSave
+                persist?.(savedRecord)
+            }),
         }
         const save = new DiagramSaveService(session, persistence)
 
@@ -130,7 +139,7 @@ describe('DiagramChangeReviewDialog', () => {
 
         expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled()
         expect(screen.getByRole('dialog', { name: 'Review diagram changes' })).toBeInTheDocument()
-        finishSave(savedRecord)
+        finishSave()
         await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Review diagram changes' })).not.toBeInTheDocument())
         expect(session.getSavedRecordSnapshot()).toBe(savedRecord)
         expect(session.getDirtySnapshot()).toBe(false)
@@ -142,9 +151,10 @@ describe('DiagramChangeReviewDialog', () => {
         const review = new DiagramChangeReviewService(session, { replace: vi.fn(() => true) })
         review.open()
         const persistence = {
-            saveEditedDiagramCopy: vi.fn<(
-                request: SaveEditedDiagramCopyRequest,
-            ) => Promise<DiagramRecord>>(async () => { throw new Error('commit failed') }),
+            queueEditedDiagramCopy: vi.fn<(
+                request: SaveEditedDiagramCopyRequest, onPersisted: (record: DiagramRecord) => void,
+            ) => Promise<DiagramRecord>>(async () => ({ ...record, id: 'copy', sourceDiagramId: record.id })),
+            flushQueuedDiagrams: vi.fn(async () => { throw new Error('commit failed') }),
         }
         const save = new DiagramSaveService(session, persistence)
         const error = vi.spyOn(dialogService, 'error').mockReturnValue({critical: false, id: 1, message: 'commit failed', severity: 'error', title: 'Error'})

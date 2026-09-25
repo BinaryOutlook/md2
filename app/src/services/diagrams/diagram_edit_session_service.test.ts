@@ -535,6 +535,19 @@ describe('DiagramEditSessionService', () => {
         expect(service.getSessionSnapshot()).toEqual({ sourceDiagramId: 'next' })
     })
 
+    it('preselects Root for a new empty mindmap and leaves other sessions unchanged', () => {
+        const { service, sourceService } = createHarness()
+        const emptyMindmap = { ...mindmapDiagram, edges: [], nodes: [] }
+        sourceService.setSource({ diagram: emptyMindmap, record: firstRecord })
+
+        service.startCreation(firstRecord.id)
+        expect(service.getLastSelectedCreationToolSnapshot()).toBe('node:root')
+        expect(service.getActiveToolSnapshot()).toBe('select')
+
+        service.start()
+        expect(service.getLastSelectedCreationToolSnapshot()).toBeNull()
+    })
+
     it('restores saved creation content and copy target as a clean session', () => {
         const { service } = createHarness()
         const savedDiagram = structuredClone(diagram)

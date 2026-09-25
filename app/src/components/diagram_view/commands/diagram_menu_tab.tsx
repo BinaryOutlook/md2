@@ -21,6 +21,7 @@ import { DiagramLegendButton } from '../legend/diagram_legend_button';
 import { DiagramMenuToolButton } from '../creation_tools/diagram_menu_tool_button';
 import { DiagramMetadataButton } from './diagram_metadata_button';
 import { DiagramPasteButton } from './diagram_paste_button';
+import { DiagramSaveButton } from './diagram_save_button';
 import { DiagramFormattingControls } from '../formatting/diagram_formatting_controls';
 
 /** Diagram app-menu content. Changing diagram state rerenders only subscribed leaf controls. */
@@ -61,6 +62,7 @@ export function DiagramMenuTab({
                     </Section>
                     <Divider flexItem orientation="vertical" sx={{ my: 1.5 }} />
                     <Section label="Review and metadata">
+                        <DiagramSaveButton session={session} />
                         <DiagramChangeReviewButton />
                         <DiagramMetadataButton />
                         <DiagramLegendButton />

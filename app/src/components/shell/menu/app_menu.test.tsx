@@ -9,6 +9,7 @@ import { configService } from '../../../services/config/config_service'
 import { dataService } from '../../../services/data/data_service'
 import { dialogService } from '../../../services/dialog_service'
 import { diagramEditSessionService } from '../../../services/diagrams/diagram_edit_session_service'
+import { diagramSaveService } from '../../../services/diagrams/diagram_save_service'
 import { diagramViewService } from '../../../services/diagrams/diagram_view_service'
 import { workspaceNavigationService } from '../../../services/project/workspace_navigation_service'
 import { workspaceViewService } from '../../../services/project/workspace_view_service'
@@ -568,21 +569,41 @@ describe('AppMenu', () => {
         await waitFor(() => expect(document.activeElement).toBe(editor))
     })
 
-    it('blocks diagram creation before persistence when current edit session is dirty', async () => {
+    it('saves a dirty diagram before creating the next diagram', async () => {
         await activateLocalProject(createBridge())
         const open = vi.spyOn(diagramViewService, 'open').mockResolvedValue()
-        const createDiagram = vi.spyOn(diagramViewService, 'createEmptyDiagram')
-        vi.spyOn(diagramEditSessionService, 'getDirtySnapshot').mockReturnValue(true)
-        const warning = vi.spyOn(dialogService, 'warning')
+        const record = { actionId: 'user-created', createdAt: '2026-09-21T12:00:00.000Z', id: 'second', label: 'Entity', pendingImplementation: true, path: 'design/diagrams/entity.json' }
+        const createDiagram = vi.spyOn(diagramViewService, 'createEmptyDiagram').mockResolvedValue(record)
+        vi.spyOn(diagramEditSessionService, 'getDirtySnapshot').mockReturnValueOnce(true).mockReturnValue(false)
+        const save = vi.spyOn(diagramSaveService, 'save').mockResolvedValue(record)
+        const startEditing = vi.spyOn(diagramEditSessionService, 'startCreation').mockImplementation(() => undefined)
         renderMenu()
 
         fireEvent.click(screen.getByRole('button', { name: 'New diagram' }))
         fireEvent.click(screen.getByRole('menuitem', { name: 'Entity' }))
 
-        expect(warning).toHaveBeenCalledWith(
-            'Save or discard current diagram changes before creating another diagram.',
-            { title: 'Unsaved diagram changes' },
-        )
+        await waitFor(() => expect(createDiagram).toHaveBeenCalledOnce())
+        expect(save).toHaveBeenCalledOnce()
+        expect(open).toHaveBeenCalledOnce()
+        expect(startEditing).toHaveBeenCalledWith('second')
+    })
+
+    it('keeps the current diagram when saving before creation fails', async () => {
+        await activateLocalProject(createBridge())
+        const open = vi.spyOn(diagramViewService, 'open').mockResolvedValue()
+        const createDiagram = vi.spyOn(diagramViewService, 'createEmptyDiagram')
+        vi.spyOn(diagramEditSessionService, 'getDirtySnapshot').mockReturnValue(true)
+        vi.spyOn(diagramSaveService, 'save').mockRejectedValue(new Error('save failed'))
+        const reportError = vi.spyOn(dialogService, 'error')
+        renderMenu()
+
+        fireEvent.click(screen.getByRole('button', { name: 'New diagram' }))
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Entity' }))
+
+        await waitFor(() => expect(reportError).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'save failed' }),
+            { fallbackMessage: 'Diagram could not be created' },
+        ))
         expect(open).not.toHaveBeenCalled()
         expect(createDiagram).not.toHaveBeenCalled()
     })

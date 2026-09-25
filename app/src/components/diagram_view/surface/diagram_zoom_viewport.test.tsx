@@ -113,6 +113,7 @@ describe('DiagramZoomViewport', () => {
         })
         scroller.scrollLeft = 20
         scroller.scrollTop = 12
+        vi.spyOn(screen.getByTestId('new-diagram-zoom-surface'), 'getBoundingClientRect').mockReturnValue({bottom: 408, height: 400, left: -10, right: 790, toJSON: () => ({}), top: 8, width: 800, x: -10, y: 8})
         const scale = session.getViewportScaleSnapshot()
         const sourceX = geometry.getNodeGeometryFieldSnapshot('orders', 'x') as number
         const sourceY = geometry.getNodeGeometryFieldSnapshot('orders', 'y') as number
@@ -179,8 +180,27 @@ describe('DiagramZoomViewport', () => {
         fireEvent.keyDown(window, { key: 'Escape' })
 
         expect(session.getEdgeIdsSnapshot()).toEqual(['orders-store'])
-        expect(session.getActiveToolSnapshot()).toBe('edge:connection')
+        expect(session.getActiveToolSnapshot()).toBe('select')
         expect(drawing.getPreviewSnapshot()).toBeNull()
+    })
+
+    it('leaves Add active when an inline field or dialog owns Escape', async () => {
+        const { geometry, placement, selection, session } = createHarness()
+        const details = new DiagramObjectDetailsService()
+        const user = userEvent.setup()
+        render(<DiagramZoomViewport details={details} geometry={geometry} placement={placement} selection={selection} session={session} />)
+        act(() => {
+            placement.activate({ defaults: { height: 72, label: 'New component', role: 'focal', width: 160 }, kind: 'component' })
+        })
+
+        const title = screen.getByRole('textbox', { name: 'Diagram title' })
+        title.focus()
+        await user.keyboard('{Escape}')
+        expect(session.getActiveToolSnapshot()).toBe('node:component')
+
+        act(() => { details.open({ objectId: 'orders', objectKind: 'node' }) })
+        await user.keyboard('{Escape}')
+        expect(session.getActiveToolSnapshot()).toBe('node:component')
     })
 
     it('uses sequence lifelines to insert a message at the chosen row', () => {
@@ -224,9 +244,10 @@ describe('DiagramZoomViewport', () => {
         })
         scroller.scrollLeft = 20
         scroller.scrollTop = 12
+        vi.spyOn(screen.getByTestId('new-diagram-zoom-surface'), 'getBoundingClientRect').mockReturnValue({bottom: 416, height: 400, left: 6, right: 806, toJSON: () => ({}), top: 16, width: 800, x: 6, y: 16})
 
         fireEvent.pointerMove(scroller, { clientX: 100, clientY: 80, isPrimary: true, pointerId: 8 })
-        expect(screen.getByText('New component').closest('button')).toHaveStyle({ left: '116px', top: '76px' })
+        expect(screen.getByText('New component').closest('button')).toHaveStyle({ left: '100px', top: '68px' })
         expect(session.getNodeIdsSnapshot()).toEqual(['orders', 'store'])
 
         fireEvent.pointerDown(scroller, { button: 0, clientX: 100, clientY: 80, isPrimary: true, pointerId: 8 })
@@ -234,10 +255,39 @@ describe('DiagramZoomViewport', () => {
         fireEvent.click(scroller)
 
         const nodeId = session.getNodeIdsSnapshot()[2]
-        expect(session.getNodeSnapshot(nodeId)).toMatchObject({ kind: 'component', x: 116, y: 76 })
+        expect(session.getNodeSnapshot(nodeId)).toMatchObject({ kind: 'component', x: 100, y: 68 })
         expect(selection.getSelectionSnapshot()).toEqual([{ objectId: nodeId, objectKind: 'node' }])
         expect(session.getActiveToolSnapshot()).toBe('node:component')
         expect(screen.getByRole('button', { name: 'New component' })).not.toHaveAttribute('aria-disabled')
+    })
+
+    it('keeps Add preview at pointer when the New viewport scrolls', () => {
+        const { geometry, placement, selection, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} placement={placement} selection={selection} session={session} />)
+        const scroller = screen.getByLabelText('New diagram scroller')
+        const zoomSurface = screen.getByTestId('new-diagram-zoom-surface')
+        vi.spyOn(zoomSurface, 'getBoundingClientRect').mockImplementation(() => ({
+            bottom: 428 - scroller.scrollTop, height: 400, left: 26 - scroller.scrollLeft,
+            right: 826 - scroller.scrollLeft, toJSON: () => ({}), top: 28 - scroller.scrollTop,
+            width: 800, x: 26 - scroller.scrollLeft, y: 28 - scroller.scrollTop,
+        }))
+        act(() => {
+            session.setViewportScale(1.25)
+            placement.activate({ defaults: { height: 72, label: 'New component', role: 'focal', width: 160 }, kind: 'component' })
+        })
+
+        fireEvent.pointerMove(scroller, { clientX: 100, clientY: 80, isPrimary: true, pointerId: 18 })
+        expect(placement.getPreviewSnapshot()?.node).toMatchObject({ x: 60, y: 40 })
+
+        scroller.scrollLeft = 25
+        scroller.scrollTop = 20
+        fireEvent.scroll(scroller)
+        expect(placement.getPreviewSnapshot()?.node).toMatchObject({ x: 80, y: 56 })
+
+        fireEvent.pointerDown(scroller, { button: 0, clientX: 100, clientY: 80, isPrimary: true, pointerId: 18 })
+        fireEvent.pointerUp(scroller, { clientX: 100, clientY: 80, pointerId: 18 })
+        const nodeId = session.getNodeIdsSnapshot().at(-1) as string
+        expect(session.getNodeSnapshot(nodeId)).toMatchObject({ x: 80, y: 56 })
     })
 
     it('draws, labels, mounts, and selects one group through scrolled, zoomed New coordinates', async () => {
@@ -255,6 +305,7 @@ describe('DiagramZoomViewport', () => {
         vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({bottom: 420, height: 400, left: 10, right: 810, toJSON: () => ({}), top: 20, width: 800, x: 10, y: 20})
         scroller.scrollLeft = 40
         scroller.scrollTop = 20
+        vi.spyOn(screen.getByTestId('new-diagram-zoom-surface'), 'getBoundingClientRect').mockImplementation(() => ({bottom: 420 - scroller.scrollTop, height: 400, left: 10 - scroller.scrollLeft, right: 810 - scroller.scrollLeft, toJSON: () => ({}), top: 20 - scroller.scrollTop, width: 800, x: 10 - scroller.scrollLeft, y: 20 - scroller.scrollTop}))
         act(() => {
             session.setViewportScale(DEFAULT_DIAGRAM_ZOOM - DIAGRAM_ZOOM_STEP)
             groupDrawing.activate()
@@ -330,6 +381,31 @@ describe('DiagramZoomViewport', () => {
         expect(session.getNodeFieldSnapshot('orders', 'y')).toBe(y)
         expect(session.getChangeIdsSnapshot()).toEqual([])
         expect(movement.getMoveActiveSnapshot()).toBe(false)
+    })
+
+    it('lets Node details receive input while Add is active and keeps Cancel separate from Save', async () => {
+        const { geometry, placement, selection, session } = createHarness()
+        const details = new DiagramObjectDetailsService()
+        const user = userEvent.setup()
+        render(<DiagramZoomViewport details={details} geometry={geometry} placement={placement} selection={selection} session={session} />)
+        act(() => {
+            placement.activate({ defaults: { height: 72, label: 'New component', role: 'focal', width: 160 }, kind: 'component' })
+            details.open({ objectId: 'orders', objectKind: 'node' })
+        })
+
+        const label = screen.getByRole('textbox', { name: 'Label' })
+        await user.clear(label)
+        await user.type(label, 'Purchases')
+        await user.click(screen.getByRole('button', { name: 'Cancel' }))
+        expect(session.getNodeFieldSnapshot('orders', 'label')).toBe('Orders')
+        expect(session.getActiveToolSnapshot()).toBe('node:component')
+
+        act(() => { details.open({ objectId: 'orders', objectKind: 'node' }) })
+        await user.clear(screen.getByRole('textbox', { name: 'Label' }))
+        await user.type(screen.getByRole('textbox', { name: 'Label' }), 'Purchases')
+        await user.click(screen.getByRole('button', { name: 'Save' }))
+        expect(session.getNodeFieldSnapshot('orders', 'label')).toBe('Purchases')
+        expect(details.getTargetSnapshot()).toBeNull()
     })
 
     it('scales only rendered New content and preserves visible center', () => {

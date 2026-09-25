@@ -7,6 +7,8 @@ import { actionsForContext, diagramContext } from '../../../data/action_context'
 import { dialogService } from '../../../services/dialog_service';
 import type { DiagramRecord } from '../../../services/diagrams/diagram_index';
 import type { DiagramViewService } from '../../../services/diagrams/diagram_view_service';
+import { diagramEditSessionService, type DiagramEditSessionService } from '../../../services/diagrams/diagram_edit_session_service';
+import { useEditableDiagramMetadataField } from '../editing/use_editable_diagram';
 import { useActions } from '../../hooks/use_actions';
 
 const ROOT_DIAGRAM_CONTEXT = diagramContext('root');
@@ -16,17 +18,18 @@ function reportFailure(error: unknown, fallbackMessage: string) {
 }
 
 function diagramTitle(record: DiagramRecord, actions: ReturnType<typeof useActions>['actions']) {
-    const label = actions.find(({ id }) => id === record.actionId)?.label ?? record.label;
+    const label = record.sourceDiagramId ? record.label : actions.find(({ id }) => id === record.actionId)?.label ?? record.label;
 
     return record.createdAt ? `${label} - ${new Date(record.createdAt).toLocaleString()}` : label;
 }
 
 interface DiagramBreadcrumbBarProps {
     service: DiagramViewService;
+    session?: DiagramEditSessionService;
 }
 
 /** Overlay navigation and action controls for active diagram path. */
-export function DiagramBreadcrumbBar({ service }: DiagramBreadcrumbBarProps) {
+export function DiagramBreadcrumbBar({ service, session = diagramEditSessionService }: DiagramBreadcrumbBarProps) {
     const index = useSyncExternalStore(service.subscribeIndex, service.getIndexSnapshot, service.getIndexSnapshot);
     const rootMenu = useSyncExternalStore(
         service.subscribeRootMenu,
@@ -38,6 +41,8 @@ export function DiagramBreadcrumbBar({ service }: DiagramBreadcrumbBarProps) {
         service.getCurrentSelectedItemSnapshot,
         service.getCurrentSelectedItemSnapshot,
     );
+    const editSession = useSyncExternalStore(session.subscribeSession, session.getSessionSnapshot, session.getSessionSnapshot);
+    const draftTitle = useEditableDiagramMetadataField('title', session);
     const { actions } = useActions();
     const rootActions = useMemo(() => actionsForContext(actions, ROOT_DIAGRAM_CONTEXT), [actions]);
     const activeRecords = index.activePath.map((id) => index.diagrams[id]);
@@ -84,7 +89,7 @@ export function DiagramBreadcrumbBar({ service }: DiagramBreadcrumbBarProps) {
     return (
         <Box
             aria-label="Diagram breadcrumb bar"
-            sx={{ alignItems: 'center', display: 'flex', gap: 0.5, left: 1, maxWidth: 'calc(100% - 16px)', position: 'absolute', top: 1, zIndex: 4 }}
+            sx={{ alignItems: 'center', display: 'flex', gap: 0.5, left: 1, maxWidth: 'calc(100% - 16px)', position: 'absolute', top: 1, whiteSpace: 'nowrap', zIndex: 4 }}
         >
             <Tooltip title="Back">
                 <span>
@@ -108,7 +113,7 @@ export function DiagramBreadcrumbBar({ service }: DiagramBreadcrumbBarProps) {
                         size="small"
                         variant="text"
                     >
-                        {record.label}
+                        {editSession?.sourceDiagramId === record.id ? draftTitle : record.label}
                     </Button>
                 ) : (
                     <Button
@@ -118,7 +123,7 @@ export function DiagramBreadcrumbBar({ service }: DiagramBreadcrumbBarProps) {
                         size="small"
                         variant="text"
                     >
-                        {record.label}
+                        {editSession?.sourceDiagramId === record.id ? draftTitle : record.label}
                     </Button>
                 ))}
             </Breadcrumbs>

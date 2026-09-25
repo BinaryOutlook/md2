@@ -321,6 +321,22 @@ export class DataService extends EventTarget {
         commitBatcher.schedule(currentProject.branch, [{ ...file, kind: 'file' as const, saveReference }], message)
     }
 
+    /** Queues diagram content under stable record identity, including a file move when its title changes. */
+    scheduleDiagramCommit(
+        diagramId: string,
+        sourcePath: string,
+        file: MarkdownFile,
+        message: string,
+        onPersisted: () => void,
+    ) {
+        const { commitBatcher } = this.requireDependencies()
+        const currentProject = this.projectState.project
+        if (!currentProject) throw new Error('Cannot save a diagram before a project is open')
+
+        const change = { ...file, diagramId, kind: 'diagram' as const, onPersisted, sourcePath }
+        commitBatcher.schedule(currentProject.branch, [change], message)
+    }
+
     discardPendingFile(path: string) {
         const { commitBatcher } = this.requireDependencies()
         commitBatcher.discardPendingFile(path)

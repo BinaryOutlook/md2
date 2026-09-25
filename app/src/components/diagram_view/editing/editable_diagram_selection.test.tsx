@@ -47,6 +47,25 @@ function renderHarness() {
 afterEach(cleanup)
 
 describe('EditableDiagram direct selection', () => {
+    it('shows one pointer-transparent boundary only for multiple selected objects', () => {
+        const { selection } = renderHarness()
+        act(() => {
+            selection.replace([
+                { objectId: 'orders', objectKind: 'node' },
+                { objectId: 'orders-store', objectKind: 'edge' },
+                { objectId: 'backend', objectKind: 'group' },
+            ])
+        })
+
+        const boundary = screen.getByTestId('diagram-selection-boundary')
+        expect(boundary).toHaveStyle({ pointerEvents: 'none', position: 'absolute' })
+        expect(screen.queryByLabelText(/Resize Orders/u)).not.toBeInTheDocument()
+
+        act(() => { selection.replace([{ objectId: 'orders', objectKind: 'node' }]) })
+        expect(screen.queryByTestId('diagram-selection-boundary')).not.toBeInTheDocument()
+        expect(screen.getByLabelText('Resize Orders north')).toBeInTheDocument()
+    })
+
     it('replaces selection when a New node, edge, or group is clicked', async () => {
         const { selection } = renderHarness()
         const user = userEvent.setup()

@@ -23,6 +23,7 @@ import {
 } from './editable_diagram_collections'
 import { convertClientToDiagramCoordinates } from './diagram_coordinate_conversion'
 import { DiagramSelectionRectangle } from './diagram_selection_rectangle'
+import { DiagramSelectionBoundary } from './diagram_selection_boundary'
 import { DiagramResizeHandles } from './diagram_resize_handles'
 import { DiagramObjectDetailsDialog } from '../details/diagram_object_details_dialog'
 import { DiagramNodePlacementPreview } from './diagram_node_placement_preview'
@@ -239,7 +240,7 @@ export function EditableDiagram({
         <Box
             {...{ [DIAGRAM_EDITOR_ROOT_ATTRIBUTE]: 'true' }}
             aria-label="New diagram editor"
-            sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pb: 2 }}
             tabIndex={-1}
         >
             <Box>
@@ -257,6 +258,7 @@ export function EditableDiagram({
                 <EditableDiagramNodes details={details} emphasis={emphasis} geometry={geometry} selection={selection} session={session} />
                 <DiagramNodePlacementPreview placement={placement} />
                 <DiagramResizeHandles geometry={geometry} selection={selection} session={session} />
+                <DiagramSelectionBoundary selection={selection} />
                 <DiagramSelectionRectangle selection={selection} />
             </EditableDiagramSurface>
             <DiagramObjectDetailsDialog details={details} session={session} />

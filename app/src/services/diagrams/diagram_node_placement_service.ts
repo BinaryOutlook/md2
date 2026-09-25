@@ -13,7 +13,7 @@ import {
 import type {
     NewDiagramNode,
 } from './diagram_edit_types'
-import { DIAGRAM_GRID_SIZE, type PositionedDiagramNode } from './diagram_layout'
+import { DIAGRAM_GRID_SIZE, MINDMAP_TOPIC_DIAMETER, type PositionedDiagramNode } from './diagram_layout'
 import {
     diagramSelectionService,
     type DiagramSelectionService,
@@ -44,6 +44,11 @@ export interface DiagramNodePlacementPreview {
     diagramType: DiagramType
     flowPreset?: DiagramFlowPreset
     node: PositionedDiagramNode
+}
+
+export const MINDMAP_TOPIC_PLACEMENT: DiagramNodePlacementDefinition = {
+    defaults: { height: MINDMAP_TOPIC_DIAMETER, label: 'New topic', role: 'backend', width: MINDMAP_TOPIC_DIAMETER },
+    kind: 'topic',
 }
 
 function snapCoordinate(value: number) {
@@ -105,6 +110,9 @@ export class DiagramNodePlacementService extends EventTarget {
 
     isNodeKindAvailable(kind: DiagramNodeKind) {
         if (!this.session.getSessionSnapshot()) return false
+        if (kind === 'root' && this.session.getNodeIdsSnapshot().some((nodeId) => (
+            this.session.getNodeFieldSnapshot(nodeId, 'kind') === 'root'
+        ))) return false
 
         const diagramType = this.session.getMetadataFieldSnapshot('type')
         const flowPreset = this.session.getMetadataFieldSnapshot('preset')
@@ -182,8 +190,7 @@ export class DiagramNodePlacementService extends EventTarget {
         this.setPreview(null)
         this.session.completeTransientGesture()
         if (definition.kind === 'root') {
-            this.definition = null
-            this.session.setActiveTool('select')
+            this.activate(MINDMAP_TOPIC_PLACEMENT)
         }
 
         return nodeId
