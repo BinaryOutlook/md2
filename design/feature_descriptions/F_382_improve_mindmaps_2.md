@@ -9,7 +9,7 @@ affects:
 agents:
   - design/activity/card__cb27b171-7487-436d-ad9c-ed07ce7dd6f1.json
 policy:
-after: 2775052a-2e84-4466-a320-155c8ec05bac
+after: 6b01f79a-7950-42c5-b09b-4f77086aa427
 changedFiles:
   - app/f382_touch_check.html
   - app/f382_touch_check.tsx

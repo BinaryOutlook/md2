@@ -20,6 +20,7 @@ changedFiles:
   - app/src/components/stats_view/stats_usage_comparison_tables.tsx
   - app/src/components/stats_view/stats_value_format.node.test.ts
   - app/src/components/stats_view/stats_value_format.ts
+after: c8ca7e43-f909-4a9a-8bc4-3c3f1c305219
 ---
 
 When on small screen, show the stats as tables instead of charts. This is easier to read

@@ -11,6 +11,7 @@ agents:
 policy:
 branch: j_56_diagram_improvements_3
 worktree: 2
+after: 96236df6-2c3a-4846-9d52-f29b7ee9041d
 ---
 * when working with the add tool:
   * in desktop mode, when the mouse hovers over the diagram area, we show a node that can be inserted. this is ok, however, it is not in the correct position, it does not do a transformation I think to local coordinates. the node is always below to the left,
