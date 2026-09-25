@@ -9,6 +9,7 @@ import type { StatsBarMode } from './stats_bar_groups';
 import { StatsTable } from './stats_table';
 import { StatsUsageComparisonCharts } from './stats_usage_comparison_charts';
 import { StatsUsageComparisonTables } from './stats_usage_comparison_tables';
+import { statsValueLabel } from './stats_value_label';
 
 const EXCLUSION_LABELS: Record<StatsExclusionReason, string> = {
     missingAttribution: 'missing agent/model attribution',
@@ -111,7 +112,12 @@ export function StatsContent() {
                                 ? <StatsUsageComparisonTables rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
                                 : <StatsUsageComparisonCharts rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
                             : isSmallScreen
-                                ? <StatsTable mode={chartMode} rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
+                                ? <StatsTable
+                                    mode={chartMode}
+                                    rows={snapshot.rows}
+                                    shortTokenCounts={controls.shortTokenCounts}
+                                    valueLabel={statsValueLabel(controls.dataset, controls)}
+                                />
                                 : <StatsBarChart mode={chartMode} rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />}
                     </Box>
                 )}
