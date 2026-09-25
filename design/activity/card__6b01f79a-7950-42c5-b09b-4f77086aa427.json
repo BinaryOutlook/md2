@@ -497,7 +497,7 @@
       "actionId": "47dafdc7-0be7-4d56-bb5a-07c813906416",
       "cardInternalId": "6b01f79a-7950-42c5-b09b-4f77086aa427",
       "cardPath": "design/feature_descriptions/F_359_stats_on_small_screen.md",
-      "completedAt": "2026-09-25T14:38:35.134Z",
+      "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 1000000,
         "usedTokens": 97435
@@ -1367,6 +1367,14 @@
           "role": "assistant",
           "sequence": 69,
           "timestamp": "2026-09-25T14:38:35.134Z"
+        },
+        {
+          "content": "we have the 'value' column, but this does not say much, can we use a proper label, like 'token usage' (so activity metric, for 'activity over time table), performance metric, ... (the metric field value)\n\nalso, for period, if it is set to week, nothing happens, on agent/model performance. similar for the metric: table is not refreshed\n\ntotals per card/action, no values column when 'measured duration' is selected', other metrics only show the period/label column\n\nfix it",
+          "id": "agent-turn-4ef57eb0-e25c-44ea-954c-23c3555960ba-user",
+          "kind": "message",
+          "role": "user",
+          "sequence": 70,
+          "timestamp": "2026-09-25T14:59:27.800Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -1381,14 +1389,14 @@
         }
       ],
       "startedAt": "2026-09-25T14:31:39.316Z",
-      "status": "completed",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 45208,
           "toolMs": 186529
         },
         "elapsedMs": 279569,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-25T14:59:27.800Z"
       },
       "title": "implement",
       "usage": {
@@ -1495,6 +1503,7 @@
     {
       "commits": [
         {
+          "branch": "dev_main",
           "commit": "b0dc433bb38261e7f80f116385a76fd13865c87b",
           "committedAt": "2026-09-25T16:39:23+02:00",
           "deletions": 105,
@@ -1512,8 +1521,7 @@
             "app/src/components/stats_view/stats_value_format.ts"
           ],
           "filesChanged": 11,
-          "insertions": 553,
-          "branch": "dev_main"
+          "insertions": 553
         }
       ],
       "completedAt": "2026-09-25T16:39:23+02:00",
