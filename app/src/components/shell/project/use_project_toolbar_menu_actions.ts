@@ -4,11 +4,11 @@ import {
     DEFAULT_STATES,
     type BranchReference,
     type CardDraft,
-    type ProjectReference,
     type ReleaseBranchCandidate,
 } from '../../../data/data_types'
 import { configService } from '../../../services/config/config_service'
 import { projectSessionService, type ProjectOpenResolution } from '../../../services/project/project_session_service'
+import { projectOpenFlowService } from '../../../services/project/project_open_flow_service'
 import { useActiveCardCount } from '../../hooks/use_active_card_count'
 import { useConfigValueOrFallback } from '../../hooks/use_config_value'
 import { useProjectConfig } from '../../hooks/use_project_config'
@@ -19,14 +19,14 @@ import {
     OPEN_PROJECT_DIALOG_EVENT,
     type OpenNewCardDialogDetail,
     type OpenProjectDialogDetail,
-    type ProjectDialogSource,
 } from '../../project_command_events'
 
-type ProjectDialogMode = 'open' | 'branch' | 'card' | 'release'
+type ProjectDialogMode = 'branch' | 'card' | 'release'
 
 interface UseProjectToolbarMenuActionsArgs {
     accessToken: string | null
     initialProjectOpenResolution?: ProjectOpenResolution | null
+    isGithubAuthenticated: boolean
     onCloseDialog: () => void
     onOpenDialog: (mode: ProjectDialogMode) => void
 }
@@ -39,20 +39,13 @@ function branchValue(branches: BranchReference[], preferredBranch: string) {
 
 /** Owns project menu commands outside the open-project dialog. */
 export function useProjectToolbarMenuActions(args: UseProjectToolbarMenuActionsArgs) {
-    const { accessToken, initialProjectOpenResolution = null, onCloseDialog, onOpenDialog } = args
+    const { accessToken, initialProjectOpenResolution = null, isGithubAuthenticated, onCloseDialog, onOpenDialog } = args
     const project = useProjectReference()
     const activeCardCount = useActiveCardCount()
     const projectSession = useProjectSession()
     const projectConfig = useProjectConfig()
     const [branches, setBranches] = useState<BranchReference[]>([])
     const [isReleaseCompleting, setIsReleaseCompleting] = useState(false)
-    const [projectOpenResolution, setProjectOpenResolution] = useState<ProjectOpenResolution | null>(initialProjectOpenResolution)
-    const [initialProjectSource, setInitialProjectSource] = useState<ProjectDialogSource | null>(
-        initialProjectOpenResolution?.storageType === 'remote' ? 'remote' : null,
-    )
-    const [initialRemoteProject, setInitialRemoteProject] = useState<ProjectReference | null>(
-        initialProjectOpenResolution?.storageType === 'remote' ? initialProjectOpenResolution.project : null,
-    )
     const [newCardInitialStatus, setNewCardInitialStatus] = useState('')
     const [releaseBranchCandidates, setReleaseBranchCandidates] = useState<ReleaseBranchCandidate[]>([])
     const [switchBranch, setSwitchBranch] = useState(project?.branch ?? '')
@@ -62,7 +55,6 @@ export function useProjectToolbarMenuActions(args: UseProjectToolbarMenuActionsA
 
     const closeDialog = useCallback(() => {
         onCloseDialog()
-        setProjectOpenResolution(null)
         projectSessionService.setError(null)
     }, [onCloseDialog])
 
@@ -80,18 +72,23 @@ export function useProjectToolbarMenuActions(args: UseProjectToolbarMenuActionsA
     }, [accessToken, project])
 
     useEffect(() => {
+        projectOpenFlowService.setAuthentication(accessToken, isGithubAuthenticated)
+    }, [accessToken, isGithubAuthenticated])
+
+    useEffect(() => {
+        if (initialProjectOpenResolution) projectOpenFlowService.show({ resolution: initialProjectOpenResolution })
+    }, [initialProjectOpenResolution])
+
+    useEffect(() => {
         const handleOpenProjectDialog = (event: Event) => {
             const detail = (event as CustomEvent<OpenProjectDialogDetail>).detail
-            setInitialProjectSource(detail?.source ?? null)
-            setInitialRemoteProject(detail?.project ?? null)
-            setProjectOpenResolution(detail?.resolution ?? null)
-            onOpenDialog('open')
+            projectOpenFlowService.show(detail)
         }
 
         window.addEventListener(OPEN_PROJECT_DIALOG_EVENT, handleOpenProjectDialog)
 
         return () => window.removeEventListener(OPEN_PROJECT_DIALOG_EVENT, handleOpenProjectDialog)
-    }, [onOpenDialog])
+    }, [])
 
     useEffect(() => {
         const handleOpenNewCardDialog = (event: Event) => {
@@ -114,10 +111,7 @@ export function useProjectToolbarMenuActions(args: UseProjectToolbarMenuActionsA
     }
 
     const openProjectDialog = () => {
-        setInitialProjectSource(null)
-        setInitialRemoteProject(null)
-        setProjectOpenResolution(null)
-        onOpenDialog('open')
+        projectOpenFlowService.show()
     }
 
     const switchProjectBranch = async (branch: string) => {
@@ -165,8 +159,6 @@ export function useProjectToolbarMenuActions(args: UseProjectToolbarMenuActionsA
         closeDialog,
         completeRelease,
         createCard,
-        initialProjectSource,
-        initialRemoteProject,
         isLoading: projectSession.isLoading,
         isProjectOpen: !!project,
         isReleaseCompleting,
@@ -175,7 +167,6 @@ export function useProjectToolbarMenuActions(args: UseProjectToolbarMenuActionsA
         openNewCardDialog,
         openProjectDialog,
         openReleaseDialog,
-        projectOpenResolution,
         pull: () => projectSessionService.pull(),
         push: () => projectSessionService.push(),
         releaseBranchCandidates,

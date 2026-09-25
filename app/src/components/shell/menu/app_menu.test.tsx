@@ -14,7 +14,8 @@ import { workspaceNavigationService } from '../../../services/project/workspace_
 import { workspaceViewService } from '../../../services/project/workspace_view_service'
 import { projectAccessService } from '../../../services/project/project_access_service'
 import { projectPersistenceService } from '../../../services/project/project_persistence_service'
-import { projectSessionService } from '../../../services/project/project_session_service'
+import { projectSessionService, type ProjectOpenResolution } from '../../../services/project/project_session_service'
+import { projectOpenFlowService } from '../../../services/project/project_open_flow_service'
 import { openFilesService } from '../../../services/open_files_service'
 import { sentryConnectionService } from '../../../services/sentry/sentry_connection_service'
 import { sentryImportService } from '../../../services/sentry/sentry_import_service'
@@ -116,7 +117,7 @@ function createResetStorage(): StorageService {
     }
 }
 
-function renderMenu(isMobile = false) {
+function renderMenu(isMobile = false, initialProjectOpenResolution: ProjectOpenResolution | null = null) {
     return render(
         <AppThemeProvider>
             <DialogDisplay />
@@ -124,7 +125,7 @@ function renderMenu(isMobile = false) {
                 accessToken="token"
                 auth={auth}
                 extraActions={null}
-                initialProjectOpenResolution={null}
+                initialProjectOpenResolution={initialProjectOpenResolution}
                 isGithubAuthenticated={false}
                 isMobile={isMobile}
                 onOpenConfig={vi.fn()}
@@ -182,6 +183,7 @@ async function renderProjectWithPendingChanges() {
 
 describe('AppMenu', () => {
     beforeEach(() => {
+        projectOpenFlowService.close()
         configService.init({ desktopConfig: null })
         actionService.clear()
         openFilesService.init({ actionService, dataService })
@@ -196,6 +198,7 @@ describe('AppMenu', () => {
 
     afterEach(() => {
         cleanup()
+        projectOpenFlowService.close()
         configService.clear()
         actionService.clear()
         window.localStorage.clear()
@@ -241,6 +244,25 @@ describe('AppMenu', () => {
         expect(newCardButton).not.toBeVisible()
         expect(screen.getByRole('button', { name: 'New action', hidden: true })).not.toBeVisible()
         expect(screen.getByRole('button', { name: 'New diagram', hidden: true })).not.toBeVisible()
+    })
+
+    it('opens folder setup when restoring a project that needs folder choices', async () => {
+        const resolution: ProjectOpenResolution = {
+            existingFolderPaths: [],
+            folders: [],
+            hasProjectConfig: false,
+            kind: 'project-folder-setup',
+            project: LOCAL_PROJECT,
+            storageType: 'local',
+            values: {
+                actionsFolder: 'actions', archivedFolder: 'archived', diagramsFolder: 'diagrams',
+                projectFolder: 'design', releasesFolder: 'history', workingFolder: 'active',
+            },
+        }
+
+        renderMenu(false, resolution)
+
+        expect(await screen.findByRole('dialog', { name: 'Project folders' })).toBeInTheDocument()
     })
 
     it('opens active schedules from the Run menu when backend API is available', async () => {

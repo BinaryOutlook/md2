@@ -12,6 +12,8 @@ import { openFilesService } from '../../services/open_files_service'
 import * as searchRegexpAgent from '../../services/search/search_regexp_agent'
 import { workspaceViewService } from '../../services/project/workspace_view_service'
 import { projectSessionService } from '../../services/project/project_session_service'
+import { projectOpenFlowService } from '../../services/project/project_open_flow_service'
+import { createDeferred } from '../../services/test_support/data_service_test_support'
 import { AppThemeProvider } from '../../theme/theme_provider'
 import { DialogDisplay } from '../dialog_display'
 import { MainWindow } from './main_window'
@@ -117,6 +119,7 @@ function mockMatchMedia(matches: boolean) {
 
 describe('MainWindow', () => {
     beforeEach(() => {
+        projectOpenFlowService.close()
         configService.init({ desktopConfig: null })
         openFilesService.init({ actionService, dataService })
         projectPersistenceService.init({ actionService, dataService, openFilesService })
@@ -125,6 +128,7 @@ describe('MainWindow', () => {
 
     afterEach(() => {
         cleanup()
+        projectOpenFlowService.close()
         dataService.init({ storage: createStorage() })
         configService.clear()
         delete window.md2Actions
@@ -163,6 +167,29 @@ describe('MainWindow', () => {
             expect(screen.queryByRole('status', { name: 'Loading project' })).toBeNull()
             expect(screen.getByLabelText('Project workspace')).toBeInTheDocument()
         })
+    })
+
+    it('shows the spinner while the open workflow loads a project', async () => {
+        const opened = createDeferred<null>()
+        vi.spyOn(projectSessionService, 'configureRemote').mockImplementation(() => undefined)
+        vi.spyOn(projectSessionService, 'openProject').mockReturnValue(opened.promise)
+        renderWindow()
+
+        let opening: Promise<void> = Promise.resolve()
+        act(() => {
+            projectOpenFlowService.show({ source: 'remote' })
+            opening = projectOpenFlowService.submit({source: 'remote', endpoint: 'https://remote.example', rootPath: '/project', branch: 'main'})
+        })
+
+        expect(screen.getByRole('status', { name: 'Loading project' })).toBeInTheDocument()
+        expect(screen.queryByLabelText('Project workspace')).toBeNull()
+
+        await act(async () => {
+            opened.resolve(null)
+            await opening
+        })
+        expect(screen.queryByRole('status', { name: 'Loading project' })).toBeNull()
+        expect(screen.getByLabelText('Project workspace')).toBeInTheDocument()
     })
 
     it('shows card columns without a left navigation panel in card view', async () => {

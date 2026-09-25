@@ -56,9 +56,8 @@ export function MainToolbar(props: MainToolbarProps) {
             variant="dense"
         >
             {isMobile ? <MobileMenuButton onOpenMenu={onOpenMenu} /> : null}
-            <Box sx={{ alignItems: 'center', display: 'flex', flexShrink: 0 }}>
-                <Box alt="MD² application icon" component="img" src={APPLICATION_ICON_SOURCE} sx={{ height: 24, width: 24 }} />
-            </Box>
+            <Box alt="MD² application icon" component="img" src={APPLICATION_ICON_SOURCE} sx={{ height: 24, width: 24 }} />
+            
             <Box style={NO_DRAG_REGION} sx={{ alignSelf: 'stretch', display: 'flex', flexShrink: 0 }}>
                 <Tabs
                     aria-label="Application menu"
@@ -87,7 +86,7 @@ export function MainToolbar(props: MainToolbarProps) {
                         <ProjectNameLabel />
                     </Box>
                 </Box>
-            ) : null}
+            ) : <div style={{ flex: 1 }} />}
             {isMobile && currentTab === 'home' ? (
                 <Box style={NO_DRAG_REGION}>
                     <MobileCreateMenu
@@ -116,7 +115,7 @@ export function MainToolbar(props: MainToolbarProps) {
                 >
                     <SearchControl isMobile={false} regexpAgent={regexpAgent} />
                 </Box>
-            ) : null}
+            ) : (isElectron() !== null && ( <div style={{ width: 130 }} /> ))}
         </Toolbar>
     )
 }

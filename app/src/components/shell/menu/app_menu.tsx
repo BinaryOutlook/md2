@@ -33,6 +33,7 @@ import { keyboardShortcutService } from '../../../services/shortcuts/keyboard_sh
 import { projectContext } from '../../../data/action_context'
 import type { UseGithubAuthResult } from '../../../auth/use_github_auth'
 import { useProjectReference } from '../../hooks/use_project_reference'
+import { useProjectOpenPhase } from '../../hooks/use_project_open_phase'
 import { useProjectPersistence } from '../../hooks/use_project_persistence'
 import { useProjectConfig } from '../../hooks/use_project_config'
 import { useProjectReadOnly } from '../../hooks/use_project_read_only'
@@ -65,7 +66,7 @@ import type { SearchRegexpAgent } from '../../../services/search/search_types'
 import { AgentMenuControls } from './agent_menu_controls'
 
 type AppMenuTab = 'home' | 'agents' | 'diagram' | 'stats'
-type ProjectDialogMode = 'open' | 'branch' | 'card' | 'release' | 'schedules'
+type ProjectDialogMode = 'branch' | 'card' | 'release' | 'schedules'
 
 interface AppMenuProps {
     accessToken: string | null
@@ -115,7 +116,8 @@ export function AppMenu(props: AppMenuProps) {
     const projectConfig = useProjectConfig()
     const { viewMode } = useWorkspaceView()
     const [currentTab, setCurrentTab] = useState<AppMenuTab>('home')
-    const [dialogMode, setDialogMode] = useState<ProjectDialogMode | null>(initialProjectOpenResolution ? 'open' : null)
+    const [dialogMode, setDialogMode] = useState<ProjectDialogMode | null>(null)
+    const projectOpenPhase = useProjectOpenPhase()
     const [isCreatingDiagram, setIsCreatingDiagram] = useState(false)
     const projectBranch = project?.branch ?? ''
     const readOnly = useProjectReadOnly()
@@ -150,6 +152,7 @@ export function AppMenu(props: AppMenuProps) {
     const actions = useProjectToolbarMenuActions({
         accessToken,
         initialProjectOpenResolution,
+        isGithubAuthenticated,
         onCloseDialog: closeDialog,
         onOpenDialog: openDialog,
     })
@@ -458,16 +461,8 @@ export function AppMenu(props: AppMenuProps) {
                     <StatsMenuTab />
                 </Box>
             ) : null}
-            {dialogMode === 'open' ? (
-                <ProjectOpenDialog
-                    accessToken={accessToken}
-                    initialRemoteProject={actions.initialRemoteProject}
-                    initialSource={actions.initialProjectSource}
-                    initialProjectOpenResolution={actions.projectOpenResolution}
-                    isGithubAuthenticated={isGithubAuthenticated}
-                    onClose={actions.closeDialog}
-                    open
-                />
+            {projectOpenPhase === 'selecting' || projectOpenPhase === 'folder-setup' ? (
+                <ProjectOpenDialog key={projectOpenPhase} />
             ) : null}
             {dialogMode === 'schedules' ? (
                 <ActiveSchedulesDialog

@@ -1,32 +1,43 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ElectronDataBridge } from '../../../data/electron_data_bridge'
 import { RECENT_LOCAL_REPOSITORIES_STORAGE_KEY } from '../../../data/recent_local_repositories'
 import { configureRemoteControlConnection, REMOTE_CONTROL_ENDPOINT_KEY } from '../../../data/remote_control_connection'
 import { projectSessionService, type ProjectOpenResolution } from '../../../services/project/project_session_service'
+import { projectOpenFlowService, type ProjectOpenSource } from '../../../services/project/project_open_flow_service'
+import { applicationStorage } from '../../../services/storage/application_storage'
+import { createDeferred } from '../../../services/test_support/data_service_test_support'
 import { AppThemeProvider } from '../../../theme/theme_provider'
+import { useProjectOpenPhase } from '../../hooks/use_project_open_phase'
 import { ProjectOpenDialog } from './project_open_dialog'
 
 const LOCAL_PROJECT = { branch: 'main', id: 'local', rootPath: 'C:/repo' }
 const REPOSITORY = { branch: 'main', id: 'octo/demo', owner: 'octo', repository: 'demo' }
 
-function dialogProps(overrides: Partial<ComponentProps<typeof ProjectOpenDialog>> = {}) {
-    return {
-        accessToken: 'token',
-        isGithubAuthenticated: true,
-        onClose: vi.fn(),
-        open: true,
-        ...overrides,
-    }
+interface DialogOptions {
+    accessToken?: string | null
+    initialSource?: ProjectOpenSource
+    initialRemoteProject?: typeof LOCAL_PROJECT
+    initialProjectOpenResolution?: ProjectOpenResolution
+    isGithubAuthenticated?: boolean
 }
 
-function renderDialog(overrides: Partial<ComponentProps<typeof ProjectOpenDialog>> = {}) {
-    const props = dialogProps(overrides)
-    render(<ProjectOpenDialog {...props} />, { wrapper: AppThemeProvider })
+function ProjectOpenDialogHost() {
+    const phase = useProjectOpenPhase()
 
-    return props
+    return phase === 'selecting' || phase === 'folder-setup' ? <ProjectOpenDialog key={phase} /> : null
+}
+
+function renderDialog(options: DialogOptions = {}) {
+    projectOpenFlowService.close()
+    projectOpenFlowService.setAuthentication(options.accessToken ?? 'token', options.isGithubAuthenticated ?? true)
+    projectOpenFlowService.show({
+        source: options.initialSource,
+        project: options.initialRemoteProject,
+        resolution: options.initialProjectOpenResolution,
+    })
+    return render(<ProjectOpenDialogHost />, { wrapper: AppThemeProvider })
 }
 
 function setDesktopBridge(bridge: Partial<ElectronDataBridge> = {}) {
@@ -67,6 +78,7 @@ function clickBackdrop(dialogName: string) {
 
 describe('ProjectOpenDialog', () => {
     beforeEach(() => {
+        projectOpenFlowService.close()
         window.md2Data = undefined
         window.localStorage.removeItem(RECENT_LOCAL_REPOSITORIES_STORAGE_KEY)
         window.localStorage.removeItem(REMOTE_CONTROL_ENDPOINT_KEY)
@@ -75,6 +87,7 @@ describe('ProjectOpenDialog', () => {
 
     afterEach(() => {
         cleanup()
+        projectOpenFlowService.close()
         vi.restoreAllMocks()
         window.md2Data = undefined
         window.localStorage.removeItem(RECENT_LOCAL_REPOSITORIES_STORAGE_KEY)
@@ -82,7 +95,7 @@ describe('ProjectOpenDialog', () => {
     })
 
     it('shows repository sources in browser mode and folder sources in desktop mode', () => {
-        const { unmount } = render(<ProjectOpenDialog {...dialogProps()} />, { wrapper: AppThemeProvider })
+        const { unmount } = renderDialog()
         expect(within(screen.getByRole('group', { name: 'Project kind' })).getByRole('button', { name: 'Repository' }))
             .toHaveAttribute('aria-pressed', 'true')
         unmount()
@@ -99,7 +112,7 @@ describe('ProjectOpenDialog', () => {
         vi.spyOn(projectSessionService, 'findGithubRepositoryBranches')
             .mockResolvedValue({ branches: [{ name: 'main' }, { name: 'next' }], repository: REPOSITORY })
         const openProject = vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(null)
-        const props = renderDialog()
+        renderDialog()
         const repositorySelect = await screen.findByRole('combobox', { name: 'Repository' })
         fireEvent.mouseDown(repositorySelect)
         fireEvent.click(screen.getByRole('option', { name: 'octo/demo' }))
@@ -109,7 +122,7 @@ describe('ProjectOpenDialog', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Open' }))
 
         await waitFor(() => expect(openProject).toHaveBeenCalledWith('github', { ...REPOSITORY, branch: 'next' }, 'token'))
-        expect(props.onClose).toHaveBeenCalledOnce()
+        expect(projectOpenFlowService.getPhase()).toBe('closed')
     })
 
     it('uses read-only GitHub storage for a public repository', async () => {
@@ -131,13 +144,13 @@ describe('ProjectOpenDialog', () => {
         const resolveProject = vi.fn(async () => LOCAL_PROJECT)
         setDesktopBridge({ resolveProject })
         const openProject = vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(null)
-        const props = renderDialog()
+        renderDialog()
         await userEvent.type(screen.getByRole('textbox', { name: 'Local repository folder' }), 'C:/repo')
         fireEvent.click(screen.getByRole('button', { name: 'Open' }))
 
         await waitFor(() => expect(openProject).toHaveBeenCalledWith('local', LOCAL_PROJECT, 'token'))
         expect(resolveProject).toHaveBeenCalledWith({ branch: '', id: 'C:/repo', rootPath: 'C:/repo' })
-        expect(props.onClose).toHaveBeenCalledOnce()
+        expect(projectOpenFlowService.getPhase()).toBe('closed')
         expect(window.localStorage.getItem(RECENT_LOCAL_REPOSITORIES_STORAGE_KEY)).toContain('C:/repo')
     })
 
@@ -150,6 +163,54 @@ describe('ProjectOpenDialog', () => {
 
         await waitFor(() => expect(openProject).toHaveBeenCalledWith('local', LOCAL_PROJECT, 'token'))
         expect(openProjectFolder).toHaveBeenCalledOnce()
+    })
+
+    it('stays hidden between project load completion and recent-folder recording', async () => {
+        setDesktopBridge()
+        vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(null)
+        const write = createDeferred<void>()
+        const recordRecent = vi.spyOn(applicationStorage, 'writeCurrentItem').mockReturnValue(write.promise)
+        renderDialog()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Choose local repository folder' }))
+        await waitFor(() => expect(recordRecent).toHaveBeenCalledOnce())
+
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Open project' })).toBeNull())
+        expect(projectOpenFlowService.getPhase()).toBe('loading')
+
+        await act(async () => write.resolve())
+        await waitFor(() => expect(projectOpenFlowService.getPhase()).toBe('closed'))
+    })
+
+    it('shows folder setup when a project load needs a resolution', async () => {
+        setDesktopBridge()
+        vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(folderSetupResolution())
+        renderDialog()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Choose local repository folder' }))
+
+        expect(await screen.findByRole('dialog', { name: 'Project folders' })).toBeInTheDocument()
+        expect(projectOpenFlowService.getPhase()).toBe('folder-setup')
+    })
+
+    it('stays hidden after folder setup while recording the opened local project', async () => {
+        setDesktopBridge()
+        vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(folderSetupResolution())
+        vi.spyOn(projectSessionService, 'confirmProjectFolderSetup').mockResolvedValue(undefined)
+        const write = createDeferred<void>()
+        const recordRecent = vi.spyOn(applicationStorage, 'writeCurrentItem').mockReturnValue(write.promise)
+        renderDialog()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Choose local repository folder' }))
+        const folderDialog = await screen.findByRole('dialog', { name: 'Project folders' })
+        fireEvent.click(within(folderDialog).getByRole('button', { name: 'Open' }))
+        await waitFor(() => expect(recordRecent).toHaveBeenCalledOnce())
+
+        await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Project folders' })).toBeNull())
+        expect(projectOpenFlowService.getPhase()).toBe('loading')
+
+        await act(async () => write.resolve())
+        await waitFor(() => expect(projectOpenFlowService.getPhase()).toBe('closed'))
     })
 
     it('selects, opens, and removes a recent local folder', async () => {
@@ -198,12 +259,12 @@ describe('ProjectOpenDialog', () => {
 
     it('shows folder setup, validates the values, and confirms through the project session', async () => {
         const confirm = vi.spyOn(projectSessionService, 'confirmProjectFolderSetup').mockResolvedValue(undefined)
-        const props = renderDialog({ initialProjectOpenResolution: folderSetupResolution() })
+        renderDialog({ initialProjectOpenResolution: folderSetupResolution() })
         expect(screen.getByRole('dialog', { name: 'Project folders' })).toBeInTheDocument()
         fireEvent.click(screen.getByRole('button', { name: 'Open' }))
 
         await waitFor(() => expect(confirm).toHaveBeenCalledWith(folderSetupResolution(), folderSetupResolution().values, 'token'))
-        expect(props.onClose).toHaveBeenCalledOnce()
+        expect(projectOpenFlowService.getPhase()).toBe('closed')
     })
 
     it('disables confirmation for an empty folder value', async () => {
@@ -222,11 +283,11 @@ describe('ProjectOpenDialog', () => {
     })
 
     it('keeps folder setup open on backdrop click and allows Cancel', () => {
-        const props = renderDialog({ initialProjectOpenResolution: folderSetupResolution() })
+        renderDialog({ initialProjectOpenResolution: folderSetupResolution() })
         clickBackdrop('Project folders')
-        expect(props.onClose).not.toHaveBeenCalled()
+        expect(projectOpenFlowService.getPhase()).toBe('folder-setup')
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-        expect(props.onClose).toHaveBeenCalledOnce()
+        expect(projectOpenFlowService.getPhase()).toBe('closed')
     })
 
     it('browses a project subfolder relative to the project folder', async () => {

@@ -21,41 +21,27 @@ import {
 import { FolderOpen, SourceRepository } from 'mdi-material-ui'
 import type { SelectChangeEvent } from '@mui/material'
 import type { ChangeEvent, MouseEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
-import { DEFAULT_PROJECT_CONFIG, type BranchReference, type ProjectReference, type RepositoryReference } from '../../../data/data_types'
-import { getElectronDataBridge } from '../../../data/electron_data_bridge'
-import { readRecentLocalRepositories, recordRecentLocalRepository, removeRecentLocalRepository } from '../../../data/recent_local_repositories'
-import { tryReadRemoteControlConnection } from '../../../data/remote_control_connection'
-import { toProjectFolderRelativePath, toRepositoryRelativePath } from '../../../data/repository_relative_path'
-import { dialogService } from '../../../services/dialog_service'
+import { useState } from 'react'
+import { DEFAULT_PROJECT_CONFIG, type RepositoryReference } from '../../../data/data_types'
+import {
+    canBrowseProjectFolders,
+    isDesktopProjectMode,
+    projectOpenFlowService,
+    savedRemoteProjectEndpoint,
+    type ProjectOpenRequest,
+    type ProjectOpenSource,
+} from '../../../services/project/project_open_flow_service'
 import {
     folderValuesOf,
-    projectSessionService,
     requireProjectFolderValues,
     type ProjectFolderValues,
-    type ProjectOpenResolution,
 } from '../../../services/project/project_session_service'
 import { useProjectSession } from '../../hooks/use_project_session'
+import { useProjectOpenValue } from '../../hooks/use_project_open_value'
 import { ProjectFolderSetupFields } from './project_folder_setup_fields'
 import { RecentProjectFolderList } from './recent_project_folder_list'
 
-type ProjectSource = 'local' | 'personal' | 'public' | 'remote'
 type ProjectKind = 'folder' | 'repository'
-
-interface FolderSetupState {
-    resolution: ProjectOpenResolution | null
-    values: ProjectFolderValues
-}
-
-interface ProjectOpenDialogProps {
-    accessToken: string | null
-    initialRemoteProject?: ProjectReference | null
-    initialSource?: ProjectSource | null
-    isGithubAuthenticated: boolean
-    initialProjectOpenResolution?: ProjectOpenResolution | null
-    open: boolean
-    onClose: () => void
-}
 
 function folderValuesError(values: ProjectFolderValues) {
     try {
@@ -65,16 +51,6 @@ function folderValuesError(values: ProjectFolderValues) {
     } catch (error) {
         return error instanceof Error ? error.message : 'Folder values are invalid'
     }
-}
-
-function branchExists(branches: BranchReference[], branchName: string) {
-    return branches.some(({ name }) => name === branchName)
-}
-
-function branchValue(branches: BranchReference[], preferredBranch: string) {
-    if (branchExists(branches, preferredBranch)) return preferredBranch
-
-    return branches[0]?.name ?? ''
 }
 
 function selectValueExists(options: string[], value: string) {
@@ -88,67 +64,38 @@ function repositoryMatchesFilter(repository: RepositoryReference, filter: string
     return repository.id.toLowerCase().includes(normalizedFilter)
 }
 
-function projectKind(source: ProjectSource): ProjectKind {
+function projectKind(source: ProjectOpenSource): ProjectKind {
     return source === 'personal' || source === 'public' ? 'repository' : 'folder'
 }
 
 /** Project open dialog for GitHub, local and remote project sources. */
-export function ProjectOpenDialog(props: ProjectOpenDialogProps) {
-    const {
-        accessToken,
-        initialRemoteProject,
-        initialSource,
-        isGithubAuthenticated,
-        initialProjectOpenResolution = null,
-        onClose,
-        open,
-    } = props
-    const electronBridge = useMemo(() => getElectronDataBridge(), [])
-    const { isLoading, isProjectLoading, pendingGithubConflictProject } = useProjectSession()
-    const isDesktopMode = !!electronBridge
-    const [branches, setBranches] = useState<BranchReference[]>([])
-    const [projectOpenResolution, setProjectOpenResolution] = useState<ProjectOpenResolution | null>(initialProjectOpenResolution)
-    const [recentLocalRepositories, setRecentLocalRepositories] = useState(() => readRecentLocalRepositories())
-    const [repositories, setRepositories] = useState<RepositoryReference[]>([])
-    const [pendingLocalRootPath, setPendingLocalRootPath] = useState<string | null>(null)
+export function ProjectOpenDialog() {
+    const branches = useProjectOpenValue('branches')
+    const repositories = useProjectOpenValue('repositories')
+    const recentLocalRepositories = useProjectOpenValue('recentLocalRepositories')
+    const projectOpenResolution = useProjectOpenValue('resolution')
+    const selectedSource = useProjectOpenValue('source')
+    const folderValuesState = useProjectOpenValue('folderValues')
+    const isGithubAuthenticated = useProjectOpenValue('isGithubAuthenticated')
+    const flow = projectOpenFlowService.getSnapshot()
+    const { isLoading, pendingGithubConflictProject } = useProjectSession()
+    const isDesktopMode = isDesktopProjectMode()
     const [githubOwner, setGithubOwner] = useState('')
     const [githubRepository, setGithubRepository] = useState('')
     const [localRootPath, setLocalRootPath] = useState('')
-    const [folderSetupState, setFolderSetupState] = useState<FolderSetupState>({
-        resolution: null,
-        values: folderValuesOf(DEFAULT_PROJECT_CONFIG),
-    })
     const [repositoryFilter, setRepositoryFilter] = useState('')
-    const [remoteEndpoint, setRemoteEndpoint] = useState('')
-    const [remoteRootPath, setRemoteRootPath] = useState('')
-    const [selectedBranch, setSelectedBranch] = useState('')
+    const [remoteEndpoint, setRemoteEndpoint] = useState(savedRemoteProjectEndpoint)
+    const [remoteRootPath, setRemoteRootPath] = useState(flow.remoteProject?.rootPath ?? '')
+    const [selectedBranch, setSelectedBranch] = useState(flow.remoteProject?.branch ?? '')
     const [selectedRepositoryId, setSelectedRepositoryId] = useState('')
-    const defaultSource: ProjectSource = isDesktopMode ? 'local' : 'personal'
-    const [source, setSource] = useState<ProjectSource>(defaultSource)
-    const [wasOpen, setWasOpen] = useState(false)
-
-    if (open !== wasOpen) {
-        setWasOpen(open)
-        if (open) {
-            setSource(initialSource ?? defaultSource)
-            const stored = tryReadRemoteControlConnection()
-            if (stored) {
-                if (remoteEndpoint.length === 0) setRemoteEndpoint(stored.endpoint)
-            }
-            if (initialRemoteProject) {
-                if (remoteRootPath.length === 0 && initialRemoteProject.rootPath) setRemoteRootPath(initialRemoteProject.rootPath)
-                if (selectedBranch.length === 0 && initialRemoteProject.branch) setSelectedBranch(initialRemoteProject.branch)
-            }
-        }
-    }
+    const defaultSource: ProjectOpenSource = isDesktopMode ? 'local' : 'personal'
+    const source = selectedSource ?? defaultSource
 
     const projectFolderSetup = projectOpenResolution?.kind === 'project-folder-setup'
         && projectOpenResolution.storageType !== 'github-readonly'
         ? projectOpenResolution
         : null
-    const folderValues = folderSetupState.resolution === projectFolderSetup
-        ? folderSetupState.values
-        : projectFolderSetup?.values ?? folderValuesOf(DEFAULT_PROJECT_CONFIG)
+    const folderValues = folderValuesState ?? folderValuesOf(DEFAULT_PROJECT_CONFIG)
     const folderValuesMessage = projectFolderSetup ? folderValuesError(folderValues) : null
     const filteredRepositories = repositories.filter((repository) => repositoryMatchesFilter(repository, repositoryFilter))
     const filteredRepositoryIds = filteredRepositories.map(({ id }) => id)
@@ -165,94 +112,27 @@ export function ProjectOpenDialog(props: ProjectOpenDialogProps) {
     const isOpenDisabled = isLoading || folderValuesMessage !== null
         || (!projectFolderSetup && (isGithubOpenDisabled || isRemoteOpenDisabled || isLocalOpenDisabled))
 
-    useEffect(() => {
-        if (!open || !isGithubAuthenticated) return
-
-        const loadRepositories = async () => {
-            try {
-                setRepositories(await projectSessionService.listRepositories(accessToken))
-            } catch {
-                setRepositories([])
-            }
-        }
-
-        void loadRepositories()
-    }, [accessToken, isGithubAuthenticated, open])
-
-    const clearSourceState = () => {
-        setBranches([])
-        setProjectOpenResolution(null)
-    }
-
-    const handleProjectOpened = async (storageType: 'github' | 'github-readonly' | 'local' | 'remote', project: ProjectReference) => {
-        try {
-            const resolution = await projectSessionService.openProject(storageType, project, accessToken)
-            if (resolution) {
-                setProjectOpenResolution(resolution)
-                if (storageType === 'local') setPendingLocalRootPath(project.rootPath ?? null)
-
-                return
-            }
-            if (storageType === 'local' && project.rootPath) {
-                setRecentLocalRepositories(await recordRecentLocalRepository(project.rootPath))
-            }
-            onClose()
-        } catch {
-            // ProjectSessionService emits the user-visible error.
-        }
-    }
-
-    const openLocalProject = async (rootPath: string) => {
-        if (!electronBridge || rootPath.trim().length === 0) return
-
-        try {
-            const normalizedPath = rootPath.trim()
-            const project = await electronBridge.resolveProject({ branch: '', id: normalizedPath, rootPath: normalizedPath })
-            await handleProjectOpened('local', project)
-        } catch (error) {
-            dialogService.error(error, { fallbackMessage: 'Local project selection failed' })
-        }
-    }
-
-    const handleChooseLocalFolderClick = async () => {
-        if (!electronBridge) return
-
-        try {
-            const project = await electronBridge.openProjectFolder()
-            if (project) await handleProjectOpened('local', project)
-        } catch (error) {
-            dialogService.error(error, { fallbackMessage: 'Local project selection failed' })
-        }
-    }
-
-    const handleRemoveRecentLocal = async (rootPath: string) => {
-        try {
-            setRecentLocalRepositories(await removeRecentLocalRepository(rootPath))
-        } catch (error) {
-            dialogService.error(error, { fallbackMessage: 'Recent local project removal failed' })
-        }
+    const handleChooseLocalFolderClick = () => {
+        void projectOpenFlowService.chooseLocalFolder()
     }
 
     const handleDiscardGithubPendingCommits = () => {
         if (!pendingGithubConflictProject) return
 
-        projectSessionService.discardGithubPendingCommits(pendingGithubConflictProject, accessToken)
+        projectOpenFlowService.discardGithubPendingCommits(pendingGithubConflictProject)
     }
-
     const handleProjectKindChange = (_event: MouseEvent<HTMLElement>, nextProjectKind: ProjectKind | null) => {
         if (!nextProjectKind) return
 
-        setSource(nextProjectKind === 'repository' ? 'personal' : isDesktopMode ? 'local' : 'remote')
+        projectOpenFlowService.setSource(nextProjectKind === 'repository' ? 'personal' : isDesktopMode ? 'local' : 'remote')
         setSelectedBranch('')
         setSelectedRepositoryId('')
-        clearSourceState()
     }
 
     const handleRepositoryAccessChange = (event: SelectChangeEvent) => {
-        setSource(event.target.value as ProjectSource)
+        projectOpenFlowService.setSource(event.target.value as ProjectOpenSource)
         setSelectedBranch('')
         setSelectedRepositoryId('')
-        clearSourceState()
     }
 
     const handleRepositoryFilterChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -295,127 +175,70 @@ export function ProjectOpenDialog(props: ProjectOpenDialogProps) {
 
         setGithubOwner(repository.owner)
         setGithubRepository(repository.repository)
-        try {
-            const nextBranches = await projectSessionService.listBranches('github', repository, accessToken)
-            setBranches(nextBranches)
-            setSelectedBranch(branchValue(nextBranches, repository.branch))
-        } catch {
-            setBranches([])
-        }
+        setSelectedBranch(await projectOpenFlowService.loadRepositoryBranches(repository))
     }
 
     const handleLoadManualBranchesClick = async () => {
-        try {
-            const storageType = source === 'public' ? 'github-readonly' : 'github'
-            const result = await projectSessionService.findGithubRepositoryBranches(githubOwner, githubRepository, accessToken, storageType)
-            setBranches(result.branches)
-            setSelectedRepositoryId(result.repository.id)
-            setSelectedBranch(branchValue(result.branches, result.repository.branch))
-        } catch {
-            setBranches([])
-        }
+        const result = await projectOpenFlowService.loadManualBranches(githubOwner, githubRepository, source === 'public')
+        if (!result) return
+
+        setSelectedRepositoryId(result.repository.id)
+        setSelectedBranch(result.branch)
     }
 
     const handleLoadRemoteBranchesClick = async () => {
-        if (remoteRootPath.length === 0) return
-
-        const project = { branch: selectedBranch || 'main', id: remoteRootPath, rootPath: remoteRootPath }
-        projectSessionService.configureRemote(remoteEndpoint)
-        try {
-            const nextBranches = await projectSessionService.listBranches('remote', project, accessToken)
-            setBranches(nextBranches)
-            setSelectedBranch(branchValue(nextBranches, project.branch))
-        } catch {
-            setBranches([])
-        }
+        setSelectedBranch(await projectOpenFlowService.loadRemoteBranches(remoteEndpoint, remoteRootPath, selectedBranch))
     }
 
     const handleRecentLocalRepositorySelect = (rootPath: string) => {
         setLocalRootPath(rootPath)
     }
 
+    const handleOpenRecentLocal = async (rootPath: string) => {
+        await projectOpenFlowService.openRecentLocal(rootPath)
+    }
+
+    const handleRemoveRecentLocal = async (rootPath: string) => {
+        await projectOpenFlowService.removeRecentLocal(rootPath)
+    }
+
     const handleFolderValuesChange = (values: ProjectFolderValues) => {
-        setFolderSetupState({ resolution: projectFolderSetup, values })
+        projectOpenFlowService.setFolderValues(values)
     }
 
     const handleBrowseFolder = async (field: keyof ProjectFolderValues) => {
-        const rootPath = projectFolderSetup?.project.rootPath
-        if (!electronBridge?.selectProjectSubFolder || !rootPath) return
+        const picked = await projectOpenFlowService.browseFolder(field, folderValues)
+        if (picked === null) return
 
-        const pickedFolder = await electronBridge.selectProjectSubFolder(rootPath)
-        if (pickedFolder === null) return
-
-        const repositoryRelativePath = toRepositoryRelativePath(rootPath, pickedFolder)
-        if (repositoryRelativePath === null || repositoryRelativePath.length === 0) {
-            dialogService.displayError('Choose a folder inside the repository.')
-
-            return
-        }
-        const picked = field === 'projectFolder'
-            ? repositoryRelativePath
-            : toProjectFolderRelativePath(folderValues.projectFolder, repositoryRelativePath)
-        if (picked === null || picked.length === 0) {
-            dialogService.displayError(`Choose a folder inside '${folderValues.projectFolder}'.`)
-
-            return
-        }
-
-        setFolderSetupState((currentState) => {
-            const currentValues = currentState.resolution === projectFolderSetup ? currentState.values : folderValues
-
-            return { resolution: projectFolderSetup, values: { ...currentValues, [field]: picked } }
-        })
+        projectOpenFlowService.setFolderValues({ ...folderValues, [field]: picked })
     }
 
-    const handleOpenClick = async () => {
+    const handleOpenClick = () => {
         if (projectFolderSetup) {
-            try {
-                await projectSessionService.confirmProjectFolderSetup(projectFolderSetup, folderValues, accessToken)
-                if (pendingLocalRootPath) {
-                    setRecentLocalRepositories(await recordRecentLocalRepository(pendingLocalRootPath))
-                    setPendingLocalRootPath(null)
-                }
-                onClose()
-            } catch {
-                // ProjectSessionService emits the user-visible error.
-            }
+            void projectOpenFlowService.confirmFolders(folderValues)
 
             return
         }
         if (source === 'personal' || source === 'public') {
-            try {
-                const storageType = source === 'public' ? 'github-readonly' : 'github'
-                const result = await projectSessionService.findGithubRepositoryBranches(
-                    githubOwner, githubRepository, accessToken, storageType,
-                )
-                const availableBranches = branches.length > 0 ? branches : result.branches
-                const branch = selectedBranch || branchValue(availableBranches, result.repository.branch)
-                setBranches(availableBranches)
-                await handleProjectOpened(storageType, { ...result.repository, branch })
-            } catch {
-                // ProjectSessionService emits the user-visible error.
-            }
+            const request: ProjectOpenRequest = {source, owner: githubOwner, repository: githubRepository, branch: selectedBranch}
+            void projectOpenFlowService.submit(request)
 
             return
         }
         if (source === 'local') {
-            await openLocalProject(localRootPath)
+            const request: ProjectOpenRequest = { source, rootPath: localRootPath }
+            void projectOpenFlowService.submit(request)
 
             return
         }
         if (!isRemoteComplete) return
 
-        const project = { branch: selectedBranch || 'main', id: remoteRootPath, rootPath: remoteRootPath }
-        projectSessionService.configureRemote(remoteEndpoint)
-        await handleProjectOpened('remote', project)
+        const request: ProjectOpenRequest = {source, endpoint: remoteEndpoint, rootPath: remoteRootPath, branch: selectedBranch}
+        void projectOpenFlowService.submit(request)
     }
 
     const handleClose = () => {
-        setFolderSetupState({ resolution: null, values: folderValuesOf(DEFAULT_PROJECT_CONFIG) })
-        setProjectOpenResolution(null)
-        setPendingLocalRootPath(null)
-        projectSessionService.setError(null)
-        onClose()
+        projectOpenFlowService.close()
     }
 
     /** The folder-setup step holds unsaved multi-field input, so only Esc and Cancel may dismiss it. */
@@ -426,7 +249,7 @@ export function ProjectOpenDialog(props: ProjectOpenDialogProps) {
     }
 
     return (
-        <Dialog fullWidth maxWidth="sm" onClose={handleDialogClose} open={open && !isProjectLoading}>
+        <Dialog fullWidth maxWidth="sm" onClose={handleDialogClose} open>
             <DialogTitle>{projectFolderSetup ? 'Project folders' : 'Open project'}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2} sx={{ pt: 1 }}>
@@ -556,7 +379,7 @@ export function ProjectOpenDialog(props: ProjectOpenDialogProps) {
                             {recentLocalRepositories.length > 0 ? (
                                 <RecentProjectFolderList
                                     isLoading={isLoading}
-                                    onOpen={openLocalProject}
+                                    onOpen={handleOpenRecentLocal}
                                     onRemove={handleRemoveRecentLocal}
                                     onSelect={handleRecentLocalRepositorySelect}
                                     paths={recentLocalRepositories}
@@ -579,7 +402,7 @@ export function ProjectOpenDialog(props: ProjectOpenDialogProps) {
                     {projectFolderSetup ? (
                         <ProjectFolderSetupFields
                             isLoading={isLoading}
-                            onBrowseFolder={electronBridge?.selectProjectSubFolder ? handleBrowseFolder : null}
+                            onBrowseFolder={canBrowseProjectFolders() ? handleBrowseFolder : null}
                             onValuesChange={handleFolderValuesChange}
                             resolution={projectFolderSetup}
                             values={folderValues}

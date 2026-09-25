@@ -12,6 +12,7 @@ import { AppMenu } from './menu/app_menu'
 import { StatusBar } from './status_bar'
 import type { ProjectOpenResolution } from '../../services/project/project_session_service'
 import { useProjectLoading } from '../hooks/use_project_loading'
+import { useProjectOpenPhase } from '../hooks/use_project_open_phase'
 import { ProjectLoadingIndicator } from './project_loading_indicator'
 
 interface MainWindowProps {
@@ -29,6 +30,7 @@ export function MainWindow(props: MainWindowProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const project = useProjectReference()
     const isProjectLoading = useProjectLoading()
+    const projectOpenPhase = useProjectOpenPhase()
     const isConfigOpen = location.pathname === '/config'
     const regexpAgent = useMemo(
         () => isSearchRegexpAgentAvailable() ? createSearchRegexpAgent() : undefined,
@@ -62,7 +64,7 @@ export function MainWindow(props: MainWindowProps) {
                 onOpenMobileMenu={handleOpenMenu}
                 regexpAgent={regexpAgent}
             />
-            {isProjectLoading ? <ProjectLoadingIndicator /> : (
+            {isProjectLoading || projectOpenPhase === 'loading' ? <ProjectLoadingIndicator /> : (
                 <ProjectWorkspace
                     auth={auth}
                     isMenuOpen={isMenuOpen}

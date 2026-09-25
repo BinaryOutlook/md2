@@ -84,6 +84,7 @@ export interface ActiveActionRun {
 }
 
 type EventListener = (event: ActionRunEvent) => void
+type StoreListener = () => void
 
 function actionName(actionId: string) {
     return actionService.getActions().find((action) => action.id === actionId)?.label ?? actionId
