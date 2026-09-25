@@ -11,4 +11,6 @@ agents:
 policy:
 after: cb27b171-7487-436d-ad9c-ed07ce7dd6f1
 ---
-When the user goes to a new conversation and the previous conversation on the same or anither  action (especially the 'custom' or '+' one) has not been closed completely, then the new one wont start. Is there a tecnical reason for this, otherwise we need to remove restriction
+When the user goes to a new conversation and the previous conversation on the same or another  action (especially the 'custom' or '+' one) has not been closed completely, then the new one wont start. Is there a technical reason for this, otherwise we need to remove restriction.
+
+So meanwhile, we can already start a conversation on another action, but not on the same action. this should be possible
