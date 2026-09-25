@@ -9,7 +9,6 @@ affects:
 agents:
 policy:
 ---
-
 * when working with the add tool:
   * in desktop mode, when the mouse hovers over the diagram area, we show a node that can be inserted. this is ok, however, it is not in the correct position, it does not do a transformation I think to local coordinates. the node is always below to the left,
   * when user presses 'esc' 'add tool' should switch to 'select diagram objects'
@@ -20,3 +19,4 @@ policy:
 * when we change the title of the diagram, it does not appear to update the label in the bread crumbs, so most likely also not the filename. this is wrong.
 * for mindmaps: when creating a new diagram, the 'add tool' should have the 'root' already selected. once the root is placed, it should automatically go to 'topic'
 * the label is editable, this is good, but it is not centered and has a white background. it should be transparent and centered.
+* the breadcrumbs are overlapping the title , this is not ok. move title down some&#x20;
