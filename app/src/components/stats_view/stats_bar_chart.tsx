@@ -1,17 +1,15 @@
 import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useContext, useMemo } from 'react';
-import type { StatsChartRow, StatsUnit } from '../../services/stats/project_stats_types';
-import { formatDurationHms } from '../../services/stats/stats_tooltip';
-import { formatTokenCount } from '../agents/token_count_format';
+import type { StatsChartRow } from '../../services/stats/project_stats_types';
+import { barsForBucket, barTotal, bucketRows, type BucketRows, type StatsBarMode } from './stats_bar_groups';
 import { StatsSeriesColorsContext } from './stats_series_colors_context';
 import { assignSeriesColorsFromKeys, seriesColorInputs, seriesColorKey, type StatsSeriesPalettes } from './stats_series_colors';
+import { formattedValue, stackTotalLabel } from './stats_value_format';
 
 const BAR_SLOT_WIDTH = 72;
 const BUCKET_WIDTH = 112;
 const MINIMUM_CHART_HEIGHT = 260;
 const VALUE_LABEL_HEIGHT = 20;
-
-export type StatsBarMode = 'grouped' | 'groupedStacked' | 'single' | 'stacked';
 
 interface StatsBarChartProps {
     ariaLabel?: string;
@@ -20,82 +18,8 @@ interface StatsBarChartProps {
     shortTokenCounts?: boolean;
 }
 
-interface BucketRows {
-    identity: string;
-    label: string;
-    rows: StatsChartRow[];
-}
-
-interface BarRows {
-    identity: string;
-    label: string | null;
-    rows: StatsChartRow[];
-}
-
 function effectiveSeriesIdentity(row: StatsChartRow) {
     return row.seriesIdentity ?? row.identity;
-}
-
-/** True for counts of tokens only; the `tokensPer…` units are ratios and keep their decimals. */
-function abbreviatesTokens(unit: StatsUnit, shortTokenCounts: boolean) {
-    return shortTokenCounts && unit === 'tokens';
-}
-
-function formattedValue(row: StatsChartRow, shortTokenCounts: boolean) {
-    if (!row.available) return 'Unavailable';
-    if (abbreviatesTokens(row.unit, shortTokenCounts)) return formatTokenCount(row.value);
-    if (row.unit === 'milliseconds') return formatDurationHms(row.value);
-    if (row.unit === 'percent') {
-        return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(row.value)}%`;
-    }
-    if (row.unit === 'dollars') {
-        return new Intl.NumberFormat(undefined, { currency: 'USD', style: 'currency' }).format(row.value);
-    }
-
-    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(row.value);
-}
-
-/** Stacked bars label their full height; duration stacks read HH:MM:SS like their individual rows. */
-function stackTotalLabel(bar: BarRows, total: number, shortTokenCounts: boolean) {
-    if (abbreviatesTokens(bar.rows[0].unit, shortTokenCounts)) return formatTokenCount(total);
-    if (bar.rows[0].unit === 'milliseconds') return formatDurationHms(total);
-
-    return new Intl.NumberFormat().format(total);
-}
-
-function bucketRows(rows: StatsChartRow[]) {
-    const buckets = new Map<string, BucketRows>();
-    for (const row of rows) {
-        const identity = row.utcBucketStart ?? row.identity;
-        const current = buckets.get(identity) ?? { identity, label: row.displayLabel, rows: [] };
-        current.rows.push(row);
-        buckets.set(identity, current);
-    }
-
-    return [...buckets.values()];
-}
-
-function groupedStackedBars(rows: StatsChartRow[]) {
-    const groups = new Map<string, BarRows>();
-    for (const row of rows) {
-        const identity = row.stackIdentity ?? row.identity;
-        const current = groups.get(identity) ?? { identity, label: row.stackLabel, rows: [] };
-        current.rows.push(row);
-        groups.set(identity, current);
-    }
-
-    return [...groups.values()];
-}
-
-function barsForBucket(bucket: BucketRows, mode: StatsBarMode): BarRows[] {
-    if (mode === 'stacked') return [{ identity: bucket.identity, label: null, rows: bucket.rows }];
-    if (mode === 'groupedStacked') return groupedStackedBars(bucket.rows);
-
-    return bucket.rows.map((row, index) => ({ identity: `${row.identity}:${index}`, label: null, rows: [row] }));
-}
-
-function barTotal(bar: BarRows) {
-    return bar.rows.reduce((total, row) => total + Math.max(row.value, 0), 0);
 }
 
 function maximumMagnitude(buckets: BucketRows[], mode: StatsBarMode) {
@@ -233,7 +157,7 @@ export function StatsBarChart({ ariaLabel = 'Stats bar chart', mode = 'single', 
                                 >
                                     {bars.map((bar) => {
                                         const total = barTotal(bar);
-                                        const totalLabel = stackTotalLabel(bar, total, shortTokenCounts);
+                                        const totalLabel = stackTotalLabel(bar.rows[0].unit, total, shortTokenCounts);
                                         const stacked = mode === 'stacked' || mode === 'groupedStacked';
                                         const barMagnitude = scaledPosition(total, maximum, domainPercentage);
 

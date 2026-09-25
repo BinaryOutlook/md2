@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BUILTIN_AGENT_PROFILES } from '../../data/agent_profiles'
 import { DEFAULT_PROJECT_CONFIG, type ProjectConfig, type StorageService } from '../../data/data_types'
@@ -245,5 +245,85 @@ describe('StatsContent', () => {
         await waitFor(() => expect(screen.getByRole('list')).toHaveAttribute('data-chart-mode', 'stacked'))
         expect(screen.getAllByTestId('stats-legend-swatch').map((swatch) => swatch.getAttribute('data-series-identity')))
             .toEqual(['tool', 'reasoning', 'agent', 'unmeasured'])
+    })
+})
+
+function mockMatchMedia(matches: boolean) {
+    window.matchMedia = ((query: string) => ({
+        addEventListener: () => {},
+        addListener: () => {},
+        dispatchEvent: () => false,
+        matches,
+        media: query,
+        onchange: null,
+        removeEventListener: () => {},
+        removeListener: () => {},
+    })) as unknown as typeof window.matchMedia
+}
+
+async function openTokenActivity(id: string) {
+    const metrics = `${metricsHeader}\r\n2026-08-12T10:00:00.000Z,token_usage,codex,,,,,3,2,4,1,10,,\r\n`
+    projectStatsService.setControls({ activityGranularity: 'day', activityMetric: 'tokens', dataset: 'activityOverTime' })
+    projectStatsService.bindProject({ config, project: { branch: 'main', id }, storage: metricsStorage(metrics) })
+    await projectStatsService.open([], BUILTIN_AGENT_PROFILES)
+}
+
+describe('StatsContent screen size', () => {
+    const originalMatchMedia = window.matchMedia
+
+    afterEach(() => {
+        cleanup()
+        projectStatsService.clear()
+        window.matchMedia = originalMatchMedia
+    })
+
+    it('shows a table instead of the bar chart on a small screen', async () => {
+        mockMatchMedia(true)
+        await openTokenActivity('small')
+        renderContent()
+
+        const table = await screen.findByRole('table', { name: 'Stats table' })
+        expect(within(table).getByRole('cell', { name: formatTokenCount(10) })).toBeInTheDocument()
+        expect(screen.queryByRole('list')).toBeNull()
+        expect(within(screen.getByTestId('stats-chart-viewport')).getByRole('table')).toBe(table)
+    })
+
+    it('keeps the bar chart on a large screen', async () => {
+        mockMatchMedia(false)
+        await openTokenActivity('large')
+        renderContent()
+
+        expect(screen.getByRole('list', { name: 'Stats bar chart' })).toBeInTheDocument()
+        expect(screen.queryByRole('table')).toBeNull()
+    })
+
+    it('shows one titled table per usage comparison chart on a small screen', async () => {
+        mockMatchMedia(true)
+        const accountRow = '2026-08-12T09:00:00.000Z,account_usage,codex,weekly,window-a,10080,2026-08-17T00:00:00.000Z,,,,,,50,2'
+        projectStatsService.setControls({ dataset: 'usageComparison' })
+        projectStatsService.bindProject({ config, project: { branch: 'main', id: 'small-account' }, storage: metricsStorage([metricsHeader, accountRow].join('\r\n')) })
+        await projectStatsService.open([], BUILTIN_AGENT_PROFILES)
+        renderContent()
+
+        await waitFor(() => expect(screen.getAllByRole('table')).toHaveLength(9))
+        expect(screen.getByText(/Account usage may include other projects and external CLI sessions/u)).toBeInTheDocument()
+        expect(screen.getByRole('table', { name: 'Account usage table' })).toBeInTheDocument()
+        expect(screen.queryByRole('list')).toBeNull()
+    })
+
+    it('keeps the empty and token-unavailable messages on a small screen', async () => {
+        mockMatchMedia(true)
+        projectStatsService.setControls({ activityMetric: 'tokens', dataset: 'activityOverTime' })
+        projectStatsService.bindProject({ config, project: { branch: 'main', id: 'small-missing' }, storage: storage({}) })
+        await projectStatsService.open([], BUILTIN_AGENT_PROFILES)
+        renderContent()
+
+        expect(screen.getByText('Token usage over time unavailable: usage_metrics.csv is missing.')).toBeInTheDocument()
+        expect(screen.queryByRole('table')).toBeNull()
+
+        act(() => projectStatsService.setControls({ activityMetric: 'actions' }))
+
+        await waitFor(() => expect(screen.getByText('No stats data matches current filters.')).toBeInTheDocument())
+        expect(screen.queryByRole('table')).toBeNull()
     })
 })

@@ -1,11 +1,14 @@
-import { Box, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, Paper, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { dialogService } from '../../services/dialog_service';
 import { projectStatsService } from '../../services/stats/project_stats_service';
 import type { StatsExclusionReason } from '../../services/stats/project_stats_types';
 import { isStackedDurationPerformance } from '../../services/stats/stats_performance_dataset';
-import { StatsBarChart, type StatsBarMode } from './stats_bar_chart';
+import { StatsBarChart } from './stats_bar_chart';
+import type { StatsBarMode } from './stats_bar_groups';
+import { StatsTable } from './stats_table';
 import { StatsUsageComparisonCharts } from './stats_usage_comparison_charts';
+import { StatsUsageComparisonTables } from './stats_usage_comparison_tables';
 
 const EXCLUSION_LABELS: Record<StatsExclusionReason, string> = {
     missingAttribution: 'missing agent/model attribution',
@@ -21,6 +24,8 @@ export function StatsContent() {
     const snapshot = useSyncExternalStore(projectStatsService.subscribe, projectStatsService.getSnapshot, projectStatsService.getSnapshot);
     const reportedErrorRef = useRef<Error | null>(null);
     const reportedWarningRef = useRef('');
+    const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
 
     useEffect(() => {
         if (!snapshot.error || reportedErrorRef.current === snapshot.error) return;
@@ -102,8 +107,12 @@ export function StatsContent() {
                 ) : (
                     <Box data-testid="stats-chart-viewport" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                         {controls.dataset === 'usageComparison'
-                            ? <StatsUsageComparisonCharts rows={snapshot.rows} shortTokenCounts={snapshot.controls.shortTokenCounts} />
-                            : <StatsBarChart mode={chartMode} rows={snapshot.rows} shortTokenCounts={snapshot.controls.shortTokenCounts} />}
+                            ? isSmallScreen
+                                ? <StatsUsageComparisonTables rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
+                                : <StatsUsageComparisonCharts rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
+                            : isSmallScreen
+                                ? <StatsTable mode={chartMode} rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
+                                : <StatsBarChart mode={chartMode} rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />}
                     </Box>
                 )}
             </Paper>
