@@ -1,0 +1,54 @@
+{
+  "actionSettings": {
+    "md2.custom-prompt": {
+      "activeAgent": "claude",
+      "permissionMode": "approve-for-me",
+      "settingsByAgent": {
+        "codex": {
+          "model": "gpt-6-sol",
+          "thinkingLevel": "medium"
+        },
+        "claude": {
+          "model": "opus",
+          "thinkingLevel": "medium"
+        }
+      }
+    }
+  },
+  "conversations": [
+    {
+      "actionId": "md2.custom-prompt",
+      "cardInternalId": "f8f360b8-6713-4dfb-bb1c-8f695d46bf8d",
+      "cardPath": "design/feature_descriptions/J_55_update_styling_guide_lines_for_cards.md",
+      "completedAt": null,
+      "entries": [
+        {
+          "content": "read design/feature_descriptions/J_55_update_styling_guide_lines_for_cards.md, check the react styling guide lines and see what you can find, make a proposition. remember, we have light and dark themes",
+          "id": "agent-turn-487bd102-0721-4ca5-b294-7c398d9a93eb-user",
+          "kind": "message",
+          "role": "user",
+          "sequence": 1,
+          "timestamp": "2026-09-25T12:35:46.873Z"
+        }
+      ],
+      "hasExplicitTitle": true,
+      "id": "agent-8d411c27-c250-4e68-a9bd-f25359ae0191",
+      "providerSessions": [],
+      "startedAt": "2026-09-25T12:35:46.873Z",
+      "status": "running",
+      "timer": {
+        "elapsedMs": 0,
+        "runningStartedAt": "2026-09-25T12:35:46.873Z"
+      },
+      "title": "+",
+      "usageSchemaVersion": 1,
+      "viewed": true
+    }
+  ],
+  "origin": {
+    "cardInternalId": "f8f360b8-6713-4dfb-bb1c-8f695d46bf8d",
+    "kind": "card"
+  },
+  "records": [],
+  "version": 5
+}
