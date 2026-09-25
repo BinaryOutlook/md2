@@ -9,8 +9,6 @@ affects:
 agents:
   - design/activity/card__6b01f79a-7950-42c5-b09b-4f77086aa427.json
 policy:
-branch: f_359_stats_on_small_screen
-worktree: 2
 changedFiles:
   - app/src/components/stats_view/stats_bar_chart.tsx
   - app/src/components/stats_view/stats_bar_groups.ts
