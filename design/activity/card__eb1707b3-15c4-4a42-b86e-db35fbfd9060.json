@@ -1,0 +1,39 @@
+{
+  "actionSettings": {},
+  "conversations": [
+    {
+      "actionId": "md2.custom-prompt",
+      "cardInternalId": "eb1707b3-15c4-4a42-b86e-db35fbfd9060",
+      "cardPath": "design/feature_descriptions/F_350_action_idea.md",
+      "completedAt": null,
+      "entries": [
+        {
+          "content": "Read design/feature_descriptions/F_350_action_idea.md. Do you understand the feature? How would you implement? Make detailed plan but be short and to the point",
+          "id": "agent-turn-c53bb456-a0cf-4f79-a7ba-c7b756fa6107-user",
+          "kind": "message",
+          "role": "user",
+          "sequence": 1,
+          "timestamp": "2026-09-25T17:28:03.454Z"
+        }
+      ],
+      "hasExplicitTitle": true,
+      "id": "agent-3cc4b0e1-8ab1-4a08-9fde-a00eb33c482b",
+      "providerSessions": [],
+      "startedAt": "2026-09-25T17:28:03.454Z",
+      "status": "running",
+      "timer": {
+        "elapsedMs": 0,
+        "runningStartedAt": "2026-09-25T17:28:03.454Z"
+      },
+      "title": "+",
+      "usageSchemaVersion": 1,
+      "viewed": true
+    }
+  ],
+  "origin": {
+    "cardInternalId": "eb1707b3-15c4-4a42-b86e-db35fbfd9060",
+    "kind": "card"
+  },
+  "records": [],
+  "version": 5
+}
