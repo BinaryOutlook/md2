@@ -171,7 +171,7 @@
       "actionId": "md2.custom-prompt",
       "cardInternalId": "83c2184c-ed84-4e04-ad0a-4e3159cc163f",
       "cardPath": "design/feature_descriptions/F_373_add_docs_about_mindmaps.md",
-      "completedAt": null,
+      "completedAt": "2026-09-25T17:18:46.406Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 35080
@@ -421,7 +421,7 @@
         }
       ],
       "startedAt": "2026-09-24T13:41:25.009Z",
-      "status": "waitingForInput",
+      "status": "completed",
       "timer": {
         "breakdown": {
           "reasoningMs": 12171,
@@ -478,11 +478,11 @@
         "agent-9d15b079-c5b3-4260-9917-bba8394dd9b1"
       ],
       "details": {
+        "type": "agent",
         "agent": "codex",
         "model": "gpt-6-sol",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-afae170a-774f-468d-b4c4-4308d6008366",
       "origin": {
@@ -491,9 +491,9 @@
       },
       "rootActionId": "md2.custom-prompt",
       "rootActionLabel": "+",
-      "rootConversationId": "agent-9d15b079-c5b3-4260-9917-bba8394dd9b1",
       "startedAt": "2026-09-24T13:41:25.006Z",
-      "status": "cancelled"
+      "status": "cancelled",
+      "rootConversationId": "agent-9d15b079-c5b3-4260-9917-bba8394dd9b1"
     }
   ],
   "version": 5
