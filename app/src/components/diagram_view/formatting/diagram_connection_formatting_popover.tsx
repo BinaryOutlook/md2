@@ -9,7 +9,7 @@ import {
     type DiagramEdgeKind,
 } from '../../../services/diagrams/diagram_data';
 import { dialogService } from '../../../services/dialog_service';
-import { OptionalColorPickerField } from './optional_color_picker_field';
+import { OptionalColorPickerField } from '../../optional_color_picker_field';
 import { OptionalSliderField } from './optional_slider_field';
 
 const DEFAULT_CUSTOM_FONT_SIZE = 8;

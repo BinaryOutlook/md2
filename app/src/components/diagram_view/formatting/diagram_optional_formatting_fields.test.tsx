@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAppTheme } from '../../../theme/app_theme';
 import { ColorPickerField } from '../../color_picker_field';
-import { OptionalColorPickerField } from './optional_color_picker_field';
+import { OptionalColorPickerField } from '../../optional_color_picker_field';
 import { OptionalSliderField } from './optional_slider_field';
 
 const theme = createAppTheme('dark');

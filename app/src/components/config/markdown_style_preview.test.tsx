@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MARKDOWN_STYLE_PRESETS, type MarkdownStyleConfig } from '../../theme/theme_config'
+import { MARKDOWN_FONT_FAMILIES, MARKDOWN_STYLE_PRESETS, type MarkdownStyleConfig } from '../../theme/theme_config'
 import { AppThemeProvider } from '../../theme/theme_provider'
 import { useAppTheme } from '../../theme/use_app_theme'
 import { MarkdownStylePreview } from './markdown_style_preview'
@@ -11,6 +11,8 @@ const buildMarkdownContentSxMock = vi.hoisted(() => vi.fn((config: MarkdownStyle
 vi.mock('../editor/markdown_style_sx', () => ({ buildMarkdownContentSx: buildMarkdownContentSxMock }))
 
 const handleSectionChange = vi.fn()
+const CUSTOM_BODY_COLOR = '#1976d2'
+const customColorConfig = { ...MARKDOWN_STYLE_PRESETS.modern, body: { ...MARKDOWN_STYLE_PRESETS.modern.body, color: CUSTOM_BODY_COLOR } }
 
 function PreviewHarness() {
     const { markdownContentSx, markdownStyleConfig } = useAppTheme()
@@ -111,5 +113,56 @@ describe('MarkdownStylePreview', () => {
         fireEvent.keyDown(screen.getByRole('presentation'), { key: 'Escape' })
 
         await waitFor(() => expect(screen.queryByRole('heading', { name: 'Body style' })).not.toBeInTheDocument())
+    })
+
+    it('reports a font family chosen from the predefined list', () => {
+        render(<MarkdownStylePreview config={MARKDOWN_STYLE_PRESETS.modern} onSectionChange={handleSectionChange} />)
+        const serifFont = MARKDOWN_FONT_FAMILIES.find((option) => option.label === 'Serif')!.value
+
+        fireEvent.click(screen.getByLabelText('Edit Body style'))
+        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Font family for Body' }))
+        fireEvent.click(screen.getByRole('option', { name: 'Serif' }))
+
+        const expectedStyle = { ...MARKDOWN_STYLE_PRESETS.modern.body, fontFamily: serifFont }
+        expect(handleSectionChange).toHaveBeenCalledWith('body', expectedStyle)
+    })
+
+    it('shows a font family that is not predefined as its own option', () => {
+        const customFont = '"Custom Font", serif'
+        const customFontBody = { ...MARKDOWN_STYLE_PRESETS.modern.body, fontFamily: customFont }
+        const customFontConfig = { ...MARKDOWN_STYLE_PRESETS.modern, body: customFontBody }
+        render(<MarkdownStylePreview config={customFontConfig} onSectionChange={handleSectionChange} />)
+
+        fireEvent.click(screen.getByLabelText('Edit Body style'))
+
+        expect(screen.getByRole('combobox', { name: 'Font family for Body' })).toHaveTextContent(customFont)
+    })
+
+    it('reports a picked color preset', () => {
+        render(<MarkdownStylePreview config={customColorConfig} onSectionChange={handleSectionChange} />)
+
+        fireEvent.click(screen.getByLabelText('Edit Body style'))
+        fireEvent.click(screen.getByRole('button', { name: 'Use colour #2e7d32' }))
+
+        const expectedStyle = { ...customColorConfig.body, color: '#2e7d32' }
+        expect(handleSectionChange).toHaveBeenCalledWith('body', expectedStyle)
+    })
+
+    it('reports the inherited color when switching back to the default color', () => {
+        render(<MarkdownStylePreview config={customColorConfig} onSectionChange={handleSectionChange} />)
+
+        fireEvent.click(screen.getByLabelText('Edit Body style'))
+        fireEvent.click(screen.getByRole('button', { name: 'Use default for Color for Body' }))
+
+        const expectedStyle = { ...customColorConfig.body, color: 'inherit' }
+        expect(handleSectionChange).toHaveBeenCalledWith('body', expectedStyle)
+    })
+
+    it('shows the inherited color as the default color', () => {
+        render(<MarkdownStylePreview config={MARKDOWN_STYLE_PRESETS.modern} onSectionChange={handleSectionChange} />)
+
+        fireEvent.click(screen.getByLabelText('Edit Body style'))
+
+        expect(screen.getByLabelText('Color for Body value')).toHaveTextContent('Default')
     })
 })
