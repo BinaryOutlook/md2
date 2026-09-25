@@ -3,7 +3,7 @@ author:
 id: F_359
 internalId: 6b01f79a-7950-42c5-b09b-4f77086aa427
 title: Stats on small screen
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -11,6 +11,17 @@ agents:
 policy:
 branch: f_359_stats_on_small_screen
 worktree: 2
+changedFiles:
+  - app/src/components/stats_view/stats_bar_chart.tsx
+  - app/src/components/stats_view/stats_bar_groups.ts
+  - app/src/components/stats_view/stats_content.tsx
+  - app/src/components/stats_view/stats_table.test.tsx
+  - app/src/components/stats_view/stats_table.tsx
+  - app/src/components/stats_view/stats_usage_comparison_charts.tsx
+  - app/src/components/stats_view/stats_usage_comparison_sections.ts
+  - app/src/components/stats_view/stats_usage_comparison_tables.tsx
+  - app/src/components/stats_view/stats_value_format.node.test.ts
+  - app/src/components/stats_view/stats_value_format.ts
 ---
 
 When on small screen, show the stats as tables instead of charts. This is easier to read
