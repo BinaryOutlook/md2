@@ -9,8 +9,6 @@ affects:
 agents:
   - design/activity/card__8ae19b2f-3463-4fe3-9303-6e8101cf9ab6.json
 policy:
-branch: b_250_new_diagrams_should_remain_in_edit_mode
-worktree: 3
 changedFiles:
   - app/src/components/diagram_view/diagram_view.test.tsx
   - app/src/components/shell/menu/app_menu.test.tsx
