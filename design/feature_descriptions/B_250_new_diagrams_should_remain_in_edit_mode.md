@@ -3,7 +3,7 @@ author:
 id: B_250
 internalId: 8ae19b2f-3463-4fe3-9303-6e8101cf9ab6
 title: new diagrams should remain in edit mode
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -11,6 +11,15 @@ agents:
 policy:
 branch: b_250_new_diagrams_should_remain_in_edit_mode
 worktree: 3
+changedFiles:
+  - app/src/components/diagram_view/diagram_view.test.tsx
+  - app/src/components/shell/menu/app_menu.test.tsx
+  - app/src/services/diagrams/diagram_edit_session_service.test.ts
+  - app/src/services/diagrams/diagram_edit_session_service.ts
+  - app/src/services/diagrams/diagram_index.node.test.ts
+  - app/src/services/diagrams/diagram_index.ts
+  - app/src/services/diagrams/diagram_view_service.test.ts
+  - app/src/services/diagrams/diagram_view_service.ts
 ---
 
 After creating a new diagram and the user closes the app and opens it again. if he then goes back to the diagram, it appears as if it is read-only. if the user starts the edit, a new edit appears to be created. this is not correct. a diagram should remain in edit mode for as long as it has not yet been implemented.&#x20;
