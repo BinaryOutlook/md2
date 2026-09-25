@@ -1,7 +1,7 @@
 import { Button, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
-import { ColorPickerField } from '../../color_picker_field';
-import { COLOR_PICKER_PALETTE } from '../../color_picker_palette';
+import { ColorPickerField } from './color_picker_field';
+import { COLOR_PICKER_PALETTE } from './color_picker_palette';
 
 interface OptionalColorPickerFieldProps {
     helperText: string;
@@ -10,7 +10,7 @@ interface OptionalColorPickerFieldProps {
     value?: string;
 }
 
-/** Color picker with an explicit default state for optional diagram formatting. */
+/** Color picker with an explicit default state for optional color settings. */
 export function OptionalColorPickerField({ helperText, label, onChange, value }: OptionalColorPickerFieldProps) {
     const [customValue, setCustomValue] = useState(value ?? COLOR_PICKER_PALETTE[0]);
     const handleChange = (nextValue: string) => {

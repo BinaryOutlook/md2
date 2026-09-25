@@ -96,7 +96,18 @@ const SERIF_FONT = '"Merriweather", "Georgia", serif'
 const SANS_SERIF_FONT = '"Helvetica Neue", "Arial", sans-serif'
 const HANDWRITTEN_FONT = '"Caveat", "Comic Sans MS", cursive'
 const MONOSPACE_FONT = '"Cascadia Code", "Consolas", monospace'
-const INHERIT_COLOR = 'inherit'
+/** Color value meaning a markdown section uses the surrounding text color. */
+export const MARKDOWN_INHERIT_COLOR = 'inherit'
+
+/** Font families offered when editing a markdown section style. */
+export const MARKDOWN_FONT_FAMILIES = [
+    { label: 'Modern', value: MODERN_FONT },
+    { label: 'Classic', value: CLASSIC_FONT },
+    { label: 'Serif', value: SERIF_FONT },
+    { label: 'Sans serif', value: SANS_SERIF_FONT },
+    { label: 'Handwritten', value: HANDWRITTEN_FONT },
+    { label: 'Monospace', value: MONOSPACE_FONT },
+]
 
 function createFormatting(bold: boolean, italic: boolean, underline: boolean): MarkdownSectionFormatting {
     return { bold, italic, underline }
@@ -110,7 +121,7 @@ function createSectionStyle(
     marginBottom: string,
     formatting: MarkdownSectionFormatting,
 ): MarkdownSectionStyle {
-    return { color: INHERIT_COLOR, fontFamily, fontSize, formatting, lineHeight, marginBottom, marginTop }
+    return { color: MARKDOWN_INHERIT_COLOR, fontFamily, fontSize, formatting, lineHeight, marginBottom, marginTop }
 }
 
 function buildMarkdownStyle(fontFamily: string): MarkdownStyleConfig {
