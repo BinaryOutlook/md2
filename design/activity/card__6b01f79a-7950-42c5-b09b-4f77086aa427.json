@@ -1475,11 +1475,11 @@
         "agent-0ea0f855-8911-49e0-8160-fdd0e8817b1f"
       ],
       "details": {
+        "type": "agent",
         "agent": "claude",
         "model": "opus",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-eb3d1ad8-b363-4abd-aa21-f5d072e33ff3",
       "origin": {
@@ -1488,9 +1488,41 @@
       },
       "rootActionId": "47dafdc7-0be7-4d56-bb5a-07c813906416",
       "rootActionLabel": "implement",
-      "rootConversationId": "agent-0ea0f855-8911-49e0-8160-fdd0e8817b1f",
       "startedAt": "2026-09-25T14:31:39.314Z",
-      "status": "completed"
+      "status": "completed",
+      "rootConversationId": "agent-0ea0f855-8911-49e0-8160-fdd0e8817b1f"
+    },
+    {
+      "commits": [
+        {
+          "commit": "b0dc433bb38261e7f80f116385a76fd13865c87b",
+          "committedAt": "2026-09-25T16:39:23+02:00",
+          "deletions": 105,
+          "filePaths": [
+            "app/src/components/stats_view/stats_bar_chart.tsx",
+            "app/src/components/stats_view/stats_bar_groups.ts",
+            "app/src/components/stats_view/stats_content.test.tsx",
+            "app/src/components/stats_view/stats_content.tsx",
+            "app/src/components/stats_view/stats_table.test.tsx",
+            "app/src/components/stats_view/stats_table.tsx",
+            "app/src/components/stats_view/stats_usage_comparison_charts.tsx",
+            "app/src/components/stats_view/stats_usage_comparison_sections.ts",
+            "app/src/components/stats_view/stats_usage_comparison_tables.tsx",
+            "app/src/components/stats_view/stats_value_format.node.test.ts",
+            "app/src/components/stats_view/stats_value_format.ts"
+          ],
+          "filesChanged": 11,
+          "insertions": 553,
+          "branch": "dev_main"
+        }
+      ],
+      "completedAt": "2026-09-25T16:39:23+02:00",
+      "label": "Integrate into project",
+      "origin": {
+        "cardInternalId": "6b01f79a-7950-42c5-b09b-4f77086aa427",
+        "kind": "card"
+      },
+      "type": "system"
     }
   ],
   "version": 5
