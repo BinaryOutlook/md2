@@ -8,7 +8,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 147187
+        "usedTokens": 147619
       },
       "entries": [
         {
@@ -2999,6 +2999,36 @@
           "role": "assistant",
           "sequence": 220,
           "timestamp": "2026-09-25T08:50:50.320Z"
+        },
+        {
+          "content": "why is it hidden? why does it not unload",
+          "id": "agent-turn-f2dce1c9-905c-43f4-8b7f-afbc2c7f795d-user-220",
+          "kind": "message",
+          "role": "user",
+          "sequence": 221,
+          "timestamp": "2026-09-25T08:55:11.287Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-f2dce1c9-905c-43f4-8b7f-afbc2c7f795d-event-222",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02c703b9236db3a6016ab636f1f8d487d29670943ea5a7e4b4",
+          "sequence": 222,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-25T08:55:22.089Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "It stays mounted because `AppMenu` still has `dialogMode === 'open'` during loading. I set the dialog’s `open` prop to false, which closes it visually but keeps the component and its local state alive. That state includes the pending folder-setup resolution and local project path, so the same component can show the setup step if loading requires it.\n\nThat was a shortcut in my fix. To unload it during loading, the pending state needs to live outside the dialog, and `AppMenu` should mount it again only if folder setup is needed.\n\n",
+          "id": "agent-turn-f2dce1c9-905c-43f4-8b7f-afbc2c7f795d-turn-2-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 223,
+          "timestamp": "2026-09-25T08:55:25.068Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -3008,27 +3038,27 @@
           "agent": "codex",
           "conversationId": "01a0d272-d8ad-71f1-9024-043c319be886",
           "createdAt": "2026-09-24T08:07:05.695Z",
-          "lastUsedAt": "2026-09-24T08:30:45.995Z",
-          "synchronizedThroughMessageId": "agent-turn-a2b923d2-9e6f-46ed-897a-ffc7e940be45-turn-2-assistant-6"
+          "lastUsedAt": "2026-09-25T08:50:50.320Z",
+          "synchronizedThroughMessageId": "agent-turn-f2dce1c9-905c-43f4-8b7f-afbc2c7f795d-turn-1-assistant-4"
         }
       ],
       "startedAt": "2026-09-24T08:05:36.285Z",
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 328492,
+          "reasoningMs": 336673,
           "toolMs": 308135
         },
-        "elapsedMs": 1030874,
-        "runningStartedAt": "2026-09-25T08:46:48.007Z"
+        "elapsedMs": 1273187,
+        "runningStartedAt": "2026-09-25T08:55:11.287Z"
       },
       "title": "+",
       "usage": {
-        "cachedInputTokens": 7421952,
-        "inputTokens": 263817,
-        "outputTokens": 22135,
-        "reasoningTokens": 11417,
-        "totalTokens": 7719321
+        "cachedInputTokens": 7568768,
+        "inputTokens": 264204,
+        "outputTokens": 22256,
+        "reasoningTokens": 11712,
+        "totalTokens": 7866940
       },
       "usageSchemaVersion": 1,
       "viewed": true
