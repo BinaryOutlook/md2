@@ -216,7 +216,7 @@
       "actionId": "5b88355d-f964-459a-bc67-6618650866ba",
       "cardInternalId": "da8a9e63-eeee-4911-a83c-5f1f9a38d911",
       "cardPath": "design/feature_descriptions/J_56_diagram_improvements_3.md",
-      "completedAt": null,
+      "completedAt": "2026-09-25T15:43:17.869Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 99892
@@ -1613,21 +1613,29 @@
           "kind": "message",
           "role": "assistant",
           "sequence": 102,
-          "timestamp": "2026-09-25T15:43:17.342Z"
+          "timestamp": "2026-09-25T15:43:17.869Z"
         }
       ],
       "hasExplicitTitle": true,
       "id": "agent-22b0471b-0c1f-4779-af4a-dceb92e3d039",
-      "providerSessions": [],
+      "providerSessions": [
+        {
+          "agent": "codex",
+          "conversationId": "01a0d932-487e-77a2-9f55-0dfa5cbb096d",
+          "createdAt": "2026-09-25T15:43:17.869Z",
+          "lastUsedAt": "2026-09-25T15:43:17.869Z",
+          "synchronizedThroughMessageId": "agent-turn-6e0154a8-654d-4119-9f28-ea06191e55d7-turn-1-assistant-9"
+        }
+      ],
       "startedAt": "2026-09-25T15:32:25.330Z",
-      "status": "running",
+      "status": "completed",
       "timer": {
         "breakdown": {
           "reasoningMs": 222653,
           "toolMs": 5095
         },
-        "elapsedMs": 0,
-        "runningStartedAt": "2026-09-25T15:32:25.330Z"
+        "elapsedMs": 652539,
+        "runningStartedAt": null
       },
       "title": "complete",
       "usage": {
