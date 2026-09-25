@@ -13,6 +13,7 @@ changedFiles:
   - app/src/components/card_view/open_in_file_explorer_menu_item.test.tsx
   - desktop/src/project/project_files.js
   - desktop/src/project/project_files.test.mjs
+after: d35077d6-dd5e-4bba-a00b-ad28b7e7df70
 ---
 
 in the context menu of cards on the dashboard and for all files in the list view: add a command 'open in file explorer' which opens file explorer, goes to the folder and selects the file
