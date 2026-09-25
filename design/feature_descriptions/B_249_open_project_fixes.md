@@ -9,8 +9,6 @@ affects:
 agents:
   - design/activity/card__c8ca7e43-f909-4a9a-8bc4-3c3f1c305219.json
 policy:
-branch: b_249_open_project_fixes
-worktree: 1
 ---
 
 * when running in browser (not electron), don't show the repository - folder buttons, only repository is allowed.
