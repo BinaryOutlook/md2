@@ -3,7 +3,7 @@ author:
 id: F_350
 internalId: eb1707b3-15c4-4a42-b86e-db35fbfd9060
 title: Action idea
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -12,6 +12,48 @@ policy:
 after: 96236df6-2c3a-4846-9d52-f29b7ee9041d
 branch: f_350_action_idea
 worktree: 1
+changedFiles:
+  - app/src/App.tsx
+  - app/src/components/actions/editor/action_definition_fields.grouped.test.tsx
+  - app/src/components/actions/editor/action_definition_fields.tsx
+  - app/src/components/actions/run/action_version_dialog.test.tsx
+  - app/src/components/actions/run/action_version_dialog.tsx
+  - app/src/components/shell/menu/app_menu.tsx
+  - app/src/components/shell/project/complete_release_dialog.tsx
+  - app/src/components/shell/project/project_dialogs.test.tsx
+  - app/src/data/action_placeholders.ts
+  - app/src/data/action_run_types.ts
+  - app/src/data/data_types.ts
+  - app/src/data/electron_action_bridge.ts
+  - app/src/project_template/actions/update-project-version.json
+  - app/src/project_template/project_template.node.test.ts
+  - app/src/services/actions/action_run_registry.node.test.ts
+  - app/src/services/actions/action_run_registry.ts
+  - app/src/services/actions/action_service_helpers.ts
+  - app/src/services/actions/action_text.ts
+  - app/src/services/actions/action_version_request_service.ts
+  - app/src/services/config/config_entries.ts
+  - app/src/services/config/config_service.service.test.ts
+  - app/src/services/config/config_service.ts
+  - desktop/src/actions/action/action_agent_executor.js
+  - desktop/src/actions/action/action_agent_executor.test.mjs
+  - desktop/src/actions/action/action_command_executor.js
+  - desktop/src/actions/action/action_definitions.test.mjs
+  - desktop/src/actions/action/action_run.js
+  - desktop/src/actions/action/action_run_request.js
+  - desktop/src/actions/action/action_run_request.test.mjs
+  - desktop/src/actions/action/action_runner_service.js
+  - desktop/src/actions/action/action_runner_service.test.mjs
+  - desktop/src/actions/action/action_text.js
+  - desktop/src/actions/action/action_text.test.mjs
+  - desktop/src/shell/local_bridge_dispatch.js
+  - desktop/src/shell/local_bridge_dispatch.test.mjs
+  - desktop/src/shell/preload.js
+  - desktop/src/shell/preload.test.mjs
+  - docs/actions/action-definition.md
+  - docs/actions/placeholders.md
+  - shared/action_definitions.d.mts
+  - shared/action_definitions.mjs
 ---
 ## Goal
 
