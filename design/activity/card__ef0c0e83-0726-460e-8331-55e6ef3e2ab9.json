@@ -631,20 +631,28 @@
           "sequence": 46,
           "timestamp": "2026-09-25T17:48:22.119Z",
           "type": "agentQuestion"
+        },
+        {
+          "content": "claude-question-0: Keep Apply/Cancel (Recommended)\nclaude-question-1: Select, reuse markdown list (Recommended)\nclaude-question-2: Compact slider (Recommended)",
+          "id": "agent-turn-7d6d389e-e062-42f0-b663-592d55bd99f8-answer-46",
+          "kind": "message",
+          "role": "user",
+          "sequence": 47,
+          "timestamp": "2026-09-25T17:54:06.181Z"
         }
       ],
       "hasExplicitTitle": true,
       "id": "agent-d39a852e-1653-46ef-bdc0-476eb7323a70",
       "providerSessions": [],
       "startedAt": "2026-09-25T17:47:20.268Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 12019,
           "toolMs": 27051
         },
         "elapsedMs": 61851,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-25T17:54:06.181Z"
       },
       "title": "complete",
       "usageSchemaVersion": 1,
