@@ -9,6 +9,8 @@ affects:
 agents:
   - design/activity/card__da8a9e63-eeee-4911-a83c-5f1f9a38d911.json
 policy:
+branch: j_56_diagram_improvements_3
+worktree: 2
 ---
 * when working with the add tool:
   * in desktop mode, when the mouse hovers over the diagram area, we show a node that can be inserted. this is ok, however, it is not in the correct position, it does not do a transformation I think to local coordinates. the node is always below to the left,
