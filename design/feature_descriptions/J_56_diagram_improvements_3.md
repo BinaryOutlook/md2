@@ -3,15 +3,13 @@ author:
 id: J_56
 internalId: da8a9e63-eeee-4911-a83c-5f1f9a38d911
 title: diagram improvements 3
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
   - design/activity/card__da8a9e63-eeee-4911-a83c-5f1f9a38d911.json
 policy:
-branch: j_56_diagram_improvements_3
-worktree: 2
-after: 96236df6-2c3a-4846-9d52-f29b7ee9041d
+after: 8ae19b2f-3463-4fe3-9303-6e8101cf9ab6
 changedFiles:
   - app/src/components/diagram_view/commands/diagram_menu_tab.tsx
   - app/src/components/diagram_view/commands/diagram_save_button.test.tsx

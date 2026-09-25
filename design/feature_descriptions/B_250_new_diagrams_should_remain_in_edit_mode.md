@@ -18,6 +18,7 @@ changedFiles:
   - app/src/services/diagrams/diagram_index.ts
   - app/src/services/diagrams/diagram_view_service.test.ts
   - app/src/services/diagrams/diagram_view_service.ts
+after: 83c2184c-ed84-4e04-ad0a-4e3159cc163f
 ---
 
 After creating a new diagram and the user closes the app and opens it again. if he then goes back to the diagram, it appears as if it is read-only. if the user starts the edit, a new edit appears to be created. this is not correct. a diagram should remain in edit mode for as long as it has not yet been implemented.&#x20;

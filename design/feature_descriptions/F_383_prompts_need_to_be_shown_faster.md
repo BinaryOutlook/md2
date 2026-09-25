@@ -9,7 +9,7 @@ affects:
 agents:
   - design/activity/card__c0629e16-a603-4a9c-b19d-5c7cac9772ec.json
 policy:
-after: 2775052a-2e84-4466-a320-155c8ec05bac
+after: eb1707b3-15c4-4a42-b86e-db35fbfd9060
 ---
 We generated a squence diagram (json file), of the action popup and its interactions. There, you can see that input sent by the user to the agent, first goes to backend and back to frontend before it is shown in the chatlog. This is too late.
 
