@@ -3,6 +3,8 @@ import { DEFAULT_COLOR_SCHEME, type ColorSchemeConfig } from './theme_config'
 import type { ProjectBackgroundShade } from './project_background_shade'
 
 const APP_BORDER_RADIUS = 8
+const LIGHT_CARD_BACKGROUND = '#FCFCFD'
+const DARK_CARD_BACKGROUND = '#222a35'
 
 const LIGHT_PROJECT_BACKGROUNDS: Record<ProjectBackgroundShade, { default: string; paper: string }> = {
     amber: { default: '#faf7ef', paper: '#fffefa' },
@@ -118,6 +120,7 @@ export function createAppTheme(
                 defaultProps: { disableElevation: true },
                 styleOverrides: { root: { borderRadius: APP_BORDER_RADIUS } },
             },
+            MuiCard: { styleOverrides: { root: { backgroundColor: isDark ? DARK_CARD_BACKGROUND : LIGHT_CARD_BACKGROUND } } },
             MuiCssBaseline: {
                 styleOverrides: {
                     ':root': {

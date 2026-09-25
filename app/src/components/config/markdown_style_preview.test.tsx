@@ -74,7 +74,7 @@ describe('MarkdownStylePreview', () => {
         fireEvent.click(screen.getByLabelText('Edit Title 2 style'))
 
         expect(screen.getByRole('heading', { name: 'Title 2 style' })).toBeInTheDocument()
-        expect(screen.getByRole('textbox', { name: 'Font size for Title 2' })).toHaveValue(MARKDOWN_STYLE_PRESETS.modern.title2.fontSize)
+        expect(screen.getByRole('textbox', { name: 'Font size' })).toHaveValue(MARKDOWN_STYLE_PRESETS.modern.title2.fontSize)
     })
 
     it('opens the innermost section when clicking the link inside the body paragraph', () => {
@@ -100,7 +100,7 @@ describe('MarkdownStylePreview', () => {
         render(<MarkdownStylePreview config={MARKDOWN_STYLE_PRESETS.modern} onSectionChange={handleSectionChange} />)
 
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.change(screen.getByRole('textbox', { name: 'Font size for Body' }), { target: { value: '1.2rem' } })
+        fireEvent.change(screen.getByRole('textbox', { name: 'Font size' }), { target: { value: '1.2rem' } })
 
         const expectedStyle = { ...MARKDOWN_STYLE_PRESETS.modern.body, fontSize: '1.2rem' }
         expect(handleSectionChange).toHaveBeenCalledWith('body', expectedStyle)
@@ -120,7 +120,7 @@ describe('MarkdownStylePreview', () => {
         const serifFont = MARKDOWN_FONT_FAMILIES.find((option) => option.label === 'Serif')!.value
 
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Font family for Body' }))
+        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Font family' }))
         fireEvent.click(screen.getByRole('option', { name: 'Serif' }))
 
         const expectedStyle = { ...MARKDOWN_STYLE_PRESETS.modern.body, fontFamily: serifFont }
@@ -135,13 +135,14 @@ describe('MarkdownStylePreview', () => {
 
         fireEvent.click(screen.getByLabelText('Edit Body style'))
 
-        expect(screen.getByRole('combobox', { name: 'Font family for Body' })).toHaveTextContent(customFont)
+        expect(screen.getByRole('combobox', { name: 'Font family' })).toHaveTextContent(customFont)
     })
 
     it('reports a picked color preset', () => {
         render(<MarkdownStylePreview config={customColorConfig} onSectionChange={handleSectionChange} />)
 
         fireEvent.click(screen.getByLabelText('Edit Body style'))
+        fireEvent.click(screen.getByRole('button', { name: 'Color' }))
         fireEvent.click(screen.getByRole('button', { name: 'Use colour #2e7d32' }))
 
         const expectedStyle = { ...customColorConfig.body, color: '#2e7d32' }
@@ -152,7 +153,8 @@ describe('MarkdownStylePreview', () => {
         render(<MarkdownStylePreview config={customColorConfig} onSectionChange={handleSectionChange} />)
 
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.click(screen.getByRole('button', { name: 'Use default for Color for Body' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Color' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Use default colour' }))
 
         const expectedStyle = { ...customColorConfig.body, color: 'inherit' }
         expect(handleSectionChange).toHaveBeenCalledWith('body', expectedStyle)
@@ -162,7 +164,8 @@ describe('MarkdownStylePreview', () => {
         render(<MarkdownStylePreview config={MARKDOWN_STYLE_PRESETS.modern} onSectionChange={handleSectionChange} />)
 
         fireEvent.click(screen.getByLabelText('Edit Body style'))
+        fireEvent.click(screen.getByRole('button', { name: 'Color' }))
 
-        expect(screen.getByLabelText('Color for Body value')).toHaveTextContent('Default')
+        expect(screen.getByRole('button', { name: 'Use default colour' })).toHaveAttribute('aria-pressed', 'true')
     })
 })

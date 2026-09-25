@@ -15,13 +15,14 @@ import {
     type MarkdownSection,
     type MarkdownSectionStyle,
 } from '../../theme/theme_config'
-import { OptionalColorPickerField } from '../optional_color_picker_field'
-import { ConfigSubsection } from './config_subsection'
+import { ColorPickerButton } from '../color_picker_button'
+import { MarkdownStyleGroup } from './markdown_style_group'
 
 type MarkdownStyleTextField = 'fontFamily' | 'fontSize' | 'lineHeight' | 'marginBottom' | 'marginTop'
 type MarkdownStyleFormattingField = keyof MarkdownSectionStyle['formatting']
 
-const POPOVER_WIDTH = 520
+const POPOVER_WIDTH = 390
+const HALF_WIDTH_SX = { flex: '1 1 0', minWidth: 0 }
 
 interface MarkdownSectionEditorProps {
     anchorElement: HTMLElement
@@ -62,12 +63,12 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
     return (
         <Popover anchorEl={anchorElement} onClose={onClose} open>
             <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, width: POPOVER_WIDTH }}>
-                <Stack spacing={2}>
+                <Stack spacing={1}>
                     <Typography component="h4" variant="subtitle2">{`${label} style`}</Typography>
-                    <ConfigSubsection description="Typeface and emphasis." id={`markdown-${section}-font`} label="Font">
+                    <MarkdownStyleGroup id={`markdown-${section}-font`} label="Font">
                         <TextField
                             fullWidth
-                            label={`Font family for ${label}`}
+                            label="Font family"
                             name="fontFamily"
                             onChange={handleTextChange}
                             required
@@ -81,7 +82,7 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                                 </MenuItem>
                             ))}
                         </TextField>
-                        <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                             <FormControlLabel
                                 control={<Switch checked={style.formatting.bold} name="bold" onChange={handleFormattingChange} />}
                                 label="Bold"
@@ -95,38 +96,38 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                                 label="Underline"
                             />
                         </Stack>
-                    </ConfigSubsection>
-                    <ConfigSubsection description="Text size and color." id={`markdown-${section}-size-color`} label="Size & color">
-                        <TextField
-                            fullWidth
-                            label={`Font size for ${label}`}
-                            name="fontSize"
-                            onChange={handleTextChange}
-                            required
-                            size="small"
-                            value={style.fontSize}
-                        />
-                        <OptionalColorPickerField
-                            helperText="Uses the surrounding text color by default."
-                            label={`Color for ${label}`}
-                            onChange={handleColorChange}
-                            value={colorValue}
-                        />
-                    </ConfigSubsection>
-                    <ConfigSubsection description="Line height and space around the element." id={`markdown-${section}-spacing`} label="Spacing">
-                        <TextField
-                            fullWidth
-                            label={`Line height for ${label}`}
-                            name="lineHeight"
-                            onChange={handleTextChange}
-                            required
-                            size="small"
-                            value={style.lineHeight}
-                        />
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    </MarkdownStyleGroup>
+                    <MarkdownStyleGroup id={`markdown-${section}-size-color`} label="Size & color">
+                        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
                             <TextField
                                 fullWidth
-                                label={`Space before ${label}`}
+                                label="Font size"
+                                name="fontSize"
+                                onChange={handleTextChange}
+                                required
+                                size="small"
+                                sx={HALF_WIDTH_SX}
+                                value={style.fontSize}
+                            />
+                            <Box sx={HALF_WIDTH_SX}>
+                                <ColorPickerButton label="Color" onChange={handleColorChange} value={colorValue} />
+                            </Box>
+                        </Stack>
+                    </MarkdownStyleGroup>
+                    <MarkdownStyleGroup id={`markdown-${section}-spacing`} label="Spacing">
+                        <Stack direction="row" spacing={1}>
+                            <TextField
+                                fullWidth
+                                label="Line height"
+                                name="lineHeight"
+                                onChange={handleTextChange}
+                                required
+                                size="small"
+                                value={style.lineHeight}
+                            />
+                            <TextField
+                                fullWidth
+                                label="Space before"
                                 name="marginTop"
                                 onChange={handleTextChange}
                                 required
@@ -135,7 +136,7 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                             />
                             <TextField
                                 fullWidth
-                                label={`Space after ${label}`}
+                                label="Space after"
                                 name="marginBottom"
                                 onChange={handleTextChange}
                                 required
@@ -143,7 +144,7 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                                 value={style.marginBottom}
                             />
                         </Stack>
-                    </ConfigSubsection>
+                    </MarkdownStyleGroup>
                 </Stack>
             </Box>
         </Popover>

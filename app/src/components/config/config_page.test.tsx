@@ -189,7 +189,7 @@ describe('ConfigPage', () => {
 
         renderConfigPage('#markdown')
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.change(screen.getByRole('textbox', { name: 'Font size for Body' }), { target: { value: '1.2rem' } })
+        fireEvent.change(screen.getByRole('textbox', { name: 'Font size' }), { target: { value: '1.2rem' } })
         fireEvent.keyDown(screen.getByRole('presentation'), { key: 'Escape' })
 
         expect(screen.getByRole('combobox', { name: 'Style' })).toHaveTextContent('Custom')
@@ -205,7 +205,7 @@ describe('ConfigPage', () => {
 
         renderConfigPage('#markdown')
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.change(screen.getByRole('textbox', { name: 'Font size for Body' }), { target: { value: '1.2rem' } })
+        fireEvent.change(screen.getByRole('textbox', { name: 'Font size' }), { target: { value: '1.2rem' } })
         fireEvent.keyDown(screen.getByRole('presentation'), { key: 'Escape' })
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
@@ -220,7 +220,7 @@ describe('ConfigPage', () => {
 
         renderConfigPage('#markdown')
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.change(screen.getByRole('textbox', { name: 'Font size for Body' }), { target: { value: '1.2rem' } })
+        fireEvent.change(screen.getByRole('textbox', { name: 'Font size' }), { target: { value: '1.2rem' } })
         fireEvent.keyDown(screen.getByRole('presentation'), { key: 'Escape' })
         fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Style' }))
         fireEvent.click(screen.getByRole('option', { name: 'Serif' }))
@@ -228,7 +228,7 @@ describe('ConfigPage', () => {
         expect(confirmReplace).toHaveBeenCalledWith('Replace custom Markdown settings with the selected predefined style?')
         expect(screen.getByRole('combobox', { name: 'Style' })).toHaveTextContent('Custom')
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        expect(screen.getByRole('textbox', { name: 'Font size for Body' })).toHaveValue('1.2rem')
+        expect(screen.getByRole('textbox', { name: 'Font size' })).toHaveValue('1.2rem')
         confirmReplace.mockRestore()
     })
 
@@ -323,7 +323,7 @@ describe('ConfigPage', () => {
 
         renderConfigPage('#markdown')
         fireEvent.click(screen.getByLabelText('Edit Body style'))
-        fireEvent.change(screen.getByRole('textbox', { name: 'Font size for Body' }), { target: { value: '1.2rem' } })
+        fireEvent.change(screen.getByRole('textbox', { name: 'Font size' }), { target: { value: '1.2rem' } })
         fireEvent.keyDown(screen.getByRole('presentation'), { key: 'Escape' })
         fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 

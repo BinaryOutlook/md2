@@ -1,4 +1,4 @@
-/** Preset colours offered next to every colour input, spread over the hue circle plus one neutral. */
+/** Preset colours offered next to every colour input, spread over the hue circle plus neutrals from black to white. */
 export const COLOR_PICKER_PALETTE = [
     '#d32f2f',
     '#e64a19',
@@ -16,4 +16,10 @@ export const COLOR_PICKER_PALETTE = [
     '#8e24aa',
     '#c2185b',
     '#546e7a',
+    '#000000',
+    '#424242',
+    '#757575',
+    '#bdbdbd',
+    '#e0e0e0',
+    '#ffffff',
 ]
