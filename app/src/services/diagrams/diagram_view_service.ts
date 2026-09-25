@@ -7,6 +7,7 @@ import { actionService } from '../actions/action_service'
 import { dataService } from '../data/data_service'
 import { dialogService } from '../dialog_service'
 import { projectAccessService } from '../project/project_access_service'
+import type { DiagramEditSessionService } from './diagram_edit_session_service'
 import type { WorkspaceViewService } from '../project/workspace_view_service'
 import { getService, register } from '../service_injector'
 import {
@@ -144,6 +145,8 @@ interface DiagramViewDependencies {
     createPopupId: () => string
     createTimestamp: () => string
     flushCommits: () => Promise<void>
+    getEditSession: () => DiagramEditSessionService
+    isReadOnly: () => boolean
     loadActions: () => ReturnType<typeof actionService.getActions>
     reportError: (error: unknown, fallbackMessage: string) => void
     requireWritable: () => void
@@ -211,6 +214,8 @@ function defaultDependencies(): DiagramViewDependencies {
         createPopupId: generateUuid,
         createTimestamp: () => new Date().toISOString(),
         flushCommits: () => dataService.cards.flushPendingCommits(),
+        getEditSession: () => getService<DiagramEditSessionService>('diagramEditSessionService'),
+        isReadOnly: () => projectAccessService.getSnapshot(),
         loadActions: () => actionService.getActions(),
         reportError: (error, fallbackMessage) => dialogService.error(error, { fallbackMessage }),
         requireWritable: () => projectAccessService.requireWritable(),
@@ -780,6 +785,7 @@ export class DiagramViewService extends EventTarget {
                 { ...activeDiagram, error: null, index, legend: this.snapshot.legend, menu: null, popup: null, status: 'ready' },
                 sourceSnapshot,
             )
+            await this.restorePendingCreation(binding, index, sourceSnapshot, this.navigationToken)
         } catch (error) {
             this.loadPromise = null
             this.applySnapshot({ ...initialSnapshot(), error: errorMessage(error), legend: this.snapshot.legend, status: 'error' })
@@ -870,6 +876,7 @@ export class DiagramViewService extends EventTarget {
                 createdAt: this.dependencies.createTimestamp(),
                 id,
                 label: choice.title,
+                pendingImplementation: true,
                 path,
             }
         }
@@ -881,13 +888,51 @@ export class DiagramViewService extends EventTarget {
     private async applyActivePath(activePath: string[]) {
         const binding = this.requireBinding()
         const index = { ...this.snapshot.index, activePath }
+        const targetRecord = index.diagrams[activePath.at(-1) ?? '']
+        const session = this.dependencies.getEditSession()
+        if (session.getDirtySnapshot() && session.getSessionSnapshot()?.sourceDiagramId !== targetRecord?.id) {
+            throw new Error('Save or discard current diagram changes before opening another diagram')
+        }
         this.navigationToken += 1
         const token = this.navigationToken
         const { sourceSnapshot, ...activeDiagram } = await loadActiveDiagram(binding, index)
         if (token !== this.navigationToken) return
+        if (session.getDirtySnapshot() && session.getSessionSnapshot()?.sourceDiagramId !== targetRecord?.id) {
+            throw new Error('Save or discard current diagram changes before opening another diagram')
+        }
 
         this.applySnapshot({ ...this.snapshot, ...activeDiagram, index, menu: null }, sourceSnapshot)
         this.scheduleIndexCommit(index)
+        await this.restorePendingCreation(binding, index, sourceSnapshot, token)
+    }
+
+    private async restorePendingCreation(
+        binding: DiagramProjectBinding,
+        index: DiagramIndex,
+        sourceSnapshot: DiagramViewSourceSnapshot | null,
+        token: number,
+    ) {
+        if (!sourceSnapshot) return
+        const { record: sourceRecord } = sourceSnapshot
+        if (!sourceRecord.pendingImplementation || sourceRecord.parent || this.dependencies.isReadOnly()) return
+        const session = this.dependencies.getEditSession()
+        if (session.getSessionSnapshot()?.sourceDiagramId === sourceRecord.id) return
+        const savedRecord = (index.roots[sourceRecord.actionId] ?? [])
+            .map((id) => index.diagrams[id])
+            .filter(({ sourceDiagramId }) => sourceDiagramId === sourceRecord.id)
+            .at(-1) ?? null
+        try {
+            const savedDiagram = savedRecord ? (await loadDiagram(binding, savedRecord.path)).diagram : null
+            if (token !== this.navigationToken) return
+            if (savedDiagram && savedDiagram.meta.type !== sourceSnapshot.diagram.meta.type) {
+                throw new Error(`Saved diagram copy has a different type: ${savedRecord?.id}`)
+            }
+            session.restoreCreation(sourceRecord.id, savedDiagram, savedRecord)
+        } catch (error) {
+            if (token !== this.navigationToken) return
+            this.applySnapshot({ ...this.snapshot, currentDiagram: null, currentDiagramError: errorMessage(error) }, null)
+            this.dependencies.reportError(error, 'Diagram edit could not be restored')
+        }
     }
 
     /** Queues the index in the shared commit batch and waits for it to reach the repository. */

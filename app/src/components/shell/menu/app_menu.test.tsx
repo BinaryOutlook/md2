@@ -547,6 +547,7 @@ describe('AppMenu', () => {
             createdAt: '2026-09-21T12:00:00.000Z',
             id: 'diagram-1',
             label: 'New sequence',
+            pendingImplementation: true,
             path: 'design/diagrams/sequence-diagram-1.json',
         }
         vi.spyOn(diagramViewService, 'open').mockResolvedValue()
@@ -613,6 +614,7 @@ describe('AppMenu', () => {
             createdAt: '2026-09-21T12:00:00.000Z',
             id: 'diagram-1',
             label: 'New entity',
+            pendingImplementation: true,
             path: 'design/diagrams/entity-diagram-1.json',
         }
         let finishCreation: (value: typeof record) => void = () => { throw new Error('Diagram creation did not start') }

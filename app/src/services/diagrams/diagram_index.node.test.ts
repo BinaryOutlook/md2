@@ -35,7 +35,7 @@ describe('diagram index', () => {
                     actionId: 'overview', id: 'copy', label: 'Overview', path: 'diagrams/overview-edited-copy.json',
                     sourceDiagramId: 'source',
                 },
-                source: { actionId: 'overview', id: 'source', label: 'Overview', path: 'diagrams/overview.json' },
+                source: { actionId: 'overview', id: 'source', label: 'Overview', pendingImplementation: true, path: 'diagrams/overview.json' },
             },
             roots: { overview: ['source', 'copy'] },
             version: 1,
@@ -45,6 +45,12 @@ describe('diagram index', () => {
     })
     it('round-trips versioned root and child records', () => {
         expect(parseDiagramIndex(serializeDiagramIndex(populatedIndex()))).toEqual(populatedIndex())
+    })
+    it('rejects an invalid pending-implementation marker', () => {
+        const index = populatedIndex()
+        const malformed = { ...index, diagrams: { ...index.diagrams, 'root-1': { ...index.diagrams['root-1'], pendingImplementation: 'yes' } } }
+
+        expect(() => parseDiagramIndex(JSON.stringify(malformed))).toThrow('invalid diagrams.root-1.pendingImplementation')
     })
 
     it('creates empty normalized state and configured index path', () => {

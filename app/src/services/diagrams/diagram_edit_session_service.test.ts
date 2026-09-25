@@ -535,6 +535,22 @@ describe('DiagramEditSessionService', () => {
         expect(service.getSessionSnapshot()).toEqual({ sourceDiagramId: 'next' })
     })
 
+    it('restores saved creation content and copy target as a clean session', () => {
+        const { service } = createHarness()
+        const savedDiagram = structuredClone(diagram)
+        savedDiagram.nodes[0].label = 'Saved label'
+        const savedRecord = { ...firstRecord, id: 'copy-1', sourceDiagramId: firstRecord.id }
+
+        service.restoreCreation(firstRecord.id, savedDiagram, savedRecord)
+
+        expect(service.getSessionSnapshot()?.creationSourceDiagramId).toBe(firstRecord.id)
+        expect(service.getEditableDiagram()?.nodes[0].label).toBe('Saved label')
+        expect(service.getOriginalDiagramSnapshot()?.record).toBe(firstRecord)
+        expect(service.getSavedRecordSnapshot()).toBe(savedRecord)
+        expect(service.getDirtySnapshot()).toBe(false)
+        expect(() => service.restoreCreation(firstRecord.id, savedDiagram, null)).toThrow('restored together')
+    })
+
     it('starts every session fresh and resets only when project identity changes', () => {
         const { service } = createHarness()
         service.start()

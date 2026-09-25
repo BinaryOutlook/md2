@@ -757,14 +757,14 @@ describe('DiagramView', () => {
     })
 
     it.each(['horizontal', 'vertical', 'tabbed'] as const)(
-        'shows only editable New after creation with prior %s comparison selection',
+        'shows only editable New after restored creation with prior %s comparison selection',
         (comparisonMode) => {
             const service = createService()
             const { editSession, geometry, selection } = createEditHarness(false)
             const layoutService = new DiagramComparisonLayoutService()
             layoutService.setComparisonMode(comparisonMode)
             layoutService.setActiveTab('current')
-            editSession.startCreation('child-1')
+            editSession.restoreCreation('child-1', null, null)
             render(
                 <DiagramView
                     editSession={editSession}

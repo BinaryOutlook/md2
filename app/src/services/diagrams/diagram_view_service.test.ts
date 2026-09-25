@@ -3,6 +3,8 @@ import type { ActionRunEvent } from '../../data/action_run_types'
 import type { ActionDefinition } from '../../data/action_types'
 import { DEFAULT_PROJECT_CONFIG, resolveProjectConfigPaths, type MarkdownFile, type StorageService } from '../../data/data_types'
 import { DiagramViewService } from './diagram_view_service'
+import { DiagramEditSessionService } from './diagram_edit_session_service'
+import { DiagramSaveService } from './diagram_save_service'
 import { serializeDiagramIndex, type DiagramIndex } from './diagram_index'
 import { serializeDiagramData } from './diagram_data'
 import { DEFAULT_DIAGRAM_ZOOM, MINIMUM_DIAGRAM_ZOOM } from './diagram_zoom'
@@ -31,6 +33,8 @@ function createHarness(repositoryFiles: string[] = []) {
         }),
     } as unknown as StorageService
     const flushCommits = vi.fn(async () => undefined)
+    const editSessionHolder: { current: DiagramEditSessionService | null } = { current: null }
+    let readOnly = false
     const reportError = vi.fn()
     const requireWritable = vi.fn()
     const scheduleCommit = vi.fn<(file: MarkdownFile, message: string) => void>()
@@ -44,6 +48,12 @@ function createHarness(repositoryFiles: string[] = []) {
             .mockReturnValue('popup-4'),
         createTimestamp: () => '2026-09-01T10:00:00.000Z',
         flushCommits,
+        getEditSession: () => {
+            if (!editSessionHolder.current) throw new Error('Diagram edit session is not initialized')
+
+            return editSessionHolder.current
+        },
+        isReadOnly: () => readOnly,
         loadActions: () => [
             { appliesTo: { kind: 'diagram', type: 'root' }, builtin: false, id: 'overview', label: 'Overview' },
             { appliesTo: { kind: 'diagram', type: 'root' }, builtin: false, id: 'dependencies', label: 'Dependencies' },
@@ -60,12 +70,17 @@ function createHarness(repositoryFiles: string[] = []) {
         },
     })
     service.bindProject({ config, project, storage })
+    const editSession = new DiagramEditSessionService(service)
+    editSession.bindProject(project)
+    editSessionHolder.current = editSession
 
     return {
+        editSession,
         flushCommits,
         reportError,
         requireWritable,
         run: (event: ActionRunEvent) => runListener?.(event),
+        setReadOnly: (value: boolean) => { readOnly = value },
         scheduleCommit,
         service,
         showDiagrams,
@@ -94,7 +109,141 @@ function completedEvent(overrides: Partial<ActionRunEvent> = {}): ActionRunEvent
     } as ActionRunEvent
 }
 
+function pendingIndex(copyIds: string[] = []): DiagramIndex {
+    const source = {
+        actionId: 'user-created', id: 'root-1', label: 'New architecture',
+        pendingImplementation: true as const, path: 'design/diagrams/root.json',
+    }
+    const copies = Object.fromEntries(copyIds.map((id) => [id, {
+        actionId: 'user-created', id, label: 'New architecture',
+        path: `design/diagrams/${id}.json`, sourceDiagramId: source.id,
+    }]))
+
+    return {
+        activePath: ['root-1'], children: {}, diagrams: { 'root-1': source, ...copies },
+        roots: { 'user-created': ['root-1', ...copyIds] }, version: 1,
+    }
+}
+
+function loadPendingIndex(harness: ReturnType<typeof createHarness>, index: DiagramIndex) {
+    vi.mocked(harness.storage.loadTextFile!).mockImplementation(async (_project, path) => {
+        if (path === INDEX_PATH) return { content: serializeDiagramIndex(index), path }
+        if (path === 'design/diagrams/copy-1.json') {
+            return { content: DIAGRAM_JSON.replace('Orders architecture', 'First saved'), path }
+        }
+        if (path === 'design/diagrams/copy-2.json') {
+            return { content: DIAGRAM_JSON.replace('Orders architecture', 'Latest saved'), path }
+        }
+
+        return { content: DIAGRAM_JSON, path }
+    })
+}
+
 describe('DiagramViewService', () => {
+    it('restores latest saved copy on reopen and saves again to that record', async () => {
+        const harness = createHarness()
+        const index = pendingIndex(['copy-1', 'copy-2'])
+        index.diagrams = {
+            'root-1': index.diagrams['root-1'],
+            'copy-2': index.diagrams['copy-2'],
+            'copy-1': index.diagrams['copy-1'],
+        }
+        loadPendingIndex(harness, index)
+
+        await harness.service.open()
+
+        expect(harness.editSession.getSessionSnapshot()?.creationSourceDiagramId).toBe('root-1')
+        expect(harness.editSession.getEditableDiagram()?.meta.description).toBe('Latest saved')
+        expect(harness.editSession.getSavedRecordSnapshot()?.id).toBe('copy-2')
+        expect(harness.editSession.getDirtySnapshot()).toBe(false)
+
+        harness.editSession.setMetadataField('title', 'Updated after restart')
+        const save = new DiagramSaveService(harness.editSession, harness.service)
+        await save.save()
+
+        expect(harness.service.getIndexSnapshot().roots['user-created']).toEqual(['root-1', 'copy-1', 'copy-2'])
+        expect(harness.scheduleCommit).toHaveBeenCalledWith(
+            expect.objectContaining({ path: 'design/diagrams/copy-2.json' }), 'Save edited diagram copy',
+        )
+    })
+
+    it('restores pending roots on navigation and leaves agent-created diagrams read-only', async () => {
+        const harness = createHarness()
+        const index = pendingIndex()
+        index.activePath = []
+        index.diagrams.agent = { actionId: 'overview', id: 'agent', label: 'Agent', path: 'design/diagrams/agent.json' }
+        index.roots.overview = ['agent']
+        loadPendingIndex(harness, index)
+        await harness.service.open()
+
+        await harness.service.navigateToSavedDiagram('agent')
+        expect(harness.editSession.getSessionSnapshot()).toBeNull()
+        await harness.service.navigateToSavedDiagram('root-1')
+        expect(harness.editSession.getSessionSnapshot()?.creationSourceDiagramId).toBe('root-1')
+    })
+
+    it('keeps pending roots read-only when project access is read-only', async () => {
+        const harness = createHarness()
+        harness.setReadOnly(true)
+        loadPendingIndex(harness, pendingIndex())
+
+        await harness.service.open()
+
+        expect(harness.editSession.getSessionSnapshot()).toBeNull()
+        expect(harness.service.getCurrentDiagramSnapshot()).not.toBeNull()
+    })
+
+    it('reports missing saved copy and never opens an empty editable root', async () => {
+        const harness = createHarness()
+        loadPendingIndex(harness, pendingIndex(['copy-1']))
+        vi.mocked(harness.storage.loadTextFile!).mockImplementation(async (_project, path) => {
+            if (path === INDEX_PATH) return { content: serializeDiagramIndex(pendingIndex(['copy-1'])), path }
+            if (path === 'design/diagrams/copy-1.json') throw new Error('copy missing')
+
+            return { content: DIAGRAM_JSON, path }
+        })
+
+        await harness.service.open()
+
+        expect(harness.reportError).toHaveBeenCalledWith(expect.any(Error), 'Diagram edit could not be restored')
+        expect(harness.service.getCurrentDiagramErrorSnapshot()).toContain('copy missing')
+        expect(harness.editSession.getSessionSnapshot()).toBeNull()
+        expect(harness.service.getCurrentDiagramSnapshot()).toBeNull()
+    })
+
+    it('reports malformed saved copy and never starts a creation session', async () => {
+        const harness = createHarness()
+        vi.mocked(harness.storage.loadTextFile!).mockImplementation(async (_project, path) => ({
+            content: path === INDEX_PATH ? serializeDiagramIndex(pendingIndex(['copy-1'])) : path.endsWith('copy-1.json') ? '{' : DIAGRAM_JSON,
+            path,
+        }))
+
+        await harness.service.open()
+
+        expect(harness.reportError).toHaveBeenCalledWith(expect.any(Error), 'Diagram edit could not be restored')
+        expect(harness.service.getCurrentDiagramErrorSnapshot()).not.toBeNull()
+        expect(harness.editSession.getSessionSnapshot()).toBeNull()
+    })
+
+    it('does not replace dirty pending creation when navigating to another pending root', async () => {
+        const harness = createHarness()
+        const index = pendingIndex()
+        index.diagrams['root-2'] = {
+            actionId: 'user-created', id: 'root-2', label: 'Another',
+            pendingImplementation: true, path: 'design/diagrams/root-2.json',
+        }
+        index.roots['user-created'].push('root-2')
+        loadPendingIndex(harness, index)
+        await harness.service.open()
+        harness.editSession.setMetadataField('title', 'Unsaved')
+
+        await expect(harness.service.navigateToSavedDiagram('root-2')).rejects.toThrow('Save or discard')
+
+        expect(harness.service.getIndexSnapshot().activePath).toEqual(['root-1'])
+        expect(harness.editSession.getEditableDiagram()?.meta.title).toBe('Unsaved')
+        expect(harness.editSession.getDirtySnapshot()).toBe(true)
+    })
+
     it('persists an empty diagram and its active user-created root in one flush before publishing', async () => {
         const { flushCommits, requireWritable, scheduleCommit, service } = createHarness()
         const architecture = EMPTY_DIAGRAM_CHOICES.find(({ id }) => id === 'architecture')
@@ -113,6 +262,7 @@ describe('DiagramViewService', () => {
             createdAt: '2026-09-01T10:00:00.000Z',
             id: 'root-1',
             label: 'New architecture',
+            pendingImplementation: true,
             path: 'design/diagrams/architecture-root-1.json',
         })
         expect(JSON.parse(scheduleCommit.mock.calls[0][0].content)).toEqual({

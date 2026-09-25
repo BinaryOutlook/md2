@@ -495,7 +495,21 @@ export class DiagramEditSessionService extends EventTarget {
         this.startSession(sourceDiagramId)
     }
 
-    private startSession(creationSourceDiagramId: string | null) {
+    /** Restores a clean creation session from the latest saved copy, if present. */
+    restoreCreation(sourceDiagramId: string, savedDiagram: DiagramData | null, savedRecord: DiagramRecord | null) {
+        if (!sourceDiagramId) throw new Error('Cannot restore a creation session without a source diagram ID')
+        if (!!savedDiagram !== !!savedRecord) throw new Error('Saved diagram and record must be restored together')
+        if (savedRecord && savedRecord.sourceDiagramId !== sourceDiagramId) {
+            throw new Error('Saved diagram copy belongs to a different source')
+        }
+        this.startSession(sourceDiagramId, savedDiagram, savedRecord)
+    }
+
+    private startSession(
+        creationSourceDiagramId: string | null,
+        savedDiagram: DiagramData | null = null,
+        savedRecord: DiagramRecord | null = null,
+    ) {
         if (!this.projectKey) throw new Error('Diagram edit session is not bound to a project')
         const source = this.sourceService.getSourceSnapshot()
         if (!source) throw new Error('Cannot start a diagram edit session without an active diagram')
@@ -504,7 +518,7 @@ export class DiagramEditSessionService extends EventTarget {
         }
 
         const originalDiagram = { diagram: source.diagram, record: source.record }
-        const editableDiagram = structuredClone(source.diagram)
+        const editableDiagram = structuredClone(savedDiagram ?? source.diagram)
         const session = {
             sourceDiagramId: source.record.id,
             ...(creationSourceDiagramId !== null ? { creationSourceDiagramId } : {}),
@@ -522,14 +536,14 @@ export class DiagramEditSessionService extends EventTarget {
             [node.id, DiagramEditSessionService.entityFieldIndexes(node)]
         )))
         this.legendEntryKeys = Object.freeze((editableDiagram.meta.legend ?? []).map(diagramLegendEntryKey))
-        this.changeRegistry.setBaseline(source.diagram)
+        this.changeRegistry.setBaseline(savedDiagram ?? source.diagram)
         this.changeRegistry.setCurrentDiagram(editableDiagram)
         this.edgeIds = Object.freeze(editableDiagram.edges.map(({ id }) => id))
         this.fragmentIds = Object.freeze((editableDiagram.fragments ?? []).map(({ id }) => id))
         this.groupIds = Object.freeze(editableDiagram.groups.map(({ id }) => id))
         this.nodeIds = Object.freeze(editableDiagram.nodes.map(({ id }) => id))
         this.groupNodeIdsById = new Map(editableDiagram.groups.map((group) => [group.id, Object.freeze([...group.nodeIds])]))
-        this.savedRecord = null
+        this.savedRecord = savedRecord
         this.publish({ dirty: false, editableDiagram, originalDiagram, session })
         this.changeRegistry.publishPendingEvents(this, diagramChangeFieldChangedEvent)
     }

@@ -14,6 +14,8 @@ export interface DiagramRecord {
     id: string
     label: string
     parent?: DiagramParentReference
+    /** User-created root still awaiting implementation by an agent. */
+    pendingImplementation?: boolean
     path: string
     /** Source record that began an edited-copy session. */
     sourceDiagramId?: string
@@ -71,11 +73,18 @@ function parseRecord(value: unknown, id: string): DiagramRecord {
         id: parsedId,
         label: requireString(record.label, `diagrams.${id}.label`),
         ...(record.parent === undefined ? {} : { parent: parseParent(record.parent, `diagrams.${id}.parent`) }),
+        ...(record.pendingImplementation === undefined ? {} : { pendingImplementation: requirePendingImplementation(record.pendingImplementation, `diagrams.${id}.pendingImplementation`) }),
         path: requireString(record.path, `diagrams.${id}.path`),
         ...(record.sourceDiagramId === undefined
             ? {}
             : { sourceDiagramId: requireString(record.sourceDiagramId, `diagrams.${id}.sourceDiagramId`) }),
     }
+}
+
+function requirePendingImplementation(value: unknown, field: string): true {
+    if (value !== true) throw new Error(`Malformed diagram index: invalid ${field}`)
+
+    return true
 }
 
 function parseIdGroups(value: unknown, field: string) {
