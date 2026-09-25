@@ -126,7 +126,7 @@ export class ActionConversationStore {
             const run = boundRunId ? actionRunRegistry.getRunStore(boundRunId)?.getSnapshot() ?? null : null
             const runActive = run?.status === 'queued' || run?.status === 'running' || run?.status === 'waitingForInput'
             const refreshedSelection = this.snapshot.selectedConversation
-                ? conversations.find(({ path }) => path === this.snapshot.selectedConversation?.path) ?? this.snapshot.selectedConversation
+                ? conversations.find(({ id }) => id === this.snapshot.selectedConversation?.id) ?? this.snapshot.selectedConversation
                 : null
             let selectedConversation = refreshedSelection
             const initialSelectionPath = this.initialSelectionPath
@@ -160,10 +160,10 @@ export class ActionConversationStore {
         }
     }
 
-    async select(path: string) {
+    async select(conversationId: string) {
         const request = this.loadRequest + 1
         this.loadRequest = request
-        if (!path) {
+        if (!conversationId) {
             this.bindingStore.setRunId(null)
             this.setSnapshot({ ...this.snapshot, selectedConversation: null })
             this.clearPromptDraftWhenIdle()
@@ -171,7 +171,7 @@ export class ActionConversationStore {
         }
 
         const liveRun = actionRunRegistry.getActionRunStores(this.actionId, this.context)
-            .find((store) => store.getSnapshot().conversation?.path === path)
+            .find((store) => store.getSnapshot().conversation?.id === conversationId)
         if (liveRun) {
             this.bindingStore.setRunId(liveRun.getSnapshot().runId)
             this.setSnapshot({ ...this.snapshot, selectedConversation: null })
@@ -179,9 +179,12 @@ export class ActionConversationStore {
         }
 
         try {
-            const conversation = await defaultLoadConversation(path)
+            const selected = this.conversationOptions([]).find(({ id }) => id === conversationId)
+            if (!selected) throw new Error(`Unknown agent conversation: ${conversationId}`)
+            const conversation = await defaultLoadConversation(selected.path)
             if (request !== this.loadRequest) return
             this.validateSelection(conversation)
+            if (conversation.id !== conversationId) throw new Error('Loaded agent conversation ID does not match selection')
 
             this.bindingStore.setRunId(null)
             this.setSnapshot({ ...this.snapshot, selectedConversation: conversation })

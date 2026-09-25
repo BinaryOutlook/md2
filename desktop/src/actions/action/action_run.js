@@ -284,23 +284,44 @@ class ActionRun {
 
     async runWithContext() {
         this.publish(this.rootAction, 'main', 'running', { type: 'run' });
-        let status = 'completed';
-        let failure = null;
+        let result;
         try {
-            const onQueued = () => this.publish(this.rootAction, 'main', 'queued', { type: 'action' });
-            const lockOptions = { onQueued, signal: this.controller.signal };
-            await this.actionWorktreeRunService.runWithCardLock(
+            const lockOptions = { signal: this.controller.signal };
+            result = await this.actionWorktreeRunService.runWithCardLock(
                 this.project,
                 this.context,
-                () => this.runAction(this.rootAction, 'main', true),
+                () => this.executeRunWithActivity(),
                 lockOptions,
             );
         } catch (error) {
-            failure = error;
-            if (error instanceof ActionCancellationError || this.controller.signal.aborted) status = 'cancelled';
-            else status = error instanceof ActionPhaseError && error.rootPhase === 'after' ? 'okButNotAfter' : 'failed';
+            result = await this.finishRunWithActivity(error);
         }
 
+        this.publish(this.rootAction, 'main', result.status, {
+            changedPaths: result.changedPaths,
+            ...(this.rootAction.output?.kind === 'diagram' && this.diagramPath ? { diagramPath: this.diagramPath } : {}),
+            message: result.failure,
+            type: 'run',
+        });
+
+        return result;
+    }
+
+    async executeRunWithActivity() {
+        let failure = null;
+        try {
+            await this.runAction(this.rootAction, 'main', true);
+        } catch (error) {
+            failure = error;
+        }
+
+        return this.finishRunWithActivity(failure);
+    }
+
+    async finishRunWithActivity(failure) {
+        let status = 'completed';
+        if (failure instanceof ActionCancellationError || this.controller.signal.aborted) status = 'cancelled';
+        else if (failure) status = failure instanceof ActionPhaseError && failure.rootPhase === 'after' ? 'okButNotAfter' : 'failed';
         this.discardQueuedPrompts();
 
         let changedPaths = [];
@@ -321,13 +342,6 @@ class ActionRun {
             failure: failure ? errorMessage(failure, 'Action failed') : null,
             status,
         };
-        this.publish(this.rootAction, 'main', status, {
-            changedPaths: result.changedPaths,
-            ...(this.rootAction.output?.kind === 'diagram' && this.diagramPath ? { diagramPath: this.diagramPath } : {}),
-            message: result.failure,
-            type: 'run',
-        });
-
         return result;
     }
 

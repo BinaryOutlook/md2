@@ -4,6 +4,7 @@ import { createActivityFile, parseActivityValue } from '../../../../shared/card_
 
 const require = createRequire(import.meta.url);
 const { ActionRun } = require('./action_run');
+const { ActionWorktreeRunService } = require('./action_worktree_run_service');
 
 const context = { cardInternalId: 'card-1', file: 'design/card.md', kind: 'card' };
 const project = { branch: 'main', rootPath: 'C:/repo' };
@@ -98,7 +99,7 @@ function createRun(rootAction, overrides = {}) {
         diagramFooter: overrides.diagramFooter,
         diagramsFolder: overrides.diagramsFolder,
         diagramPath: overrides.diagramPath,
-        runId: 'run-1',
+        runId: overrides.runId ?? 'run-1',
         project,
         projectFolder: 'design',
         releasesFolder: 'design/releases',
@@ -120,6 +121,54 @@ function createRun(rootAction, overrides = {}) {
 }
 
 describe('ActionRun', () => {
+    it('records two same-card runs independently while release waits for both', async () => {
+        const runService = new ActionWorktreeRunService({ worktreeService: { resolve: vi.fn() } });
+        const actionWorktreeRunService = {
+            execute: runService.execute.bind(runService),
+            runWithCardLock: runService.runWithCardLock.bind(runService),
+        };
+        const firstCompletion = deferred();
+        const secondCompletion = deferred();
+        const records = [];
+        const appendAndCommitActionActivity = vi.fn(async (_project, _projectFolder, _origin, record) => {
+            records.push(record);
+        });
+        const first = createRun(action('first'), {
+            actionWorktreeRunService,
+            commandRunner: vi.fn(async () => {
+                await firstCompletion.promise;
+                return { command: 'first', exitCode: 0, stderr: '', stdout: '' };
+            }),
+            localGitService: { appendAndCommitActionActivity },
+            runId: 'run-first',
+        });
+        const second = createRun(action('second'), {
+            actionWorktreeRunService,
+            commandRunner: vi.fn(async () => {
+                await secondCompletion.promise;
+                return { command: 'second', exitCode: 0, stderr: '', stdout: '' };
+            }),
+            localGitService: { appendAndCommitActionActivity },
+            runId: 'run-second',
+        });
+
+        await vi.waitFor(() => {
+            expect(first.commandRunner).toHaveBeenCalledOnce();
+            expect(second.commandRunner).toHaveBeenCalledOnce();
+        });
+        expect(() => runService.acquireReleaseCardLocks(project, ['card-1']))
+            .toThrow('Cannot complete release while a target card has a running action');
+        firstCompletion.resolve();
+        await first.run.completion;
+        expect(() => runService.acquireReleaseCardLocks(project, ['card-1']))
+            .toThrow('Cannot complete release while a target card has a running action');
+        secondCompletion.resolve();
+        await second.run.completion;
+        expect(records.map(({ runId }) => runId)).toEqual(['run-first', 'run-second']);
+        const leaseId = runService.acquireReleaseCardLocks(project, ['card-1']);
+        runService.releaseReleaseCardLocks(leaseId);
+    });
+
     it('finishes a streaming diagram agent when valid output precedes provider startup', async () => {
         const close = vi.fn(async () => undefined);
         const agentRunnerService = { finish: vi.fn(), stop: vi.fn() };
@@ -296,14 +345,8 @@ describe('ActionRun', () => {
         expect(actionWorktreeRunService.execute.mock.calls.map((call) => call[1].id)).toEqual(['before', 'main', 'after']);
     });
 
-    it('publishes queued before running when the card lock is occupied', async () => {
-        const actionWorktreeRunService = {
-            runWithCardLock: vi.fn(async (_primaryProject, _context, operation, options) => {
-                options.onQueued();
-
-                return operation();
-            }),
-        };
+    it('runs without publishing a card-lock queue event', async () => {
+        const actionWorktreeRunService = {runWithCardLock: vi.fn(async (_primaryProject, _context, operation) => operation())};
         const { events, run } = createRun(action('main'), { actionWorktreeRunService });
 
         await run.completion;
@@ -311,7 +354,7 @@ describe('ActionRun', () => {
         expect(events
             .filter((event) => event.type === 'action')
             .map(({ status }) => status))
-            .toEqual(['queued', 'running', 'completed']);
+            .toEqual(['running', 'completed']);
         expect(actionWorktreeRunService.runWithCardLock.mock.calls[0][3].signal).toBe(run.controller.signal);
     });
 

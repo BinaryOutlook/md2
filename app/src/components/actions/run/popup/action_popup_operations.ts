@@ -35,7 +35,7 @@ function hasPersistedSubmittedMessage(
     currentConversation: ReturnType<ActionConversationStore['getSnapshot']>['selectedConversation'],
     prompt: string,
 ) {
-    if (!currentConversation || currentConversation.path !== previousConversation.path) return false
+    if (!currentConversation || currentConversation.id !== previousConversation.id) return false
 
     const previousEntryIds = new Set(previousConversation.entries.map(({ id }) => id))
 

@@ -104,7 +104,7 @@ describe('ActionConversationStore', () => {
             vi.spyOn(dataService, 'loadAgentConversation').mockResolvedValue(historicalConversation)
             const { store } = createConversationStore()
 
-            await store.select(historicalConversation.path)
+            await store.select(historicalConversation.id)
             draft.edit('Edited while browsing')
             await store.select('')
 
@@ -168,7 +168,7 @@ describe('ActionConversationStore', () => {
         await store.load()
         expect(store.getSnapshot().selectedConversation).toBeNull()
 
-        await store.select(historicalConversation.path)
+        await store.select(historicalConversation.id)
         await store.select('')
 
         expect(loadConversation).toHaveBeenCalledOnce()
@@ -179,6 +179,7 @@ describe('ActionConversationStore', () => {
         const originalConversation = conversation('conversation.json')
         const continuedConversation = {
             ...originalConversation,
+            path: 'moved-conversation.json',
             entries: [{
                 content: 'New answer',
                 id: 'assistant-2',
@@ -198,6 +199,38 @@ describe('ActionConversationStore', () => {
         await store.load()
 
         expect(store.getSnapshot().selectedConversation).toBe(continuedConversation)
+    })
+
+    it('selects a live conversation by ID while another run on the same action remains active', async () => {
+        let listener: ((event: ActionRunEvent) => void) | null = null
+        setActionBridgeOverride({
+            onActionRun: vi.fn((nextListener) => {
+                listener = nextListener
+
+                return vi.fn()
+            }),
+        } as unknown as ElectronActionBridge)
+        actionRunRegistry.start()
+        if (!listener) throw new Error('Missing action run listener')
+        const emit = listener as (event: ActionRunEvent) => void
+        const eventBase = {
+            actionId: 'implement', actionType: 'agent' as const, autoFinish: null, context,
+            interactionReady: true, phase: 'main' as const, rootActionId: 'implement', streaming: true,
+        }
+        const firstConversation = { ...conversation('first.json'), id: 'first-conversation', status: 'waitingForInput' as const }
+        const secondConversation = { ...conversation('second.json'), id: 'second-conversation', status: 'running' as const }
+        emit({ ...eventBase, runId: 'run-1', status: 'running', type: 'run' })
+        emit({...eventBase, runId: 'run-1', status: 'waitingForInput', type: 'update', update: {continued: false, conversation: firstConversation, kind: 'agentStarted'}})
+        emit({ ...eventBase, runId: 'run-2', status: 'running', type: 'run' })
+        emit({...eventBase, runId: 'run-2', status: 'running', type: 'update', update: {continued: false, conversation: secondConversation, kind: 'agentStarted'}})
+        const { bindingStore, store } = createConversationStore()
+
+        await store.select(firstConversation.id)
+
+        expect(bindingStore.getSnapshot()).toBe('run-1')
+        expect(actionRunRegistry.getRunStore('run-2')?.getSnapshot().status).toBe('running')
+        expect(store.continuationPath(actionRunRegistry.getRunStore('run-1')?.getSnapshot().conversation ?? null))
+            .toBe(firstConversation.path)
     })
 
     it('keeps user-edited prompt text when a finished run reconciles history', async () => {
@@ -249,7 +282,7 @@ describe('ActionConversationStore', () => {
 
         expect(store.conversationOptions([])).toEqual([projectOrigin])
 
-        await store.select(projectOrigin.path)
+        await store.select(projectOrigin.id)
 
         expect(store.getSnapshot().selectedConversation).toBe(projectOrigin)
         expect(reportError).not.toHaveBeenCalled()
@@ -266,7 +299,7 @@ describe('ActionConversationStore', () => {
 
         expect(store.conversationOptions([])).toEqual([])
 
-        await store.select(otherCard.path)
+        await store.select(otherCard.id)
 
         expect(store.getSnapshot().selectedConversation).toBeNull()
         expect(reportError).toHaveBeenCalled()
@@ -283,7 +316,7 @@ describe('ActionConversationStore', () => {
 
         expect(store.conversationOptions([])).toEqual([projectOrigin])
 
-        await store.select(projectOrigin.path)
+        await store.select(projectOrigin.id)
 
         expect(store.getSnapshot().selectedConversation).toBe(projectOrigin)
         expect(reportError).not.toHaveBeenCalled()

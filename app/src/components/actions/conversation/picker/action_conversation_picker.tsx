@@ -8,12 +8,12 @@ interface ActionConversationPickerProps {
     disabled: boolean
     loading: boolean
     onChange: (event: ChangeEvent<HTMLInputElement>) => void
-    selectedPath: string
+    selectedConversationId: string
 }
 
 /** Selects New conversation or one persisted/live conversation for popup display. */
 export function ActionConversationPicker(props: ActionConversationPickerProps) {
-    const { conversations, disabled, loading, onChange, selectedPath } = props
+    const { conversations, disabled, loading, onChange, selectedConversationId } = props
 
     return (
         <TextField
@@ -28,15 +28,15 @@ export function ActionConversationPicker(props: ActionConversationPickerProps) {
                 '& .MuiInputBase-root:hover': { bgcolor: 'action.hover', color: 'text.primary' },
                 '& .MuiInput-root:before, & .MuiInput-root:after': { display: 'none' },
             }}
-            value={selectedPath}
+            value={selectedConversationId}
             variant="standard"
         >
             <MenuItem value="">New conversation</MenuItem>
             {conversations.map((conversation) => (
                 <ActionConversationPickerOption
                     conversation={conversation}
-                    key={conversation.path}
-                    value={conversation.path}
+                    key={conversation.id}
+                    value={conversation.id}
                 >
                     {conversationPickerLabel(conversation)}
                 </ActionConversationPickerOption>

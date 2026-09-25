@@ -1313,9 +1313,12 @@ describe('ActionPopup', () => {
         expect(screen.getByRole('button', { name: 'Stream' })).toBeInTheDocument()
     })
 
-    it('starts a second run from New conversation instead of queueing into the live run', async () => {
+    it.each([
+        { context: { kind: 'project' } as ActionContext, label: 'project' },
+        { context: { ...context, cardInternalId: 'card-1' } as ActionContext, label: 'card' },
+        { context: { diagramId: 'diagram-1', kind: 'diagram', type: 'root' } as ActionContext, label: 'diagram' },
+    ])('starts a second $label run from New conversation while the first remains active', async ({ context: selectedContext }) => {
         actionRunRegistry.stop()
-        const projectContext: ActionContext = { kind: 'project' }
         let runListener: ((event: ActionRunEvent) => void) | null = null
         const enqueueActionPrompt = vi.fn()
         const startAction = vi.fn(async (request: ActionStartRequest) => {
@@ -1325,6 +1328,7 @@ describe('ActionPopup', () => {
         })
         window.md2Actions = {
             enqueueActionPrompt,
+            loadCardActivity: vi.fn(async () => ({actionSettings: {}, conversations: [], origin: { cardInternalId: 'card-1', kind: 'card' }, records: [], version: 5})),
             loadActionRunHistory: vi.fn(async () => []),
             onActionRun: vi.fn((listener) => {
                 runListener = listener
@@ -1332,15 +1336,29 @@ describe('ActionPopup', () => {
                 return vi.fn()
             }),
             prepareActionPrompt: vi.fn(async () => ({ prompt: '' })),
+            reserveActionConversation: vi.fn(async () => ({
+                activityPath: 'design/activity/card__card-1.json',
+                conversationId: 'conversation-2',
+                reference: 'design/activity/card__card-1.json#conversation=conversation-2',
+            })),
             startAction,
         } as unknown as typeof window.md2Actions
         mockCodexAvailable()
         actionRunRegistry.start()
-        actionService.loadFromFiles([file(agentDefinition('stream', { label: 'Stream', streaming: true }))])
+        const actionOverrides = selectedContext.kind === 'diagram'
+            ? { appliesTo: { kind: 'diagram', type: 'root' } }
+            : {}
+        actionService.loadFromFiles([file(agentDefinition('stream', { label: 'Stream', streaming: true, ...actionOverrides }))])
         if (!runListener) throw new Error('Missing action run listener')
-        const firstConversation = agentConversation({ actionId: 'stream', cardInternalId: null, cardPath: null, path: 'first.json' })
+        const firstConversation = agentConversation({
+            actionId: 'stream',
+            cardInternalId: selectedContext.cardInternalId ?? null,
+            cardPath: selectedContext.kind === 'card' ? selectedContext.file : null,
+            path: 'first.json',
+            title: 'First conversation',
+        })
         const firstRun = {
-            actionId: 'stream', actionType: 'agent' as const, autoFinish: null, context: projectContext,
+            actionId: 'stream', actionType: 'agent' as const, autoFinish: null, context: selectedContext,
             interactionReady: true, phase: 'main' as const, rootActionId: 'stream', runId: 'run-1', streaming: true,
         }
         act(() => {
@@ -1353,7 +1371,7 @@ describe('ActionPopup', () => {
             })
             runListener?.({ ...firstRun, status: 'running', type: 'agentState' })
         })
-        renderPopup(projectContext)
+        renderPopup(selectedContext)
 
         const conversationPicker = await screen.findByRole('combobox', { name: 'Conversation history' })
         fireEvent.mouseDown(conversationPicker)
@@ -1372,8 +1390,25 @@ describe('ActionPopup', () => {
         expect(startRequest.runInput).not.toHaveProperty('continueFrom')
         expect(enqueueActionPrompt).not.toHaveBeenCalled()
 
-        act(() => runListener?.({ ...firstRun, runId: 'run-2', status: 'running', type: 'run' }))
-        expect(actionRunRegistry.getActionRunStores('stream', projectContext)).toHaveLength(2)
+        const secondConversation = agentConversation({ ...firstConversation, id: 'conversation-2', path: 'second.json', title: 'Second conversation' })
+        const secondRun = { ...firstRun, runId: 'run-2' }
+        act(() => {
+            runListener?.({ ...secondRun, status: 'running', type: 'run' })
+            runListener?.({
+                ...secondRun,
+                status: 'running',
+                type: 'update',
+                update: { continued: false, conversation: secondConversation, kind: 'agentStarted' },
+            })
+        })
+        const runStores = actionRunRegistry.getActionRunStores('stream', selectedContext)
+        expect(runStores.map((store) => store.getSnapshot().conversation?.id)).toEqual(['conversation-1', 'conversation-2'])
+        fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Conversation history' }))
+        fireEvent.click(await screen.findByRole('option', { name: /First conversation/u }))
+        fireEvent.change(prompt, { target: { value: 'Continue first' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue first'))
+        expect(actionRunRegistry.getRunStore('run-2')?.getSnapshot().status).toBe('running')
     })
 
     it('keeps a post-start streaming draft editable when the bottom row reacquires it first', async () => {

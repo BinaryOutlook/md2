@@ -67,7 +67,7 @@ export function ActionConversationPickerOwner(props: ActionConversationPickerOwn
         .map(({ getSnapshot }) => getSnapshot().conversation)
         .filter((conversation): conversation is AgentConversation => !!conversation)
     const pickerConversations = boundConversation
-        && !liveConversations.some(({ path }) => path === boundConversation.path)
+        && !liveConversations.some(({ id }) => id === boundConversation.id)
         ? [...liveConversations, boundConversation]
         : liveConversations
 
@@ -94,7 +94,7 @@ export function ActionConversationPickerOwner(props: ActionConversationPickerOwn
                 disabled={false}
                 loading={snapshot.loading}
                 onChange={handleChange}
-                selectedPath={displayedConversation?.path ?? ''}
+                selectedConversationId={displayedConversation?.id ?? ''}
             />
             <ActionConversationPinButton
                 conversation={displayedConversation}

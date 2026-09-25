@@ -42,7 +42,7 @@ describe('conversation picker data', () => {
                 disabled={false}
                 loading={false}
                 onChange={onChange}
-                selectedPath={selectedConversation.path}
+                selectedConversationId={selectedConversation.id}
             />,
         )
 
@@ -74,7 +74,7 @@ describe('conversation picker data', () => {
                 disabled={false}
                 loading={false}
                 onChange={vi.fn()}
-                selectedPath={pinned.path}
+                selectedConversationId={pinned.id}
             />,
         )
 
@@ -95,7 +95,7 @@ describe('conversation picker data', () => {
                 disabled={false}
                 loading={false}
                 onChange={vi.fn()}
-                selectedPath={selectedConversation.path}
+                selectedConversationId={selectedConversation.id}
             />,
         )
 

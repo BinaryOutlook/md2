@@ -278,7 +278,7 @@ describe('ActionPopupBottomRow', () => {
         const historicalConversation = { ...waitingConversation(action.id), path: 'history.json', status: 'completed' as const }
         vi.spyOn(dataService, 'loadAgentConversation').mockResolvedValue(historicalConversation)
         const conversationStore = createConversationStore(action.id, context)
-        await conversationStore.select(historicalConversation.path)
+        await conversationStore.select(historicalConversation.id)
 
         renderBottomRow(action, conversationStore)
 
