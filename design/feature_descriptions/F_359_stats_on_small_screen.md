@@ -9,6 +9,8 @@ affects:
 agents:
   - design/activity/card__6b01f79a-7950-42c5-b09b-4f77086aa427.json
 policy:
+branch: f_359_stats_on_small_screen
+worktree: 2
 ---
 
 When on small screen, show the stats as tables instead of charts. This is easier to read
