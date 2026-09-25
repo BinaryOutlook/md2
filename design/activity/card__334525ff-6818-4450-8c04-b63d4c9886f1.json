@@ -20,10 +20,10 @@
       "actionId": "5b88355d-f964-459a-bc67-6618650866ba",
       "cardInternalId": "334525ff-6818-4450-8c04-b63d4c9886f1",
       "cardPath": "design/feature_descriptions/B_204_next_conversation_on_same_action_only_starts_if_previous_ended.md",
-      "completedAt": "2026-09-25T12:30:28.857Z",
+      "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 93069
+        "usedTokens": 93377
       },
       "entries": [
         {
@@ -1809,6 +1809,36 @@
           "role": "assistant",
           "sequence": 132,
           "timestamp": "2026-09-25T12:30:28.857Z"
+        },
+        {
+          "content": "how would the solution work?",
+          "id": "agent-turn-f5a2cf34-88e5-463e-b8ec-9e8ceea2dcfb-user",
+          "kind": "message",
+          "role": "user",
+          "sequence": 133,
+          "timestamp": "2026-09-25T12:30:57.184Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-f5a2cf34-88e5-463e-b8ec-9e8ceea2dcfb-event-134",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_0d2e7900773926ce016ab66988d0f087d2aa0270761629c2bb",
+          "sequence": 134,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-25T12:31:08.663Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "Change card lock from **one exclusive run** to **multiple active-run claims**.\n\nWhen card action starts, it takes claim keyed by repository and `cardInternalId`, then runs immediately. Other actions and conversations on that card take their own claims. `waitingForInput` keeps run alive but blocks no other run. Each claim ends when its run completes, fails, or is cancelled.\n\nRelease remains exclusive: it starts only when target cards have no active claims, and it blocks new claims until release finishes. Project and diagram agents have no card ID, so they run without card claims.\n\nPopup binds controls to selected run ID. `New conversation` gets new conversation ID; selecting prior conversation continues that conversation. Existing activity-file and Git-index queues protect app-managed writes. Agents editing same working file can still conflict; concurrent execution does not merge their edits.\n\n",
+          "id": "agent-turn-f5a2cf34-88e5-463e-b8ec-9e8ceea2dcfb-turn-1-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 135,
+          "timestamp": "2026-09-25T12:31:13.127Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -1823,22 +1853,22 @@
         }
       ],
       "startedAt": "2026-09-01T17:20:20.575Z",
-      "status": "completed",
+      "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 65858,
+          "reasoningMs": 70362,
           "toolMs": 4298
         },
         "elapsedMs": 363778,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-25T12:30:57.184Z"
       },
       "title": "complete",
       "usage": {
-        "cachedInputTokens": 1125888,
-        "inputTokens": 84615,
-        "outputTokens": 5486,
-        "reasoningTokens": 2675,
-        "totalTokens": 1218664
+        "cachedInputTokens": 1218560,
+        "inputTokens": 85024,
+        "outputTokens": 5663,
+        "reasoningTokens": 2794,
+        "totalTokens": 1312041
       },
       "usageSchemaVersion": 1,
       "viewed": true
@@ -1916,11 +1946,11 @@
         "agent-e8579c7b-8b47-48e2-82cc-3088dae0f304"
       ],
       "details": {
+        "type": "agent",
         "agent": "codex",
         "model": "gpt-6-sol",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-307dea3a-e24d-4e09-b836-87b9669a53b6",
       "origin": {
@@ -1929,9 +1959,9 @@
       },
       "rootActionId": "5b88355d-f964-459a-bc67-6618650866ba",
       "rootActionLabel": "complete",
-      "rootConversationId": "agent-e8579c7b-8b47-48e2-82cc-3088dae0f304",
       "startedAt": "2026-09-25T12:28:26.512Z",
-      "status": "completed"
+      "status": "completed",
+      "rootConversationId": "agent-e8579c7b-8b47-48e2-82cc-3088dae0f304"
     }
   ],
   "version": 5
