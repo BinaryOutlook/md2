@@ -3,7 +3,7 @@ author:
 id: B_249
 internalId: c8ca7e43-f909-4a9a-8bc4-3c3f1c305219
 title: open project fixes
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
