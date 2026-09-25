@@ -33,15 +33,15 @@ The separate release operation currently receives a **release name** through `Co
 
 ## Acceptance criteria
 
-- An action author can select Version for either action type, save the definition, reload it, and see the selection preserved. Unknown input types are rejected.
-- Starting a qualifying interactive action shows one version dialog before any command or agent starts. A linked action uses the same answer without another dialog.
-- Confirming a valid version substitutes every `{{version}}` in commands and agent prompts, including an edited popup prompt. Empty or invalid input cannot start execution.
-- Cancelling the dialog or the run starts no action and leaves no pending input request. A late answer cannot resume a cancelled run.
-- An unattended action requiring a version fails clearly before side effects unless its start request supplies a validated version.
-- The version script updates the agreed files to the exact supplied version; a failed update does not leave a partially written file.
-- The release dialog can reuse a collected version as a proposed release name, and the user can review it before completing the release.
+* An action author can select Version for either action type, save the definition, reload it, and see the selection preserved. Unknown input types are rejected.
+* Starting a qualifying interactive action shows one version dialog before any command or agent starts. A linked action uses the same answer without another dialog.
+* Confirming a valid version substitutes every `{{version}}` in commands and agent prompts, including an edited popup prompt. Empty or invalid input cannot start execution.
+* Cancelling the dialog or the run starts no action and leaves no pending input request. A late answer cannot resume a cancelled run.
+* An unattended action requiring a version fails clearly before side effects unless its start request supplies a validated version.
+* The version script updates the agreed files to the exact supplied version; a failed update does not leave a partially written file.
+* The release dialog can reuse a collected version as a proposed release name, and the user can review it before completing the release.
 
 ## Decisions needed before coding
 
-- Which manifest files and version format does the script support? The description names `package.json` only as an example.
-- Should release-name reuse survive an app restart, and when should a previously collected version stop being proposed? The current release API has a release name, not a version field.
+* Which manifest files and version format does the script support? The description names `package.json` only as an example.
+* Should release-name reuse survive an app restart, and when should a previously collected version stop being proposed? The current release API has a release name, not a version field.
