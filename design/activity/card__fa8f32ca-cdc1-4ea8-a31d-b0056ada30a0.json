@@ -574,13 +574,50 @@
         "costUsd": 0.7599501999999999
       },
       "usageSchemaVersion": 1,
-      "viewed": true
+      "viewed": false
     }
   ],
   "origin": {
     "cardInternalId": "fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0",
     "kind": "card"
   },
-  "records": [],
+  "records": [
+    {
+      "commits": [
+        {
+          "branch": "dev_main",
+          "commit": "ef55ea1b06cd2fd081d8cdb75b46dccd8e39d7cd",
+          "committedAt": "2026-09-25T20:32:53+02:00",
+          "deletions": 2,
+          "filePaths": [
+            "design/feature_descriptions/F_385_action_buttons_in_scrollbox.md"
+          ],
+          "filesChanged": 1,
+          "insertions": 30
+        }
+      ],
+      "completedAt": "2026-09-25T18:32:53.453Z",
+      "conversationIds": [
+        "agent-39c159b7-072e-4f38-b7e1-2f528686f05b"
+      ],
+      "details": {
+        "agent": "claude",
+        "model": "opus",
+        "permissionMode": "approve-for-me",
+        "thinkingLevel": "medium",
+        "type": "agent"
+      },
+      "runId": "action-ce32c6ad-65e1-4f00-9da6-a830092a042f",
+      "origin": {
+        "cardInternalId": "fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0",
+        "kind": "card"
+      },
+      "rootActionId": "5b88355d-f964-459a-bc67-6618650866ba",
+      "rootActionLabel": "complete",
+      "rootConversationId": "agent-39c159b7-072e-4f38-b7e1-2f528686f05b",
+      "startedAt": "2026-09-25T18:31:39.657Z",
+      "status": "completed"
+    }
+  ],
   "version": 5
 }
