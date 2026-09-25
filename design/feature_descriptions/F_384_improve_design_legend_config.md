@@ -10,8 +10,6 @@ agents:
   - design/activity/card__ef0c0e83-0726-460e-8331-55e6ef3e2ab9.json
 policy:
 after: c0629e16-a603-4a9c-b19d-5c7cac9772ec
-branch: f_384_improve_design_legend_config
-worktree: 2
 changedFiles:
   - app/src/components/config/markdown_section_editor.tsx
   - app/src/components/config/markdown_style_group.tsx
