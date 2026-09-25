@@ -109,6 +109,14 @@ export const MARKDOWN_FONT_FAMILIES = [
     { label: 'Monospace', value: MONOSPACE_FONT },
 ]
 
+/** Returns font presets, plus a saved custom family when needed by a select. */
+export function fontFamilyOptions(fontFamily: string) {
+    const isPredefined = MARKDOWN_FONT_FAMILIES.some((option) => option.value === fontFamily)
+    if (isPredefined || fontFamily === '') return MARKDOWN_FONT_FAMILIES
+
+    return [...MARKDOWN_FONT_FAMILIES, { label: fontFamily, value: fontFamily }]
+}
+
 function createFormatting(bold: boolean, italic: boolean, underline: boolean): MarkdownSectionFormatting {
     return { bold, italic, underline }
 }

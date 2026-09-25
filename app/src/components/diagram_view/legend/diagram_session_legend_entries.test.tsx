@@ -8,6 +8,7 @@ import type { DiagramRecord } from '../../../services/diagrams/diagram_index'
 import { DiagramViewService, type DiagramViewSourceSnapshot } from '../../../services/diagrams/diagram_view_service'
 import { layout } from '../../../services/diagrams/diagram_layout'
 import { createAppTheme } from '../../../theme/app_theme'
+import { MARKDOWN_STYLE_PRESETS } from '../../../theme/theme_config'
 import { DiagramLegend } from './diagram_legend'
 import { DiagramSessionLegendEntries } from './diagram_session_legend_entries'
 import { diagramObjectDetailsService } from '../details/diagram_object_details_service'
@@ -86,25 +87,27 @@ describe('DiagramSessionLegendEntries', () => {
         const gear = screen.getByRole('button', { name: 'Format Service' })
         expect(gear).toBeInTheDocument()
         await user.click(gear)
-        expect(screen.getByRole('textbox', { name: 'Font family' })).toBeInTheDocument()
+        expect(screen.getByRole('combobox', { name: 'Font family' })).toBeInTheDocument()
         expect(screen.getByRole('slider', { name: 'Font size' })).toHaveAttribute('aria-valuemin', '1')
-        expect(screen.getByText('Font color')).toBeInTheDocument()
-        expect(screen.getByText('Fill color')).toBeInTheDocument()
-        expect(screen.getByText('Border color')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Font color' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Fill color' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Border color' })).toBeInTheDocument()
         expect(screen.getByRole('combobox', { name: 'Border style' })).toBeInTheDocument()
         expect(screen.getByRole('slider', { name: 'Border thickness' })).toHaveAttribute('aria-valuemax', '20')
         expect(screen.getByRole('slider', { name: 'Corner radius' })).toHaveAttribute('aria-valuemax', '100')
         expect(screen.getByRole('combobox', { name: 'Content position' })).toBeInTheDocument()
 
-        await user.type(screen.getByRole('textbox', { name: 'Font family' }), 'Inter')
-        await user.click(screen.getByRole('button', { name: 'Use custom color for Fill color' }))
+        await user.click(screen.getByRole('combobox', { name: 'Font family' }))
+        await user.click(screen.getByRole('option', { name: 'Modern' }))
+        await user.click(screen.getByRole('button', { name: 'Fill color' }))
         await user.click(screen.getByRole('button', { name: 'Use colour #1976d2' }))
-        await user.click(screen.getByRole('checkbox', { name: 'Bold' }))
+        await user.keyboard('{Escape}')
+        await user.click(screen.getByRole('switch', { name: 'Bold' }))
         await user.click(screen.getByRole('button', { name: 'Apply' }))
 
         expect(session.getNodeRoleFormattingSnapshot('focal')).toMatchObject({
             box: { contentPosition: 'center', fillColor: '#1976d2' },
-            font: { bold: true, family: 'Inter' },
+            font: { bold: true, family: MARKDOWN_STYLE_PRESETS.modern.body.fontFamily },
         })
     })
 
@@ -242,7 +245,7 @@ describe('DiagramLegend session tabs', () => {
         )
 
         await user.click(screen.getByRole('button', { name: 'Format Service' }))
-        await user.click(screen.getByRole('checkbox', { name: 'Bold' }))
+        await user.click(screen.getByRole('switch', { name: 'Bold' }))
         await user.click(screen.getByRole('button', { name: 'Apply' }))
 
         expect(setNewFormatting).toHaveBeenCalledOnce()
@@ -251,7 +254,7 @@ describe('DiagramLegend session tabs', () => {
 
         await user.click(screen.getByRole('tab', { name: 'Current' }))
         await user.click(screen.getByRole('button', { name: 'Format focal' }))
-        await user.click(screen.getByRole('checkbox', { name: 'Italic' }))
+        await user.click(screen.getByRole('switch', { name: 'Italic' }))
         await user.click(screen.getByRole('button', { name: 'Apply' }))
 
         expect(setCurrentFormatting).toHaveBeenCalledOnce()

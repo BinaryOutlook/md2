@@ -1,5 +1,5 @@
 import {
-    Box, Button, Checkbox, FormControlLabel, MenuItem, Popover, TextField, Typography,
+    Box, Button, FormControlLabel, MenuItem, Popover, Stack, Switch, TextField, Typography,
 } from '@mui/material';
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import {
@@ -10,12 +10,15 @@ import {
     type DiagramNodeRoleFormatting,
 } from '../../../services/diagrams/diagram_data';
 import { dialogService } from '../../../services/dialog_service';
-import { OptionalColorPickerField } from '../../optional_color_picker_field';
+import { ColorPickerButton } from '../../color_picker_button';
+import { FormattingGroup } from '../../formatting_group';
+import { DiagramFontFamilySelect } from './diagram_font_family_select';
 import { OptionalSliderField } from './optional_slider_field';
 
 const DEFAULT_CUSTOM_FONT_SIZE = 14;
 const DEFAULT_CUSTOM_BORDER_THICKNESS = 1;
 const DEFAULT_CUSTOM_CORNER_RADIUS = 8;
+const HALF_WIDTH_SX = { flex: '1 1 0', minWidth: 0 };
 const BORDER_STYLE_LABELS: Record<DiagramBorderStyle, string> = {
     dashed: 'Dashed',
     dotted: 'Dotted',
@@ -64,7 +67,6 @@ export function NodeFormattingPopover({ anchorElement, label, onApply, onClose, 
     const [borderThickness, setBorderThickness] = useState(value?.box?.borderThickness);
     const [cornerRadius, setCornerRadius] = useState(value?.box?.cornerRadius);
     const [contentPosition, setContentPosition] = useState(value?.box?.contentPosition ?? 'center');
-    const handleFontFamily = (event: ChangeEvent<HTMLInputElement>) => setFontFamily(event.target.value);
     const handleBorderStyle = (event: ChangeEvent<HTMLInputElement>) => setBorderStyle(event.target.value as DiagramBorderStyle);
     const handleContentPosition = (event: ChangeEvent<HTMLInputElement>) => {
         setContentPosition(event.target.value as DiagramContentPosition);
@@ -96,95 +98,42 @@ export function NodeFormattingPopover({ anchorElement, label, onApply, onClose, 
     return (
         <Popover anchorEl={anchorElement} onClose={onClose} open>
             <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', maxHeight: '70vh', width: 380 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, minHeight: 0, overflowY: 'auto', p: 2 }}>
-                    <Typography variant="subtitle2">Format {label} nodes</Typography>
-                    <Typography color="text.secondary" variant="overline">Font</Typography>
-                    <TextField
-                        autoFocus
-                        helperText="Leave empty to use the theme font."
-                        label="Font family"
-                        onChange={handleFontFamily}
-                        size="small"
-                        value={fontFamily}
-                    />
-                    <OptionalSliderField
-                        helperText="Choose 1-200 px, or use the theme size."
-                        initialCustomValue={DEFAULT_CUSTOM_FONT_SIZE}
-                        label="Font size"
-                        maximum={200}
-                        minimum={1}
-                        onChange={setFontSize}
-                        unit="px"
-                        value={fontSize}
-                    />
-                    <OptionalColorPickerField
-                        helperText="Uses the theme text color by default."
-                        label="Font color"
-                        onChange={setFontColor}
-                        value={fontColor}
-                    />
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
-                        <FormControlLabel control={<Checkbox checked={bold} onChange={handleBold} />} label="Bold" />
-                        <FormControlLabel control={<Checkbox checked={italic} onChange={handleItalic} />} label="Italic" />
-                        <FormControlLabel control={<Checkbox checked={underline} onChange={handleUnderline} />} label="Underline" />
-                    </Box>
-                    <Typography color="text.secondary" variant="overline">Box</Typography>
-                    <OptionalColorPickerField
-                        helperText="Uses the node-role fill color by default."
-                        label="Fill color"
-                        onChange={setFillColor}
-                        value={fillColor}
-                    />
-                    <OptionalColorPickerField
-                        helperText="Uses the node-role border color by default."
-                        label="Border color"
-                        onChange={setBorderColor}
-                        value={borderColor}
-                    />
-                    <TextField
-                        helperText="Controls the box outline pattern."
-                        label="Border style"
-                        onChange={handleBorderStyle}
-                        select
-                        size="small"
-                        value={borderStyle}
-                    >
-                        {DIAGRAM_BORDER_STYLES.map((style) => (
-                            <MenuItem key={style} value={style}>{BORDER_STYLE_LABELS[style]}</MenuItem>
-                        ))}
-                    </TextField>
-                    <OptionalSliderField
-                        helperText="Choose 0-20 px, or use the theme thickness."
-                        initialCustomValue={DEFAULT_CUSTOM_BORDER_THICKNESS}
-                        label="Border thickness"
-                        maximum={20}
-                        minimum={0}
-                        onChange={setBorderThickness}
-                        unit="px"
-                        value={borderThickness}
-                    />
-                    <OptionalSliderField
-                        helperText="Choose 0-100 px, or use the theme radius."
-                        initialCustomValue={DEFAULT_CUSTOM_CORNER_RADIUS}
-                        label="Corner radius"
-                        maximum={100}
-                        minimum={0}
-                        onChange={setCornerRadius}
-                        unit="px"
-                        value={cornerRadius}
-                    />
-                    <TextField
-                        helperText="Controls where content sits inside the node."
-                        label="Content position"
-                        onChange={handleContentPosition}
-                        select
-                        size="small"
-                        value={contentPosition}
-                    >
-                        {DIAGRAM_CONTENT_POSITIONS.map((position) => (
-                            <MenuItem key={position} value={position}>{CONTENT_POSITION_LABELS[position]}</MenuItem>
-                        ))}
-                    </TextField>
+                <Box sx={{ minHeight: 0, overflowY: 'auto', p: 2 }}>
+                    <Stack spacing={1}>
+                        <Typography variant="subtitle2">Format {label} nodes</Typography>
+                        <FormattingGroup id="diagram-node-font" label="Font">
+                            <DiagramFontFamilySelect onChange={setFontFamily} value={fontFamily} />
+                            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                                <FormControlLabel control={<Switch checked={bold} onChange={handleBold} />} label="Bold" />
+                                <FormControlLabel control={<Switch checked={italic} onChange={handleItalic} />} label="Italic" />
+                                <FormControlLabel control={<Switch checked={underline} onChange={handleUnderline} />} label="Underline" />
+                            </Stack>
+                        </FormattingGroup>
+                        <FormattingGroup id="diagram-node-size-color" label="Size & color">
+                            <OptionalSliderField initialCustomValue={DEFAULT_CUSTOM_FONT_SIZE} label="Font size" maximum={200} minimum={1} onChange={setFontSize} unit="px" value={fontSize} />
+                            <ColorPickerButton label="Font color" onChange={setFontColor} value={fontColor} />
+                        </FormattingGroup>
+                        <FormattingGroup id="diagram-node-box" label="Box">
+                            <Stack direction="row" spacing={1}>
+                                <Box sx={HALF_WIDTH_SX}><ColorPickerButton label="Fill color" onChange={setFillColor} value={fillColor} /></Box>
+                                <Box sx={HALF_WIDTH_SX}><ColorPickerButton label="Border color" onChange={setBorderColor} value={borderColor} /></Box>
+                            </Stack>
+                            <TextField fullWidth label="Content position" onChange={handleContentPosition} select size="small" value={contentPosition}>
+                                {DIAGRAM_CONTENT_POSITIONS.map((position) => (
+                                    <MenuItem key={position} value={position}>{CONTENT_POSITION_LABELS[position]}</MenuItem>
+                                ))}
+                            </TextField>
+                        </FormattingGroup>
+                        <FormattingGroup id="diagram-node-border" label="Border">
+                            <TextField fullWidth label="Border style" onChange={handleBorderStyle} select size="small" value={borderStyle}>
+                                {DIAGRAM_BORDER_STYLES.map((style) => (
+                                    <MenuItem key={style} value={style}>{BORDER_STYLE_LABELS[style]}</MenuItem>
+                                ))}
+                            </TextField>
+                            <OptionalSliderField initialCustomValue={DEFAULT_CUSTOM_BORDER_THICKNESS} label="Border thickness" maximum={20} minimum={0} onChange={setBorderThickness} unit="px" value={borderThickness} />
+                            <OptionalSliderField initialCustomValue={DEFAULT_CUSTOM_CORNER_RADIUS} label="Corner radius" maximum={100} minimum={0} onChange={setCornerRadius} unit="px" value={cornerRadius} />
+                        </FormattingGroup>
+                    </Stack>
                 </Box>
                 <Box sx={{ bgcolor: 'background.default', borderColor: 'divider', borderTop: '1px solid', display: 'flex', flexShrink: 0, gap: 1, justifyContent: 'flex-end', p: 1.5 }}>
                     <Button onClick={onClose} variant="outlined">Cancel</Button>

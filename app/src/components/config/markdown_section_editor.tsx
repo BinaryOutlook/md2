@@ -10,13 +10,13 @@ import {
 } from '@mui/material'
 import type { ChangeEvent } from 'react'
 import {
-    MARKDOWN_FONT_FAMILIES,
     MARKDOWN_INHERIT_COLOR,
+    fontFamilyOptions,
     type MarkdownSection,
     type MarkdownSectionStyle,
 } from '../../theme/theme_config'
 import { ColorPickerButton } from '../color_picker_button'
-import { MarkdownStyleGroup } from './markdown_style_group'
+import { FormattingGroup } from '../formatting_group'
 
 type MarkdownStyleTextField = 'fontFamily' | 'fontSize' | 'lineHeight' | 'marginBottom' | 'marginTop'
 type MarkdownStyleFormattingField = keyof MarkdownSectionStyle['formatting']
@@ -31,14 +31,6 @@ interface MarkdownSectionEditorProps {
     onClose: () => void
     section: MarkdownSection
     style: MarkdownSectionStyle
-}
-
-/** Returns the predefined font families, plus the current one when it is not predefined so the select can show it. */
-function fontFamilyOptions(fontFamily: string) {
-    const isPredefined = MARKDOWN_FONT_FAMILIES.some((option) => option.value === fontFamily)
-    if (isPredefined) return MARKDOWN_FONT_FAMILIES
-
-    return [...MARKDOWN_FONT_FAMILIES, { label: fontFamily, value: fontFamily }]
 }
 
 /** Live style editor for one markdown section, shown as a popover anchored to its preview element. */
@@ -65,7 +57,7 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
             <Box sx={{ maxHeight: '70vh', overflowY: 'auto', p: 2, width: POPOVER_WIDTH }}>
                 <Stack spacing={1}>
                     <Typography component="h4" variant="subtitle2">{`${label} style`}</Typography>
-                    <MarkdownStyleGroup id={`markdown-${section}-font`} label="Font">
+                    <FormattingGroup id={`markdown-${section}-font`} label="Font">
                         <TextField
                             fullWidth
                             label="Font family"
@@ -96,8 +88,8 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                                 label="Underline"
                             />
                         </Stack>
-                    </MarkdownStyleGroup>
-                    <MarkdownStyleGroup id={`markdown-${section}-size-color`} label="Size & color">
+                    </FormattingGroup>
+                    <FormattingGroup id={`markdown-${section}-size-color`} label="Size & color">
                         <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
                             <TextField
                                 fullWidth
@@ -113,8 +105,8 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                                 <ColorPickerButton label="Color" onChange={handleColorChange} value={colorValue} />
                             </Box>
                         </Stack>
-                    </MarkdownStyleGroup>
-                    <MarkdownStyleGroup id={`markdown-${section}-spacing`} label="Spacing">
+                    </FormattingGroup>
+                    <FormattingGroup id={`markdown-${section}-spacing`} label="Spacing">
                         <Stack direction="row" spacing={1}>
                             <TextField
                                 fullWidth
@@ -144,7 +136,7 @@ export function MarkdownSectionEditor(props: MarkdownSectionEditorProps) {
                                 value={style.marginBottom}
                             />
                         </Stack>
-                    </MarkdownStyleGroup>
+                    </FormattingGroup>
                 </Stack>
             </Box>
         </Popover>

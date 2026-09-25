@@ -38,26 +38,34 @@ afterEach(() => {
 });
 
 describe('ConnectionFormattingPopover', () => {
-    it('shows labels, guidance, and saved override values', () => {
+    it('shows groups and saved override values', async () => {
+        const user = userEvent.setup();
         renderPopover();
 
-        expect(screen.getByRole('textbox', { name: 'Font family' })).toHaveValue('Inter');
+        for (const name of ['Label font', 'Label size & color', 'Line', 'Markers']) {
+            expect(screen.getByRole('region', { name })).toBeInTheDocument();
+        }
+        expect(screen.getByRole('combobox', { name: 'Font family' })).toHaveTextContent('Inter');
+        expect(screen.getByRole('switch', { name: 'Italic' })).toBeChecked();
         expect(screen.getByRole('slider', { name: 'Font size' })).toHaveAttribute('aria-valuenow', '11');
         expect(screen.getByRole('slider', { name: 'Line thickness' })).toHaveAttribute('aria-valuenow', '4');
-        expect(screen.getByLabelText('Font color')).toHaveValue('#d32f2f');
-        expect(screen.getByLabelText('Line color')).toHaveValue('#1976d2');
+        for (const [label, color] of [['Font color', '#d32f2f'], ['Line color', '#1976d2']]) {
+            await user.click(screen.getByRole('button', { name: label }));
+            expect(screen.getByLabelText(label, { selector: 'input' })).toHaveValue(color);
+            await user.keyboard('{Escape}');
+        }
         expect(screen.getByRole('combobox', { name: 'Start marker' })).toHaveTextContent('Circle');
         expect(screen.getByRole('combobox', { name: 'End marker' })).toHaveTextContent('Diamond');
-        expect(screen.getByText('Choose 0-20 px, or use the connection-kind thickness.')).toBeInTheDocument();
-        expect(screen.getByText('Marker shown where the connection ends.')).toBeInTheDocument();
     });
 
     it('resets only chosen overrides and stores friendly marker choices as existing enums', async () => {
         const user = userEvent.setup();
         const { onApply, onClose } = renderPopover();
 
-        await user.click(screen.getByRole('button', { name: 'Use default for Line color' }));
-        await user.click(screen.getByRole('button', { name: 'Use default for Font size' }));
+        await user.click(screen.getByRole('button', { name: 'Line color' }));
+        await user.click(screen.getByRole('button', { name: 'Use default colour' }));
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('switch', { name: 'Custom Font size' }));
         await user.click(screen.getByRole('combobox', { name: 'End marker' }));
         await user.click(screen.getByRole('option', { name: 'Filled arrow' }));
         await user.click(screen.getByRole('button', { name: 'Apply' }));
@@ -79,14 +87,14 @@ describe('ConnectionFormattingPopover', () => {
         const reportError = vi.spyOn(dialogService, 'error').mockReturnValue({critical: false, id: 1, message: 'Invalid formatting', severity: 'error', title: 'Error'});
         renderPopover(onApply, onClose);
 
-        const fontFamily = screen.getByRole('textbox', { name: 'Font family' });
-        await user.clear(fontFamily);
-        await user.type(fontFamily, 'serif');
+        const fontFamily = screen.getByRole('combobox', { name: 'Font family' });
+        await user.click(fontFamily);
+        await user.click(screen.getByRole('option', { name: 'Serif' }));
         await user.click(screen.getByRole('button', { name: 'Apply' }));
 
         expect(reportError).toHaveBeenCalledWith(expect.any(Error), { fallbackMessage: 'Diagram formatting could not be applied' });
         expect(onClose).not.toHaveBeenCalled();
-        expect(fontFamily).toHaveValue('serif');
+        expect(fontFamily).toHaveTextContent('Serif');
         expect(screen.getByText('Format Calls connections')).toBeInTheDocument();
     });
 

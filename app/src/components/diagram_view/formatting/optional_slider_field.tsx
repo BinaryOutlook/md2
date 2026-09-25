@@ -1,8 +1,7 @@
-import { Button, Slider, Stack, Typography } from '@mui/material';
-import { useId, useState } from 'react';
+import { Slider, Stack, Switch, Typography } from '@mui/material';
+import { useId, useState, type ChangeEvent } from 'react';
 
 interface OptionalSliderFieldProps {
-    helperText: string;
     initialCustomValue: number;
     label: string;
     maximum: number;
@@ -14,7 +13,7 @@ interface OptionalSliderFieldProps {
 
 /** Bounded slider with explicit default/custom state for optional diagram formatting. */
 export function OptionalSliderField(props: OptionalSliderFieldProps) {
-    const { helperText, initialCustomValue, label, maximum, minimum, onChange, unit, value } = props;
+    const { initialCustomValue, label, maximum, minimum, onChange, unit, value } = props;
     const labelId = useId();
     const [customValue, setCustomValue] = useState(value ?? initialCustomValue);
     const displayedValue = value ?? customValue;
@@ -23,8 +22,9 @@ export function OptionalSliderField(props: OptionalSliderFieldProps) {
         setCustomValue(nextValue);
         onChange(nextValue);
     };
-    const handleUseCustom = () => onChange(customValue);
-    const handleUseDefault = () => onChange(undefined);
+    const handleCustomChange = (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+        onChange(checked ? customValue : undefined);
+    };
 
     return (
         <Stack spacing={0.5}>
@@ -33,6 +33,7 @@ export function OptionalSliderField(props: OptionalSliderFieldProps) {
                 <Typography aria-label={`${label} value`} variant="body2">
                     {value === undefined ? 'Default' : `${value} ${unit}`}
                 </Typography>
+                <Switch checked={value !== undefined} onChange={handleCustomChange} slotProps={{ input: { 'aria-label': `Custom ${label}` } }} />
             </Stack>
             <Slider
                 aria-labelledby={labelId}
@@ -43,15 +44,6 @@ export function OptionalSliderField(props: OptionalSliderFieldProps) {
                 value={displayedValue}
                 valueLabelDisplay="auto"
             />
-            <Button
-                aria-label={value === undefined ? `Use custom value for ${label}` : `Use default for ${label}`}
-                onClick={value === undefined ? handleUseCustom : handleUseDefault}
-                size="small"
-                variant="outlined"
-            >
-                {value === undefined ? 'Use custom value' : 'Use default'}
-            </Button>
-            <Typography color="text.secondary" variant="caption">{helperText}</Typography>
         </Stack>
     );
 }

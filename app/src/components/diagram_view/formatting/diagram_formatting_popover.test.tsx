@@ -38,28 +38,35 @@ afterEach(() => {
 });
 
 describe('NodeFormattingPopover', () => {
-    it('shows labels, guidance, and saved override values', () => {
+    it('shows groups and saved override values', async () => {
+        const user = userEvent.setup();
         renderPopover();
 
-        expect(screen.getByRole('textbox', { name: 'Font family' })).toHaveValue('Inter');
+        for (const name of ['Font', 'Size & color', 'Box', 'Border']) {
+            expect(screen.getByRole('region', { name })).toBeInTheDocument();
+        }
+        expect(screen.getByRole('combobox', { name: 'Font family' })).toHaveTextContent('Inter');
+        expect(screen.getByRole('switch', { name: 'Bold' })).toBeChecked();
         expect(screen.getByRole('slider', { name: 'Font size' })).toHaveAttribute('aria-valuenow', '17');
         expect(screen.getByRole('slider', { name: 'Border thickness' })).toHaveAttribute('aria-valuenow', '3');
         expect(screen.getByRole('slider', { name: 'Corner radius' })).toHaveAttribute('aria-valuenow', '12');
-        expect(screen.getByLabelText('Font color')).toHaveValue('#d32f2f');
-        expect(screen.getByLabelText('Fill color')).toHaveValue('#1976d2');
-        expect(screen.getByLabelText('Border color')).toHaveValue('#3949ab');
+        for (const [label, color] of [['Font color', '#d32f2f'], ['Fill color', '#1976d2'], ['Border color', '#3949ab']]) {
+            await user.click(screen.getByRole('button', { name: label }));
+            expect(screen.getByLabelText(label, { selector: 'input' })).toHaveValue(color);
+            await user.keyboard('{Escape}');
+        }
         expect(screen.getByRole('combobox', { name: 'Border style' })).toHaveTextContent('Dashed');
         expect(screen.getByRole('combobox', { name: 'Content position' })).toHaveTextContent('Bottom right');
-        expect(screen.getByText('Choose 1-200 px, or use the theme size.')).toBeInTheDocument();
-        expect(screen.getByText('Choose 0-100 px, or use the theme radius.')).toBeInTheDocument();
     });
 
     it('resets only chosen overrides and stores friendly select choices as existing enums', async () => {
         const user = userEvent.setup();
         const { onApply, onClose } = renderPopover();
 
-        await user.click(screen.getByRole('button', { name: 'Use default for Font color' }));
-        await user.click(screen.getByRole('button', { name: 'Use default for Border thickness' }));
+        await user.click(screen.getByRole('button', { name: 'Font color' }));
+        await user.click(screen.getByRole('button', { name: 'Use default colour' }));
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('switch', { name: 'Custom Border thickness' }));
         await user.click(screen.getByRole('combobox', { name: 'Content position' }));
         await user.click(screen.getByRole('option', { name: 'Top left' }));
         await user.click(screen.getByRole('button', { name: 'Apply' }));
@@ -79,14 +86,14 @@ describe('NodeFormattingPopover', () => {
         const reportError = vi.spyOn(dialogService, 'error').mockReturnValue({critical: false, id: 1, message: 'Invalid formatting', severity: 'error', title: 'Error'});
         renderPopover(onApply, onClose);
 
-        const fontFamily = screen.getByRole('textbox', { name: 'Font family' });
-        await user.clear(fontFamily);
-        await user.type(fontFamily, 'serif');
+        const fontFamily = screen.getByRole('combobox', { name: 'Font family' });
+        await user.click(fontFamily);
+        await user.click(screen.getByRole('option', { name: 'Serif' }));
         await user.click(screen.getByRole('button', { name: 'Apply' }));
 
         expect(reportError).toHaveBeenCalledWith(expect.any(Error), { fallbackMessage: 'Diagram formatting could not be applied' });
         expect(onClose).not.toHaveBeenCalled();
-        expect(fontFamily).toHaveValue('serif');
+        expect(fontFamily).toHaveTextContent('Serif');
         expect(screen.getByText('Format Service nodes')).toBeInTheDocument();
     });
 
@@ -98,5 +105,17 @@ describe('NodeFormattingPopover', () => {
 
         expect(onApply).not.toHaveBeenCalled();
         expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('clears an unknown saved family by choosing Theme default', async () => {
+        const user = userEvent.setup();
+        const { onApply } = renderPopover();
+
+        await user.click(screen.getByRole('combobox', { name: 'Font family' }));
+        expect(screen.getByRole('option', { name: 'Inter' })).toBeInTheDocument();
+        await user.click(screen.getByRole('option', { name: 'Theme default' }));
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ font: expect.objectContaining({ family: undefined }) }));
     });
 });
