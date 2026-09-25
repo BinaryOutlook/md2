@@ -1502,19 +1502,19 @@
           "agent": "codex",
           "conversationId": "01a0d9c9-bd2e-7023-813e-9606da8a9267",
           "createdAt": "2026-09-25T18:19:12.886Z",
-          "lastUsedAt": "2026-09-25T18:19:12.886Z",
-          "synchronizedThroughMessageId": "agent-turn-74adbad5-1946-436a-8de8-0d159581600f-turn-1-assistant-3"
+          "lastUsedAt": "2026-09-25T18:25:57.515Z",
+          "synchronizedThroughMessageId": "agent-turn-74adbad5-1946-436a-8de8-0d159581600f-turn-2-assistant-2"
         }
       ],
       "startedAt": "2026-09-25T18:17:51.623Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 22729,
           "toolMs": 1125
         },
-        "elapsedMs": 81263,
-        "runningStartedAt": "2026-09-25T18:25:34.105Z"
+        "elapsedMs": 104673,
+        "runningStartedAt": null
       },
       "title": "implement",
       "usage": {
