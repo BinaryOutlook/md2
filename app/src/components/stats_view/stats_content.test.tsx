@@ -286,6 +286,7 @@ describe('StatsContent screen size', () => {
         expect(within(table).getByRole('cell', { name: formatTokenCount(10) })).toBeInTheDocument()
         expect(screen.queryByRole('list')).toBeNull()
         expect(within(screen.getByTestId('stats-chart-viewport')).getByRole('table')).toBe(table)
+        expect(within(table).getByRole('columnheader', { name: 'Token usage' })).toBeInTheDocument()
     })
 
     it('keeps the bar chart on a large screen', async () => {

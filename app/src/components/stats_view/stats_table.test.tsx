@@ -1,5 +1,5 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StatsChartRow } from '../../services/stats/project_stats_types';
 import { formatDurationHms } from '../../services/stats/stats_tooltip';
 import { AppThemeProvider } from '../../theme/theme_provider';
@@ -59,12 +59,12 @@ describe('StatsTable', () => {
     });
 
     it('shows period, joined series, and formatted value per row', () => {
-        renderTable(<StatsTable rows={[
+        renderTable(<StatsTable valueLabel="Token usage" rows={[
             row({ seriesLabel: 'Review', stackLabel: 'codex', value: 428913 }),
             row({ identity: 'claude', seriesLabel: 'Claude', value: 12 }),
         ]} shortTokenCounts />);
 
-        expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Period / label', 'Series', 'Value']);
+        expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Period / label', 'Series', 'Token usage']);
         expect(bodyRowTexts()).toEqual([
             ['18 Aug', 'codex – Review', formatTokenCount(428913)],
             ['18 Aug', 'Claude', formatTokenCount(12)],
@@ -72,14 +72,14 @@ describe('StatsTable', () => {
     });
 
     it('omits the series column when no row has a series or stack label', () => {
-        renderTable(<StatsTable ariaLabel="Totals table" rows={[row({ displayLabel: 'F_1' })]} />);
+        renderTable(<StatsTable ariaLabel="Totals table" valueLabel="Estimated cost" rows={[row({ displayLabel: 'F_1' })]} />);
 
         expect(screen.getByRole('table', { name: 'Totals table' })).toBeInTheDocument();
-        expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Period / label', 'Value']);
+        expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Period / label', 'Estimated cost']);
     });
 
     it('shows deviation next to the value and unavailable rows as Unavailable', () => {
-        renderTable(<StatsTable mode="grouped" rows={[
+        renderTable(<StatsTable valueLabel="Token usage" mode="grouped" rows={[
             row({ deviation: 60000, unit: 'milliseconds', value: 120000 }),
             row({ available: false, identity: 'claude', value: 0 }),
         ]} />);
@@ -90,8 +90,22 @@ describe('StatsTable', () => {
         ]);
     });
 
+    it('keeps every period row when the same stack repeats across periods', () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        renderTable(<StatsTable valueLabel="Measured duration" mode="groupedStacked" rows={[
+            row({ seriesLabel: 'Tools', stackIdentity: 'agent:codex', stackLabel: 'codex', unit: 'milliseconds', value: 1000 }),
+            row({ displayLabel: '19 Aug', seriesLabel: 'Tools', stackIdentity: 'agent:codex', stackLabel: 'codex', unit: 'milliseconds', utcBucketStart: '2026-08-19T00:00:00.000Z', value: 2000 }),
+        ]} />);
+
+        expect(bodyRowTexts().map(([period, series]) => `${period} ${series}`)).toEqual([
+            '18 Aug codex – Tools', '18 Aug codex – Total', '19 Aug codex – Tools', '19 Aug codex – Total',
+        ]);
+        expect(consoleError.mock.calls.flat().join(' ')).not.toContain('same key');
+        consoleError.mockRestore();
+    });
+
     it('adds a Total row after each bucket stack in stacked mode', () => {
-        renderTable(<StatsTable mode="stacked" rows={[
+        renderTable(<StatsTable valueLabel="Token usage" mode="stacked" rows={[
             row({ identity: 'review', seriesLabel: 'Review', unit: 'actions', value: 2 }),
             row({ identity: 'test', seriesLabel: 'Test', unit: 'actions', value: 3 }),
             row({ displayLabel: '19 Aug', identity: 'review', seriesLabel: 'Review', unit: 'actions', utcBucketStart: '2026-08-19T00:00:00.000Z', value: 4 }),
@@ -107,7 +121,7 @@ describe('StatsTable', () => {
     });
 
     it('adds a Total row per agent stack in grouped-stacked mode', () => {
-        renderTable(<StatsTable mode="groupedStacked" rows={[
+        renderTable(<StatsTable valueLabel="Token usage" mode="groupedStacked" rows={[
             row({ identity: 'codex-review', seriesLabel: 'Review', stackIdentity: 'agent:codex', stackLabel: 'codex', unit: 'milliseconds', value: 1000 }),
             row({ identity: 'claude-review', seriesLabel: 'Review', stackIdentity: 'agent:claude', stackLabel: 'claude', unit: 'milliseconds', value: 3000 }),
             row({ identity: 'codex-test', seriesLabel: 'Test', stackIdentity: 'agent:codex', stackLabel: 'codex', unit: 'milliseconds', value: 2000 }),
