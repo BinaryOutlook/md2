@@ -1655,6 +1655,36 @@
       "startedAt": "2026-09-25T15:35:54.474Z",
       "status": "completed",
       "rootConversationId": "agent-940ae906-5e61-473c-a606-177e9c032d9b"
+    },
+    {
+      "commits": [
+        {
+          "commit": "a0a3945d59ee3d577619c92204b65877eff52243",
+          "committedAt": "2026-09-25T19:17:50+02:00",
+          "deletions": 169,
+          "filePaths": [
+            "app/src/components/project_command_events.ts",
+            "app/src/components/shell/main_window.test.tsx",
+            "app/src/components/shell/menu/app_menu.test.tsx",
+            "app/src/components/shell/project/project_open_dialog.test.tsx",
+            "app/src/components/shell/project/project_open_dialog.tsx",
+            "app/src/components/shell/remote_connect_button.grouped.test.tsx",
+            "app/src/components/shell/remote_connect_button.tsx",
+            "app/src/services/project/project_open_flow_service.test.ts",
+            "app/src/services/project/project_open_flow_service.ts"
+          ],
+          "filesChanged": 9,
+          "insertions": 75,
+          "branch": "dev_main"
+        }
+      ],
+      "completedAt": "2026-09-25T19:17:50+02:00",
+      "label": "Integrate into project",
+      "origin": {
+        "cardInternalId": "c8ca7e43-f909-4a9a-8bc4-3c3f1c305219",
+        "kind": "card"
+      },
+      "type": "system"
     }
   ],
   "version": 5
