@@ -4603,6 +4603,39 @@
       "startedAt": "2026-09-25T12:33:15.027Z",
       "status": "completed",
       "rootConversationId": "agent-21eb1572-b496-4aa1-b193-97f894c92d81"
+    },
+    {
+      "commits": [
+        {
+          "commit": "004442e6a796572affed7177ca689385c2deb318",
+          "committedAt": "2026-09-25T16:38:06+02:00",
+          "deletions": 137,
+          "filePaths": [
+            "app/src/components/actions/conversation/picker/action_conversation_picker.grouped.test.tsx",
+            "app/src/components/actions/conversation/picker/action_conversation_picker.tsx",
+            "app/src/components/actions/conversation/picker/action_conversation_picker_owner.tsx",
+            "app/src/components/actions/conversation/state/action_conversation_store.node.test.ts",
+            "app/src/components/actions/conversation/state/action_conversation_store.ts",
+            "app/src/components/actions/run/popup/action_popup.test.tsx",
+            "app/src/components/actions/run/popup/action_popup_bottom_row.grouped.test.tsx",
+            "app/src/components/actions/run/popup/action_popup_operations.ts",
+            "desktop/src/actions/action/action_run.js",
+            "desktop/src/actions/action/action_run.test.mjs",
+            "desktop/src/actions/action/action_worktree_run_service.js",
+            "desktop/src/actions/action/action_worktree_run_service.test.mjs"
+          ],
+          "filesChanged": 12,
+          "insertions": 233,
+          "branch": "dev_main"
+        }
+      ],
+      "completedAt": "2026-09-25T16:38:06+02:00",
+      "label": "Integrate into project",
+      "origin": {
+        "cardInternalId": "334525ff-6818-4450-8c04-b63d4c9886f1",
+        "kind": "card"
+      },
+      "type": "system"
     }
   ],
   "version": 5
