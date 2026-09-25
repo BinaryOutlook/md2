@@ -792,19 +792,19 @@
           "agent": "codex",
           "conversationId": "01a0d99c-2675-7990-8770-8404b441d97f",
           "createdAt": "2026-09-25T17:29:16.926Z",
-          "lastUsedAt": "2026-09-25T17:29:16.926Z",
-          "synchronizedThroughMessageId": "agent-turn-c53bb456-a0cf-4f79-a7ba-c7b756fa6107-turn-1-assistant-3"
+          "lastUsedAt": "2026-09-25T17:33:21.209Z",
+          "synchronizedThroughMessageId": "agent-turn-c53bb456-a0cf-4f79-a7ba-c7b756fa6107-turn-2-assistant-3"
         }
       ],
       "startedAt": "2026-09-25T17:28:03.454Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 30014,
           "toolMs": 3087
         },
-        "elapsedMs": 73472,
-        "runningStartedAt": "2026-09-25T17:32:09.267Z"
+        "elapsedMs": 145414,
+        "runningStartedAt": null
       },
       "title": "+",
       "usage": {
