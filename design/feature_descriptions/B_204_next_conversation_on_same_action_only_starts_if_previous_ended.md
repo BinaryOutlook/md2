@@ -3,7 +3,7 @@ author:
 id: B_204
 internalId: 334525ff-6818-4450-8c04-b63d4c9886f1
 title: next conversation on same action only starts if previous ended
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -12,6 +12,19 @@ policy:
 after: cb27b171-7487-436d-ad9c-ed07ce7dd6f1
 branch: b_204_next_conversation_on_same_action_only_starts_if_previous_ended
 worktree: 1
+changedFiles:
+  - app/src/components/actions/conversation/picker/action_conversation_picker.grouped.test.tsx
+  - app/src/components/actions/conversation/picker/action_conversation_picker.tsx
+  - app/src/components/actions/conversation/picker/action_conversation_picker_owner.tsx
+  - app/src/components/actions/conversation/state/action_conversation_store.node.test.ts
+  - app/src/components/actions/conversation/state/action_conversation_store.ts
+  - app/src/components/actions/run/popup/action_popup.test.tsx
+  - app/src/components/actions/run/popup/action_popup_bottom_row.grouped.test.tsx
+  - app/src/components/actions/run/popup/action_popup_operations.ts
+  - desktop/src/actions/action/action_run.js
+  - desktop/src/actions/action/action_run.test.mjs
+  - desktop/src/actions/action/action_worktree_run_service.js
+  - desktop/src/actions/action/action_worktree_run_service.test.mjs
 ---
 When the user goes to a new conversation and the previous conversation on the same or another  action (especially the 'custom' or '+' one) has not been closed completely, then the new one wont start. Is there a technical reason for this, otherwise we need to remove restriction.
 
