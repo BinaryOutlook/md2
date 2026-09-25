@@ -17,3 +17,4 @@ Things that need to be fixed/improved on the diagram editing in general and mind
   * after drawing a rectangle, nothing gets selected
   * what does work: clicking on a single item
   * on mobile, using touch does not work: user can not draw a selection box.
+* on mobile: touch should be supported to zoom in and out. we should not show the zoom slider in the bottom left corner on mobile. only zoom with pinch touch move.
