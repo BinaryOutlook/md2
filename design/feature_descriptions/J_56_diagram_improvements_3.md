@@ -3,7 +3,7 @@ author:
 id: J_56
 internalId: da8a9e63-eeee-4911-a83c-5f1f9a38d911
 title: diagram improvements 3
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -12,6 +12,37 @@ policy:
 branch: j_56_diagram_improvements_3
 worktree: 2
 after: 96236df6-2c3a-4846-9d52-f29b7ee9041d
+changedFiles:
+  - app/src/components/diagram_view/commands/diagram_menu_tab.tsx
+  - app/src/components/diagram_view/commands/diagram_save_button.test.tsx
+  - app/src/components/diagram_view/commands/diagram_save_button.tsx
+  - app/src/components/diagram_view/creation_tools/diagram_creation_tools.ts
+  - app/src/components/diagram_view/diagram_view.test.tsx
+  - app/src/components/diagram_view/diagram_view.tsx
+  - app/src/components/diagram_view/editing/diagram_inline_node_controls.tsx
+  - app/src/components/diagram_view/editing/diagram_selection_boundary.tsx
+  - app/src/components/diagram_view/editing/editable_diagram.tsx
+  - app/src/components/diagram_view/editing/editable_diagram_selection.test.tsx
+  - app/src/components/diagram_view/review/diagram_change_review_dialog.test.tsx
+  - app/src/components/diagram_view/surface/diagram_breadcrumb_bar.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_slider.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_viewport.test.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_viewport.tsx
+  - app/src/components/shell/menu/app_menu.test.tsx
+  - app/src/components/shell/menu/app_menu.tsx
+  - app/src/data/commit_batcher.test.ts
+  - app/src/data/commit_batcher.ts
+  - app/src/services/data/data_service.ts
+  - app/src/services/diagrams/diagram_edit_session_service.test.ts
+  - app/src/services/diagrams/diagram_edit_session_service.ts
+  - app/src/services/diagrams/diagram_node_placement_service.test.ts
+  - app/src/services/diagrams/diagram_node_placement_service.ts
+  - app/src/services/diagrams/diagram_save_service.test.ts
+  - app/src/services/diagrams/diagram_save_service.ts
+  - app/src/services/diagrams/diagram_selection_service.test.ts
+  - app/src/services/diagrams/diagram_selection_service.ts
+  - app/src/services/diagrams/diagram_view_service.test.ts
+  - app/src/services/diagrams/diagram_view_service.ts
 ---
 * when working with the add tool:
   * in desktop mode, when the mouse hovers over the diagram area, we show a node that can be inserted. this is ok, however, it is not in the correct position, it does not do a transformation I think to local coordinates. the node is always below to the left,
