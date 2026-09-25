@@ -10,8 +10,6 @@ agents:
   - design/activity/card__cb27b171-7487-436d-ad9c-ed07ce7dd6f1.json
 policy:
 after: 2775052a-2e84-4466-a320-155c8ec05bac
-branch: f_382_improve_mindmaps_2
-worktree: 3
 changedFiles:
   - app/f382_touch_check.html
   - app/f382_touch_check.tsx
