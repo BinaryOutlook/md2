@@ -7896,7 +7896,7 @@
       "actionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
       "cardInternalId": "c0629e16-a603-4a9c-b19d-5c7cac9772ec",
       "cardPath": "design/feature_descriptions/F_383_prompts_need_to_be_shown_faster.md",
-      "completedAt": null,
+      "completedAt": "2026-09-26T15:22:26.088Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 170354
@@ -12468,7 +12468,7 @@
           "kind": "message",
           "role": "assistant",
           "sequence": 336,
-          "timestamp": "2026-09-26T13:13:14.229Z"
+          "timestamp": "2026-09-26T15:22:26.088Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -12478,12 +12478,12 @@
           "agent": "codex",
           "conversationId": "01a0ddaf-ab6f-7730-9c7b-09e9abbeddeb",
           "createdAt": "2026-09-26T12:28:41.065Z",
-          "lastUsedAt": "2026-09-26T13:13:14.229Z",
+          "lastUsedAt": "2026-09-26T15:22:26.088Z",
           "synchronizedThroughMessageId": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-7-assistant-6"
         }
       ],
       "startedAt": "2026-09-26T12:20:04.763Z",
-      "status": "waitingForInput",
+      "status": "completed",
       "timer": {
         "breakdown": {
           "reasoningMs": 420285,
@@ -12507,7 +12507,7 @@
       "actionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
       "cardInternalId": "c0629e16-a603-4a9c-b19d-5c7cac9772ec",
       "cardPath": "design/feature_descriptions/F_383_prompts_need_to_be_shown_faster.md",
-      "completedAt": null,
+      "completedAt": "2026-09-26T15:22:00.155Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 155255
@@ -16592,19 +16592,19 @@
           "agent": "codex",
           "conversationId": "01a0ddea-373b-7831-913e-d069f8e3719b",
           "createdAt": "2026-09-26T13:33:03.472Z",
-          "lastUsedAt": "2026-09-26T14:30:37.975Z",
-          "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-6-assistant-2"
+          "lastUsedAt": "2026-09-26T14:42:20.953Z",
+          "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-7-assistant-4"
         }
       ],
       "startedAt": "2026-09-26T13:29:07.331Z",
-      "status": "running",
+      "status": "completed",
       "timer": {
         "breakdown": {
           "reasoningMs": 247885,
           "toolMs": 148327
         },
-        "elapsedMs": 426082,
-        "runningStartedAt": "2026-09-26T14:32:49.497Z"
+        "elapsedMs": 997538,
+        "runningStartedAt": null
       },
       "title": "review (split) (split)",
       "usage": {
