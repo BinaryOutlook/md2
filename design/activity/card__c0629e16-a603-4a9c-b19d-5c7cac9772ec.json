@@ -5017,6 +5017,14 @@
           "role": "assistant",
           "sequence": 89,
           "timestamp": "2026-09-26T09:56:03.705Z"
+        },
+        {
+          "content": "* why run-id? that is not the conversation, right? it relates to te instance of the agent currently running?\n* `That means starting or restarting a run changes which draft the editor uses` not ok\n* The code also clears drafts for reasons other than Send\n  * after backend acceptance: not ok, should only be handled by the service handling the conversations, to mark the event\n  * &#x20;when a run starts: not ok: user could already have started typing something else\n  * on cancel: not ok,&#x20;\n  * &#x20;or finish: not ok\n  * when discarding an unedited prepared prompt during conversation or run changes: so this should not clear any draft. it can prepare a new draft for a different action.\n* important here: when the user selects an existing conversation, no prompt should be prepared. this only needs to be done for new conversations.\n* proposed flow is ok\n* `I would keep “has the user changed this draft?” for prepared defaults and draft cleanup.` -> ok",
+          "id": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-user-89",
+          "kind": "message",
+          "role": "user",
+          "sequence": 90,
+          "timestamp": "2026-09-26T11:56:01.405Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -5031,14 +5039,14 @@
         }
       ],
       "startedAt": "2026-09-26T09:19:26.107Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 69545,
           "toolMs": 3742
         },
         "elapsedMs": 188366,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-26T11:56:01.405Z"
       },
       "title": "review",
       "usage": {
