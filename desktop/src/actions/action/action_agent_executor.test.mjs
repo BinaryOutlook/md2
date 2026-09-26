@@ -72,6 +72,14 @@ function executionInput(overrides = {}) {
 }
 
 describe('ActionAgentExecutor', () => {
+    it('resolves version in definition and edited popup prompts', async () => {
+        const { agentRunnerService, executor } = createExecutor();
+        await executor.execute(executionInput({ action: { ...action, prompt: 'Ship {{version}} twice {{version}}' }, version: 'candidate 2' }));
+        expect(agentRunnerService.start.mock.calls[0][1].prompt).toBe('Ship candidate 2 twice candidate 2');
+
+        await executor.execute(executionInput({ runInput: { prompt: 'Edited {{version}}' }, version: 'candidate 2' }));
+        expect(agentRunnerService.start.mock.calls[1][1].prompt).toBe('Edited candidate 2');
+    });
     it('rejects unsupported streaming profiles before process start', async () => {
         const profile = { command: ['custom-agent'], models: ['default'], name: 'custom' };
         const agentConfigProvider = () => agentConfig('custom', 'default', [profile]);
@@ -349,7 +357,7 @@ describe('ActionAgentExecutor', () => {
         const request = agentRunnerService.start.mock.calls[0][1];
         expect(request).toMatchObject({
             command: [
-                'claude', '--model', 'default', '--permission-mode', 'acceptEdits', '--print', '--verbose', '--output-format', 'stream-json',
+                'claude', '--model', 'default', '--effort', 'medium', '--permission-mode', 'acceptEdits', '--print', '--verbose', '--output-format', 'stream-json',
                 '--include-partial-messages', '--input-format', 'stream-json', '--permission-prompt-tool', 'stdio', '--resume', 'session-1',
             ],
             contextInput: expect.stringContaining('new'),

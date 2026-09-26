@@ -12,6 +12,12 @@ const releasesFolder = 'design/releases';
 const activeCardsFolder = 'design/feature_descriptions';
 
 describe('resolvePlaceholders', () => {
+    it('substitutes every version and rejects a missing value', () => {
+        expect(resolvePlaceholders('{{version}} and {{ version }}', {}, project, project, projectFolder, releasesFolder, activeCardsFolder, '', null, 'beta 1'))
+            .toBe('beta 1 and beta 1');
+        expect(() => resolvePlaceholders('{{version}}', {}, project, project, projectFolder, releasesFolder, activeCardsFolder, '', null))
+            .toThrow('Cannot resolve version placeholder without a version');
+    });
     it('resolves primary and linked-worktree folder placeholders with card values', () => {
         const context = { file: 'design/card.md', title: 'Placeholder support' };
 

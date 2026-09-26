@@ -42,6 +42,7 @@ export interface ConfigValueTypes {
     'project.deleteBranchesAfterRelease': boolean
     'project.diffCommand': string
     'project.diagramFooter': string
+    'project.lastVersion': string
     'project.diagramsFolder': string
     'project.pinnedConversations': PinnedConversationLocator[]
     'project.projectFolder': string
@@ -302,6 +303,16 @@ export const CONFIG_ENTRIES: ConfigEntry[] = [
         type: 'json',
     },
     {
+        defaultValue: '',
+        description: 'Last confirmed version entered for an action in this project.',
+        editable: false,
+        key: 'project.lastVersion',
+        label: 'Last version',
+        section: 'project',
+        source: 'project',
+        type: 'string',
+    },
+    {
         defaultValue: DEFAULT_DESKTOP_AGENT_SELECTION,
         description: 'Active desktop agent and remembered model and reasoning level for each agent.',
         editable: true,
@@ -387,6 +398,7 @@ export const PROJECT_KEYS: ConfigKey[] = [
     'project.cardTypes',
     'project.states',
     'project.pinnedConversations',
+    'project.lastVersion',
 ]
 
 export const DESKTOP_KEYS: ConfigKey[] = CONFIG_ENTRIES.filter(

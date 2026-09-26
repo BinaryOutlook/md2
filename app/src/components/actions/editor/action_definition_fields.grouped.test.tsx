@@ -65,6 +65,15 @@ describe('ActionDefinitionFields', () => {
         vi.restoreAllMocks()
     })
 
+    it('selects version input and keeps its custom question in the draft', () => {
+        const getDefinition = renderFields({ ...sharedFields, command: 'echo {{version}}', type: 'command' })
+        fireEvent.mouseDown(screen.getByLabelText('Ask user for'))
+        fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'Version' }))
+        fireEvent.change(screen.getByLabelText('Version question (optional)'), { target: { value: 'Which build?' } })
+
+        expect(getDefinition().userInput).toEqual({ prompt: 'Which build?', type: 'version' })
+    })
+
     it('changes an agent action to command and clears only agent-specific fields', () => {
         const definition: RawActionDefinition = {
             ...sharedFields,

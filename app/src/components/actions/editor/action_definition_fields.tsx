@@ -121,6 +121,12 @@ export const ActionDefinitionFields = memo(function ActionDefinitionFields(props
             : definition.autoFinish
         handleDefinitionChange({ ...definition, autoFinish, output })
     }
+    const handleUserInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+        handleDefinitionChange({ ...definition, userInput: event.target.value === 'version' ? { type: 'version' } : undefined })
+    }
+    const handleUserInputPromptChange = (event: ChangeEvent<HTMLInputElement>) => {
+        handleDefinitionChange({ ...definition, userInput: { type: 'version', ...(event.target.value ? { prompt: event.target.value } : {}) } })
+    }
 
     const handleNeedsWorkTreeChange = (event: ChangeEvent<HTMLInputElement>) => {
         handleDefinitionChange({ ...definition, needsWorkTree: event.target.checked || undefined })
@@ -224,6 +230,13 @@ export const ActionDefinitionFields = memo(function ActionDefinitionFields(props
                     </ActionEditorField>
                 </Stack>
                 <ActionEditorTextField error={!!errors.description} fieldId="action-description" fullWidth helperText={errors.description} label="Description" name="description" onChange={handleRequiredTextChange} size="small" source={definition} value={definition.description} />
+                <ActionEditorField error={!!errors.userInput} fieldId="action-user-input" fullWidth helperText={errors.userInput} label="Ask user for" onChange={handleUserInputChange} select size="small" value={definition.userInput?.type ?? ''}>
+                    <MenuItem value="">None</MenuItem>
+                    <MenuItem value="version">Version</MenuItem>
+                </ActionEditorField>
+                {definition.userInput?.type === 'version' ? (
+                    <ActionEditorField error={!!errors.userInput} fieldId="action-user-input-prompt" fullWidth helperText={errors.userInput} label="Version question (optional)" onChange={handleUserInputPromptChange} size="small" value={definition.userInput.prompt ?? ''} />
+                ) : null}
                 <Divider />
                 <Grid
                     sx={{

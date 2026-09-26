@@ -28,6 +28,7 @@ One JSON file per action, stored in the project's actions folder. Edit them thro
 | `type` | yes | `agent` or `command`. |
 | `prompt` | agent only | Markdown prompt. Not allowed on command actions. |
 | `command` | command only | Command line. Not allowed on agent actions. |
+| `userInput` | no | `{ "type": "version" }` asks once before a run starts. Optional `prompt` changes the dialog question. Both action types support it; linked actions share the answer. |
 | `icon` | no | Icon shown by entry points. |
 | `appliesTo` | no | Filters deciding where the action appears. See below. |
 | `output` | no | `{ "kind": "diagram" }` makes the action create a diagram. Requires `appliesTo.kind` to be `diagram`. |
@@ -45,6 +46,8 @@ One JSON file per action, stored in the project's actions folder. Edit them thro
 | `phrases` | no | Named snippets (`title` + `text`) offered as quick buttons while running the action. |
 
 Unknown fields are rejected at load time rather than silently ignored.
+
+The version answer is free-form text containing at least one non-whitespace character. Interactive runs ask before any linked action executes. Unattended runs require a supplied value. The latest confirmed value is saved in project configuration, prefilled next time, and offered as an editable release name; completing a release does not clear it.
 
 ## `appliesTo`
 

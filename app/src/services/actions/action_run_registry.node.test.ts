@@ -5,6 +5,7 @@ import type { AgentConversation, AgentConversationEntry } from '../../data/data_
 import { setActionBridgeOverride, type ElectronActionBridge } from '../../data/electron_action_bridge'
 import { actionPromptDraftService } from './action_prompt_draft_service'
 import { ActionRunRegistry } from './action_run_registry'
+import { actionVersionRequestService } from './action_version_request_service'
 
 const context = { file: 'design/F-1.md', kind: 'card' as const }
 
@@ -62,6 +63,42 @@ function agentConversation(entries: AgentConversationEntry[], overrides: Partial
 
 describe('ActionRunRegistry', () => {
     afterEach(() => setActionBridgeOverride(null))
+
+    it('keeps version request scoped to its run until terminal event', () => {
+        const { bridge, emit } = bridgeWithEvents()
+        setActionBridgeOverride(bridge)
+        const service = new ActionRunRegistry()
+        service.start()
+
+        emit({
+            actionId: 'build', context, inputType: 'version', phase: 'main', prompt: 'Which version?', rootActionId: 'build',
+            runId: 'run-1', status: 'waitingForInput', type: 'inputRequest',
+        })
+        expect(actionVersionRequestService.getSnapshot()).toMatchObject([{ runId: 'run-1', prompt: 'Which version?' }])
+        expect(getRun(service).status).toBe('waitingForInput')
+        emit(runEvent('cancelled'))
+        expect(actionVersionRequestService.getSnapshot()).toEqual([])
+        service.stop()
+    })
+
+    it('clears a replayed version request when execution advances or the registry stops', () => {
+        const { bridge, emit } = bridgeWithEvents()
+        setActionBridgeOverride(bridge)
+        const service = new ActionRunRegistry()
+        service.start()
+        const inputRequest: ActionRunEvent = {
+            actionId: 'build', context, inputType: 'version', phase: 'main', prompt: 'Which version?', rootActionId: 'build',
+            runId: 'run-1', status: 'waitingForInput', type: 'inputRequest',
+        }
+
+        emit(inputRequest)
+        emit({ actionId: 'build', context, phase: 'main', rootActionId: 'build', runId: 'run-1', status: 'running', type: 'action' })
+        expect(actionVersionRequestService.getSnapshot()).toEqual([])
+
+        emit(inputRequest)
+        service.stop()
+        expect(actionVersionRequestService.getSnapshot()).toEqual([])
+    })
 
     it('tracks context and accumulates output deltas until the action finishes', () => {
         const { bridge, emit } = bridgeWithEvents()

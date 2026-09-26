@@ -12,6 +12,7 @@ import { AppThemeProvider } from './theme/theme_provider'
 import { dialogService } from './services/dialog_service'
 import type { ApplicationStartupService } from './services/application_startup_service'
 import { SentryImportConfirmationDialog } from './components/sentry_import_confirmation_dialog'
+import { ActionVersionDialog } from './components/actions/run/action_version_dialog'
 import { updateService } from './services/update_service'
 
 interface AppProps {
@@ -45,6 +46,7 @@ export function App({ startupService }: AppProps = {}) {
     return (
         <AppThemeProvider>
             <DialogDisplay />
+            <ActionVersionDialog />
             <ProjectWindowTitle />
             <UpdateNotification />
             <MergeConflictDialog />

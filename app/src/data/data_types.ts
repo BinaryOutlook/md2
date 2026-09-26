@@ -53,6 +53,7 @@ export interface StateConfig {
 }
 
 export interface ProjectConfig {
+    lastVersion?: string
     actionsFolder: string
     archivedFolder: string
     autoCommitDelayMs: number
@@ -553,6 +554,7 @@ export function resolveProjectConfigPaths(config: ProjectConfig): ProjectConfig 
 }
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
+    lastVersion: '',
     actionsFolder: DEFAULT_ACTIONS_FOLDER,
     archivedFolder: DEFAULT_ARCHIVED_FOLDER,
     autoCommitDelayMs: AUTO_COMMIT_DELAY_MS,

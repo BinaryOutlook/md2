@@ -6,6 +6,7 @@ const { runWithGitOperationContext } = require('../../git/git_operation_context'
 const { resolveDiagramFile } = require('./action_diagram_output');
 const { ActionDiagramOutputWatcher } = require('./action_diagram_output_watcher');
 const { resolvePopupPrompt } = require('./action_text');
+const { validateVersion } = require('./action_run_request');
 const {
     captureCommitReferences,
     combineOutput,
@@ -33,6 +34,8 @@ class ActionRun {
         this.releasesFolder = snapshot.releasesFolder;
         this.rootAction = snapshot.rootAction;
         this.runInput = snapshot.runInput;
+        this.requestedInput = snapshot.requestedInput;
+        this.version = snapshot.runInput.version;
         this.startedAt = snapshot.startedAt;
         this.actionWorktreeRunService = dependencies.actionWorktreeRunService;
         this.agentExecutor = dependencies.agentExecutor;
@@ -64,6 +67,7 @@ class ActionRun {
         this.promptQueue = [];
         this.promptQueueClosed = false;
         this.promptQueueOperations = Promise.resolve();
+        this.pendingInput = null;
     }
 
     start(finalize) {
@@ -74,12 +78,16 @@ class ActionRun {
     cancel() {
         this.discardQueuedPrompts();
         this.controller.abort();
+        this.pendingInput?.reject(new ActionCancellationError('Action cancelled'));
+        this.pendingInput = null;
         if (this.activeAgentRunId) this.agentRunnerService.stop(this.activeAgentRunId);
     }
 
     suspend() {
         this.discardQueuedPrompts();
         this.controller.abort();
+        this.pendingInput?.reject(new ActionCancellationError('Action cancelled'));
+        this.pendingInput = null;
         if (this.activeAgentRunId) this.agentRunnerService.suspend(this.activeAgentRunId);
     }
 
@@ -286,6 +294,11 @@ class ActionRun {
         this.publish(this.rootAction, 'main', 'running', { type: 'run' });
         let result;
         try {
+            if (this.requestedInput && this.runInput[this.requestedInput.type] === undefined) {
+                const value = await this.waitForInput();
+                if (this.requestedInput.type === 'version') this.version = value;
+                else throw new Error(`Unsupported action input type: ${this.requestedInput.type}`);
+            }
             const lockOptions = { signal: this.controller.signal };
             result = await this.actionWorktreeRunService.runWithCardLock(
                 this.project,
@@ -305,6 +318,32 @@ class ActionRun {
         });
 
         return result;
+    }
+
+    async waitForInput() {
+        this.throwIfCancelled();
+        const value = await new Promise((resolve, reject) => {
+            this.pendingInput = { reject, resolve, type: this.requestedInput.type };
+            this.publish(this.rootAction, 'main', 'waitingForInput', {
+                inputType: this.requestedInput.type,
+                prompt: this.requestedInput.prompt ?? 'Version',
+                type: 'inputRequest',
+            });
+        });
+        this.throwIfCancelled();
+
+        return value;
+    }
+
+    answerInput(response) {
+        if (!this.pendingInput || this.controller.signal.aborted) throw new Error(`No pending input request for run ${this.runId}`);
+        if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Invalid action input response');
+        if (response.type !== this.pendingInput.type) throw new Error(`Unexpected action input type: ${response.type}`);
+        if (response.type !== 'version') throw new Error(`Unsupported action input type: ${response.type}`);
+        const value = validateVersion(response.value);
+        const pending = this.pendingInput;
+        this.pendingInput = null;
+        pending.resolve(value);
     }
 
     async executeRunWithActivity() {
@@ -568,6 +607,7 @@ class ActionRun {
             projectFolder: this.projectFolder,
             releasesFolder: this.releasesFolder,
             signal: this.controller.signal,
+            version: this.version,
         });
     }
 
@@ -729,6 +769,7 @@ class ActionRun {
             releasesFolder: this.releasesFolder,
             runInput,
             signal: this.controller.signal,
+            version: this.version,
         };
         const watcher = action.autoFinish?.when === 'diagram-created'
             ? this.diagramOutputWatcherFactory({
@@ -792,6 +833,7 @@ class ActionRun {
             this.releasesFolder,
             this.activeCardsFolder,
             this.diagramPath ? resolveDiagramFile(this.activeAgentProject, this.diagramsFolder, this.diagramPath) : null,
+            this.version,
         );
     }
 

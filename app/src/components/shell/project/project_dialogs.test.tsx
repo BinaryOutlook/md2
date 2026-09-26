@@ -553,6 +553,27 @@ describe('project dialog components', () => {
         await waitFor(() => expect(completeRelease).toHaveBeenCalledWith('v1', []))
     })
 
+    it('proposes saved version while allowing user to edit release name', async () => {
+        const completeRelease = vi.fn(async () => undefined)
+        render(
+            <CompleteReleaseDialog
+                branchCandidates={[]}
+                defaultSelectAll={false}
+                isLoading={false}
+                onClose={vi.fn()}
+                onCompleteRelease={completeRelease}
+                onSelectAllDefaultChange={vi.fn()}
+                open
+                suggestedReleaseName="candidate 2"
+            />,
+        )
+
+        expect(screen.getByRole('textbox', { name: 'Release name' })).toHaveValue('candidate 2')
+        fireEvent.change(screen.getByRole('textbox', { name: 'Release name' }), { target: { value: 'release_2' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Complete release' }))
+        await waitFor(() => expect(completeRelease).toHaveBeenCalledWith('release_2', []))
+    })
+
     it('completes a release without asking about project agent activity', async () => {
         const completeRelease = vi.fn(async () => undefined)
         render(

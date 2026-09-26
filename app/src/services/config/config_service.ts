@@ -220,6 +220,11 @@ function validateValue<K extends ConfigKey>(key: K, value: unknown): ConfigValue
     if (entry.type === 'json' && key === 'desktop.agentSelection') {
         return validateAgentSelectionState(value, entry.key) as ConfigValueTypes[K]
     }
+    if (key === 'project.lastVersion') {
+        if (typeof value !== 'string') throw new Error(`Invalid config field: ${key}`)
+
+        return value as ConfigValueTypes[K]
+    }
     if (key === 'project.projectFolder') {
         if (typeof value !== 'string') throw new Error(`Missing config field: ${entry.key}`)
 
@@ -266,6 +271,7 @@ function mergeValue<K extends ConfigKey>(values: ConfigValues, key: K, value: un
 
 function readProjectConfig(values: ConfigValues): ProjectConfig {
     return {
+        lastVersion: values['project.lastVersion'],
         actionsFolder: values['project.actionsFolder'],
         archivedFolder: values['project.archivedFolder'],
         autoCommitDelayMs: values['project.autoCommitDelayMs'],
@@ -503,6 +509,7 @@ export class ConfigService extends EventTarget {
         if (projectConfig?.pinnedConversations !== undefined) {
             nextValues = mergeValue(nextValues, 'project.pinnedConversations', projectConfig.pinnedConversations)
         }
+        if (projectConfig?.lastVersion !== undefined) nextValues = mergeValue(nextValues, 'project.lastVersion', projectConfig.lastVersion)
 
         validateProjectFolderPaths(nextValues)
         this.values = nextValues

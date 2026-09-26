@@ -488,6 +488,7 @@ export function AppMenu(props: AppMenuProps) {
                     defaultSelectAll={actions.releaseSelectAllDefault}
                     isLoading={actions.isLoading}
                     key={dialogMode === 'release' ? 'release-open' : 'release-closed'}
+                    suggestedReleaseName={projectConfig?.lastVersion ?? ''}
                     onClose={actions.closeDialog}
                     onCompleteRelease={actions.completeRelease}
                     onSelectAllDefaultChange={actions.setReleaseSelectAllDefault}

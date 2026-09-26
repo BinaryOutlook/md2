@@ -85,6 +85,7 @@ const ACTION_METHODS = [
     'answerActionApproval',
     'answerActionQuestion',
     'cancelActionRun',
+    'answerActionInput',
     'closeWaitingActionConversation',
     'deleteActionQueuedPrompt',
     'deleteSchedule',

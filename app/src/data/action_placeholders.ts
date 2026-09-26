@@ -1,6 +1,6 @@
 export interface ActionPlaceholder {
     description: string
-    name: 'active-cards-folder' | 'card-file' | 'card-prompt' | 'card-title' | 'diagram-changes' | 'diagram-file' | 'parent-node' | 'project-folder' | 'releases-folder' | 'repository-folder' | 'this-card' | 'worktree-folder'
+    name: 'active-cards-folder' | 'card-file' | 'card-prompt' | 'card-title' | 'diagram-changes' | 'diagram-file' | 'parent-node' | 'project-folder' | 'releases-folder' | 'repository-folder' | 'this-card' | 'version' | 'worktree-folder'
 }
 
 export const ACTION_PROMPT_PLACEHOLDERS: readonly ActionPlaceholder[] = [
@@ -16,6 +16,7 @@ export const ACTION_PROMPT_PLACEHOLDERS: readonly ActionPlaceholder[] = [
     { description: 'Absolute path to the configured releases folder.', name: 'releases-folder' },
     { description: 'Absolute path to the opened repository.', name: 'repository-folder' },
     { description: 'Absolute path to the action run checkout.', name: 'worktree-folder' },
+    { description: 'Free-form version confirmed for this action run.', name: 'version' },
 ]
 
 /** Format an action placeholder for insertion into template text. */

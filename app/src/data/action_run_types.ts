@@ -15,6 +15,8 @@ export type ActionRunTerminalStatus = 'cancelled' | 'completed' | 'failed' | 'ok
 export type ActionRunStatus = ActionRunTerminalStatus | 'queued' | 'running' | 'waitingForInput'
 export type ActionRunPhase = 'after' | 'before' | 'main' | 'on'
 
+export type ActionUserInputResponse = { type: 'version', value: string }
+
 export interface ActionRunInput {
     agent?: string
     command?: string
@@ -25,6 +27,7 @@ export interface ActionRunInput {
     permissionMode?: PermissionMode
     prompt?: string
     thinkingLevel?: ThinkingLevel
+    version?: string
 }
 
 export interface ActionPromptRequest {
@@ -206,6 +209,12 @@ export type ActionRunUpdate =
     }
 
 export type ActionRunEvent =
+    | ActionRunEventBase & {
+        inputType: ActionUserInputResponse['type']
+        prompt: string
+        status: 'waitingForInput'
+        type: 'inputRequest'
+    }
     | ActionRunEventBase & {
         status: ActionRunStatus
         type: 'run'

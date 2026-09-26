@@ -7,6 +7,7 @@ const { createLocalBridgeDispatch } = require('./local_bridge_dispatch');
 function createDispatch(options = {}) {
     const agentExecutableAvailability = vi.fn(async () => ({ codex: { available: true, error: null } }));
     const actionRunnerService = {
+        answerInput: vi.fn(),
         answerAgentApproval: vi.fn(),
         answerAgentQuestion: vi.fn(),
         cancel: vi.fn(),
@@ -771,6 +772,7 @@ describe('createLocalBridgeDispatch', () => {
         const { actionRunnerService, dispatch } = createDispatch();
 
         await dispatch.actionBridge.cancelActionRun('action-1');
+        await dispatch.actionBridge.answerActionInput('action-1', { type: 'version', value: 'candidate 2' });
         await dispatch.actionBridge.sendActionMessage('action-1', 'approved');
         await dispatch.actionBridge.enqueueActionPrompt('action-1', 'next');
         await dispatch.actionBridge.editActionQueuedPrompt('action-1', 'prompt-1', 0, 'edited');
@@ -781,6 +783,7 @@ describe('createLocalBridgeDispatch', () => {
         await dispatch.actionBridge.finishActionRun('action-1');
 
         expect(actionRunnerService.cancel).toHaveBeenCalledWith('action-1');
+        expect(actionRunnerService.answerInput).toHaveBeenCalledWith('action-1', { type: 'version', value: 'candidate 2' });
         expect(actionRunnerService.sendAgentMessage).toHaveBeenCalledWith('action-1', 'approved');
         expect(actionRunnerService.enqueueAgentPrompt).toHaveBeenCalledWith('action-1', 'next');
         expect(actionRunnerService.editQueuedAgentPrompt).toHaveBeenCalledWith('action-1', 'prompt-1', 0, 'edited');

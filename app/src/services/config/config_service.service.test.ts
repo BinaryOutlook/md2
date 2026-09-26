@@ -402,6 +402,18 @@ describe('ConfigService', () => {
         expect(service.getDraft()?.['project.deleteBranchesAfterRelease']).toBe(true)
     })
 
+    it('persists last confirmed version and restores it from project config', async () => {
+        const saveProjectConfig = vi.fn(async () => undefined)
+        service.init()
+        service.connectProjectConfigPersistence({ saveProjectConfig })
+        service.loadProjectConfig(null)
+
+        await service.setProjectPreference('project.lastVersion', 'candidate 1')
+        expect(saveProjectConfig).toHaveBeenCalledWith(expect.objectContaining({ lastVersion: 'candidate 1' }))
+        service.loadProjectConfig({ lastVersion: 'candidate 1' })
+        expect(service.get('project.lastVersion')).toBe('candidate 1')
+    })
+
     it('ignores a project preference write while no project is open', async () => {
         const saveProjectConfig = vi.fn(async () => undefined)
         service.init()

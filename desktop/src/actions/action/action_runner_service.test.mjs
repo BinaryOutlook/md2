@@ -97,6 +97,60 @@ async function runToCompletion(runner, request = { actionId: 'main', context, ru
 }
 
 describe('ActionRunnerService', () => {
+    it('keeps version placeholder in prepared editable prompt until execution', async () => {
+        const files = [actionFile('main', { command: undefined, prompt: 'Ship {{version}}', type: 'agent', userInput: { type: 'version' } })];
+        const { runner } = createRunner(files);
+
+        await expect(runner.prepareActionPrompt({ actionId: 'main', context })).resolves.toEqual({ prompt: 'Ship {{version}}' });
+    });
+    it('requests one version before linked commands and reuses it throughout the run', async () => {
+        const files = [
+            actionFile('main', { command: 'main {{version}}', onBefore: ['before'], onAfter: ['after'] }),
+            actionFile('before', { command: 'before {{version}}', userInput: { type: 'version', prompt: 'Which release?' } }),
+            actionFile('after', { command: 'after {{version}}', userInput: { type: 'version' } }),
+        ];
+        const { commandRunner, runner } = createRunner(files);
+        const events = [];
+        runner.subscribe((event) => events.push(event));
+
+        const runId = await runner.start({ actionId: 'main', context, runInput: {} });
+        await vi.waitFor(() => expect(events.some(({ type }) => type === 'inputRequest')).toBe(true));
+        expect(commandRunner).not.toHaveBeenCalled();
+        expect(events.filter(({ type }) => type === 'inputRequest')).toHaveLength(1);
+        expect(events.find(({ type }) => type === 'inputRequest').prompt).toBe('Which release?');
+        expect(events.find(({ type }) => type === 'inputRequest').inputType).toBe('version');
+
+        expect(() => runner.answerInput(runId, { type: 'other', value: '1.0' })).toThrow('Unexpected action input type');
+        expect(() => runner.answerInput(runId, { type: 'version', value: '   ' })).toThrow('Version must contain non-whitespace text');
+        runner.answerInput(runId, { type: 'version', value: 'release candidate 2' });
+        expect(() => runner.answerInput(runId, { type: 'version', value: 'late' })).toThrow('No pending input request');
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'completed' });
+        expect(commandRunner.mock.calls.map(([, command]) => command)).toEqual([
+            'before release candidate 2', 'main release candidate 2', 'after release candidate 2',
+        ]);
+    });
+
+    it('cancels a pending version without executing and rejects a late answer', async () => {
+        const { commandRunner, runner } = createRunner([actionFile('main', { userInput: { type: 'version' } })]);
+        const runId = await runner.start({ actionId: 'main', context, runInput: {} });
+        await vi.waitFor(() => expect(runner.runs.get(runId)?.pendingInput).not.toBeNull());
+
+        runner.cancel(runId);
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'cancelled' });
+        expect(commandRunner).not.toHaveBeenCalled();
+        expect(() => runner.answerInput(runId, { type: 'version', value: '1.0' })).toThrow();
+    });
+
+    it('fails unattended version runs before effects unless a version is supplied', async () => {
+        const { commandRunner, runner } = createRunner([actionFile('main', { command: 'ship {{version}}', userInput: { type: 'version' } })]);
+        await expect(runner.start({ actionId: 'main', context, runInput: {} }, { interactive: false }))
+            .rejects.toThrow('Unattended action requires a supplied version');
+        expect(commandRunner).not.toHaveBeenCalled();
+
+        const runId = await runner.start({ actionId: 'main', context, runInput: { version: '1.0 beta' } }, { interactive: false });
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'completed' });
+        expect(commandRunner).toHaveBeenCalledWith(expect.anything(), 'ship 1.0 beta', expect.anything(), expect.anything());
+    });
     it('binds usage metrics to primary project before any worktree run starts', () => {
         const { usageMetricsService } = createRunner();
 

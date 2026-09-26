@@ -30,6 +30,7 @@ import { getService, register } from '../service_injector'
 import { projectAccessService } from '../project/project_access_service'
 import type { DataService } from '../data/data_service'
 import { ActionRunStore } from './action_run_store'
+import { actionVersionRequestService } from './action_version_request_service'
 
 const TERMINAL_STATUSES = new Set<ActionRunTerminalStatus>(['cancelled', 'completed', 'failed', 'okButNotAfter'])
 const ACTIVE_STATUSES = new Set<ActionRunStatus>(['queued', 'running', 'waitingForInput'])
@@ -465,6 +466,7 @@ export class ActionRunRegistry extends EventTarget {
 
     stop() {
         const runIds = [...this.runs.keys()]
+        actionVersionRequestService.clear()
         this.unsubscribeBridge?.()
         this.subscribedBridge = null
         this.unsubscribeBridge = null
@@ -707,6 +709,7 @@ export class ActionRunRegistry extends EventTarget {
     }
 
     private completeRecoveredRun(result: ActionRunRecoveryTerminalResult) {
+        actionVersionRequestService.remove(result.runId)
         const store = this.runs.get(result.runId)
         const context = store?.getSnapshot().context ?? this.runContexts.get(result.runId) ?? null
         let logs: ActionRunLogEntry[] = []
@@ -792,6 +795,8 @@ export class ActionRunRegistry extends EventTarget {
             if (event.sequence <= currentSequence) return
             this.eventSequences.set(event.runId, event.sequence)
         }
+        if (event.type === 'inputRequest') actionVersionRequestService.request(event)
+        else actionVersionRequestService.remove(event.runId)
         const store = this.runs.get(event.runId)
         const current = store?.getSnapshot() ?? {
             activeActionAutoFinish: null,
@@ -816,6 +821,7 @@ export class ActionRunRegistry extends EventTarget {
         }
         let next = { ...current, context: event.context, rootActionId: event.rootActionId }
         if (event.type === 'update') next = { ...next, status: event.status }
+        if (event.type === 'inputRequest') next = { ...next, status: 'waitingForInput' }
         if (event.type === 'run') {
             next = {
                 ...next,

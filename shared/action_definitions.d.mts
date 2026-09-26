@@ -59,6 +59,7 @@ export interface RawActionDefinition {
     trackFileChanges?: boolean
     streaming?: boolean
     type: ActionType
+    userInput?: { type: 'version', prompt?: string }
 }
 
 export type ActionAutoFinish = {
@@ -102,6 +103,7 @@ export interface ActionDefinition {
     trackFileChanges: boolean
     streaming: boolean
     type: ActionType
+    userInput?: { type: 'version', prompt?: string } | null
 }
 
 export interface ActionDefinitionLoaderDependencies {

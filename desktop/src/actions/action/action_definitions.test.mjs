@@ -29,6 +29,17 @@ const IMPLEMENT = {
 const LINT = {command: 'npm run lint', description: 'Lint', id: 'action-lint', label: 'Lint', type: 'command'};
 
 describe('loadActionDefinitions', () => {
+    it('loads version requests on both action types and routes invalid values', () => {
+        const actions = loadActionDefinitions([
+            file('implement', { ...IMPLEMENT, userInput: { prompt: 'Which version?', type: 'version' } }),
+            file('lint', { ...LINT, userInput: { type: 'version' } }),
+        ]);
+        expect(actions.filter(({ builtin }) => !builtin).map(({ userInput }) => userInput)).toEqual([
+            { prompt: 'Which version?', type: 'version' }, { type: 'version' },
+        ]);
+        expect(validationError([file('lint', { ...LINT, userInput: { type: 'issue' } })]))
+            .toMatchObject({ code: 'invalid-field', field: 'userInput', fieldPath: 'userInput.type' });
+    });
     it.each(ACTION_DEFINITION_VALIDATION_PARITY_CASES)(
         'matches React validator metadata for $name',
         ({ expected, files }) => {

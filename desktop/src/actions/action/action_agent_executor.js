@@ -70,6 +70,7 @@ class ActionAgentExecutor {
                     '',
                     input.diagramFooter,
                     input.diagramFile,
+                    input.version,
                 )
                 : resolvePopupPrompt(
                     input.runInput.prompt,
@@ -80,6 +81,7 @@ class ActionAgentExecutor {
                     input.releasesFolder,
                     input.activeCardsFolder,
                     input.diagramFile,
+                    input.version,
                 )
             : sourceConversation
                 ? input.runInput.extraPrompt.trim().length > 0 ? input.runInput.extraPrompt : CONTINUE_INPUT
@@ -94,6 +96,7 @@ class ActionAgentExecutor {
                     input.runInput.extraPrompt,
                     input.diagramFooter,
                     input.diagramFile,
+                    input.version,
                 );
         const prompt = await appendCurrentCardReferences(
             basePrompt,

@@ -17,6 +17,7 @@ interface CompleteReleaseDialogProps {
     branchCandidates: ReleaseBranchCandidate[]
     defaultSelectAll: boolean
     isLoading: boolean
+    suggestedReleaseName?: string
     open: boolean
     onClose: () => void
     onCompleteRelease: (releaseName: string, selectedBranchNames: string[]) => Promise<void>
@@ -29,12 +30,13 @@ export function CompleteReleaseDialog(props: CompleteReleaseDialogProps) {
         branchCandidates,
         defaultSelectAll,
         isLoading,
+        suggestedReleaseName,
         onClose,
         onCompleteRelease,
         onSelectAllDefaultChange,
         open,
     } = props
-    const [releaseName, setReleaseName] = useState('')
+    const [releaseName, setReleaseName] = useState(suggestedReleaseName ?? '')
     const [selectedBranchNames, setSelectedBranchNames] = useState<Set<string>>(
         defaultSelectAll ? new Set(branchCandidates.map(({ branchName }) => branchName)) : new Set(),
     )
