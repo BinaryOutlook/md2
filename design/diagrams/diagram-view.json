@@ -59,6 +59,14 @@
       "label": "New mindmap",
       "pendingImplementation": true,
       "path": "design/diagrams/mindmap-f01987bb-9920-44f1-88e2-ec1dce7f6473.json"
+    },
+    "4962c85c-9383-4fa5-86cc-34cc2ea15407": {
+      "actionId": "user-created",
+      "createdAt": "2026-09-26T18:01:20.784Z",
+      "id": "4962c85c-9383-4fa5-86cc-34cc2ea15407",
+      "label": "Test",
+      "path": "design/diagrams/test-4962c85c-9383-4fa5-86cc-34cc2ea15407.json",
+      "sourceDiagramId": "f01987bb-9920-44f1-88e2-ec1dce7f6473"
     }
   },
   "roots": {
@@ -73,7 +81,8 @@
     ],
     "user-created": [
       "7d312d42-dce2-4322-a915-3163f9b6702d",
-      "f01987bb-9920-44f1-88e2-ec1dce7f6473"
+      "f01987bb-9920-44f1-88e2-ec1dce7f6473",
+      "4962c85c-9383-4fa5-86cc-34cc2ea15407"
     ]
   },
   "version": 1
