@@ -8,7 +8,11 @@ import {
 } from '../../../../services/actions/action_run_registry'
 import type { PopupRunStatus } from '../../run/popup/action_popup_defaults'
 import type { ActionRunBindingStore } from '../../run/state/action_run_binding_store'
-import { resolveDisplayedConversation, type ActionConversationStore } from '../state/action_conversation_store'
+import {
+    resolveDisplayedConversation,
+    type ActionConversationStore,
+    type PendingActionSubmission,
+} from '../state/action_conversation_store'
 import { buildActionConversationRenderGroups, type ActionConversationRenderGroup } from './action_conversation_render_groups'
 import {
     createActionConversationReservationState,
@@ -24,8 +28,10 @@ const RESERVED_BLOCK_COUNT_CHANGED_EVENT = 'reservedBlockCountChanged'
 const QUEUED_PROMPTS_CHANGED_EVENT = 'queuedPromptsChanged'
 const CONVERSATION_CHANGED_EVENT = 'conversationChanged'
 const CONVERSATION_STATUS_CHANGED_EVENT = 'conversationStatusChanged'
+const SUBMISSIONS_CHANGED_EVENT = 'submissionsChanged'
 const EMPTY_GROUPS: ActionConversationRenderGroup[] = []
 const EMPTY_QUEUED_PROMPTS: ActionQueuedPrompt[] = []
+const EMPTY_SUBMISSIONS: PendingActionSubmission[] = []
 
 interface RunRegistryBoundary {
     getRunStore(runId: string): ReturnType<ActionRunRegistry['getRunStore']>
@@ -57,7 +63,7 @@ function conversationHasAgentActivity(conversation: AgentConversation) {
         || conversation.entries.some(entryHasAgentActivity)
 }
 
-function entriesMatch(first: AgentConversationEntry[], second: AgentConversationEntry[]) {
+function entriesMatch<T>(first: T[], second: T[]) {
     return first.length === second.length && first.every((entry, index) => entry === second[index])
 }
 
@@ -197,6 +203,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
     private loaded = false
     private providerSessions: AgentConversation['providerSessions'] | null = null
     private queuedPrompts: ActionQueuedPrompt[] = EMPTY_QUEUED_PROMPTS
+    private submissions: PendingActionSubmission[] = EMPTY_SUBMISSIONS
     private reservationGroups: ReservationGroupState[] = []
     private reservationSession: object = {}
     private reservationState = createActionConversationReservationState()
@@ -211,6 +218,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
     private unsubscribeBinding: (() => void) | null = null
     private unsubscribeConversation: (() => void) | null = null
     private unsubscribeRun: (() => void) | null = null
+    private unsubscribeSubmissions: (() => void) | null = null
 
     constructor(
         bindingStore: ActionRunBindingStore,
@@ -230,6 +238,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
         try {
             this.unsubscribeBinding = this.bindingStore.subscribe(this.handleBindingChange)
             this.unsubscribeConversation = this.conversationStore.subscribe(this.handleConversationStoreChange)
+            this.unsubscribeSubmissions = this.conversationStore.subscribeSubmissions(this.handleSubmissionChange)
             this.bindRun()
             this.updateFromSources()
         } catch (error) {
@@ -242,9 +251,11 @@ export class ActionConversationChatlogTracker extends EventTarget {
         this.unsubscribeBinding?.()
         this.unsubscribeConversation?.()
         this.unsubscribeRun?.()
+        this.unsubscribeSubmissions?.()
         this.unsubscribeBinding = null
         this.unsubscribeConversation = null
         this.unsubscribeRun = null
+        this.unsubscribeSubmissions = null
         this.subscribedRunId = null
         this.loaded = false
         this.resetConversationState()
@@ -253,6 +264,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
         this.evolvingGroups = EMPTY_GROUPS
         this.reservedBlockCount = 0
         this.queuedPrompts = EMPTY_QUEUED_PROMPTS
+        this.submissions = EMPTY_SUBMISSIONS
         this.runId = null
     }
 
@@ -260,6 +272,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
     readonly getEvolvingGroups = () => this.evolvingGroups
     readonly getReservedBlockCount = () => this.reservedBlockCount
     readonly getQueuedPrompts = () => this.queuedPrompts
+    readonly getSubmissions = () => this.submissions
     readonly getCardInternalId = () => this.conversation?.cardInternalId ?? null
     readonly getConversation = () => this.conversation
 
@@ -274,6 +287,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
         this.subscribe(RESERVED_BLOCK_COUNT_CHANGED_EVENT, listener)
     )
     readonly subscribeQueuedPrompts = (listener: () => void) => this.subscribe(QUEUED_PROMPTS_CHANGED_EVENT, listener)
+    readonly subscribeSubmissions = (listener: () => void) => this.subscribe(SUBMISSIONS_CHANGED_EVENT, listener)
     readonly subscribeConversation = (listener: () => void) => this.subscribe(CONVERSATION_CHANGED_EVENT, listener)
 
     readonly subscribeConversationStatus = (listener: () => void) => this.subscribe(CONVERSATION_STATUS_CHANGED_EVENT, listener)
@@ -297,6 +311,10 @@ export class ActionConversationChatlogTracker extends EventTarget {
     }
 
     private readonly handleRunChange = () => {
+        this.updateFromSources()
+    }
+
+    private readonly handleSubmissionChange = () => {
         this.updateFromSources()
     }
 
@@ -330,7 +348,19 @@ export class ActionConversationChatlogTracker extends EventTarget {
         const runId = displayingLiveConversation ? run?.runId ?? null : null
         const change = displayingLiveConversation ? run?.conversationChange ?? null : null
 
-        this.applyConversation(conversation, change, status, queuedPrompts, runId)
+        const submissions = this.conversationStore.getVisibleSubmissions(conversation?.id ?? null, boundRunId)
+        const acceptedPrompts = submissions
+            .filter((submission) => submission.state === 'queued'
+                && !!submission.prompt
+                && !queuedPrompts.some(({ id }) => id === submission.prompt?.id))
+            .map((submission) => submission.prompt as ActionQueuedPrompt)
+        const displayedQueuedPrompts = acceptedPrompts.length > 0
+            ? [...queuedPrompts, ...acceptedPrompts]
+            : queuedPrompts
+        const pendingRows = submissions.filter((submission) => submission.state !== 'queued')
+
+        this.applyConversation(conversation, change, status, displayedQueuedPrompts, runId)
+        this.publishSubmissions(pendingRows)
     }
 
     private applyConversation(
@@ -481,6 +511,12 @@ export class ActionConversationChatlogTracker extends EventTarget {
         if (evolvingGroupsChanged) this.dispatchEvent(new Event(EVOLVING_GROUPS_CHANGED_EVENT))
         if (reservedBlockCountChanged) this.dispatchEvent(new Event(RESERVED_BLOCK_COUNT_CHANGED_EVENT))
         if (queuedPromptsChanged) this.dispatchEvent(new Event(QUEUED_PROMPTS_CHANGED_EVENT))
+    }
+
+    private publishSubmissions(submissions: PendingActionSubmission[]) {
+        if (entriesMatch(this.submissions, submissions)) return
+        this.submissions = submissions
+        this.dispatchEvent(new Event(SUBMISSIONS_CHANGED_EVENT))
     }
 
     private subscribe(eventType: string, listener: () => void) {

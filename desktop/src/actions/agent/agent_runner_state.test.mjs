@@ -282,6 +282,7 @@ describe('AgentRunnerService state handling', () => {
         const persistConversation = vi.fn(async () => undefined);
         const spawn = vi.fn(() => child);
         const onEvent = vi.fn();
+        const onConversationSaved = vi.fn();
         const service = new AgentRunnerService({
             executableResolver: { find: vi.fn(async () => '/tools/fake-agent') },
             persistConversation,
@@ -289,22 +290,25 @@ describe('AgentRunnerService state handling', () => {
             spawn,
         });
         const project = { rootPath: resolve(import.meta.dirname, '../../../..') };
-        const request = { command: ['fake-agent'], projectFolder: 'design', prompt: 'Start work' };
+        const request = { command: ['fake-agent'], projectFolder: 'design', prompt: 'Start work', submissionId: 'message-1' };
 
-        const start = service.start(project, request, onEvent, vi.fn(), vi.fn());
+        const start = service.start(project, request, onEvent, vi.fn(), vi.fn(), onConversationSaved);
         await vi.waitFor(() => expect(persistConversationCheckpoint).toHaveBeenCalledOnce());
 
+        expect(onConversationSaved).not.toHaveBeenCalled();
         expect(spawn).not.toHaveBeenCalled();
         expect(onEvent).not.toHaveBeenCalled();
 
         initialCheckpoint.resolve();
         const result = await start;
 
+        expect(onConversationSaved).toHaveBeenCalledOnce();
+        expect(onConversationSaved.mock.invocationCallOrder[0]).toBeLessThan(spawn.mock.invocationCallOrder[0]);
         expect(persistConversationCheckpoint.mock.invocationCallOrder[0]).toBeLessThan(spawn.mock.invocationCallOrder[0]);
         expect(spawn.mock.invocationCallOrder[0]).toBeLessThan(onEvent.mock.invocationCallOrder[0]);
         expect(persistConversationCheckpoint).toHaveBeenCalledWith(expect.objectContaining({
             conversation: expect.objectContaining({
-                entries: [expect.objectContaining({ content: 'Start work', role: 'user' })],
+                entries: [expect.objectContaining({ content: 'Start work', id: 'message-1', role: 'user' })],
                 id: result.conversation.id,
                 status: 'running',
             }),
@@ -354,9 +358,9 @@ describe('AgentRunnerService state handling', () => {
         expect(find).not.toHaveBeenCalled();
     });
 
-    it('rejects an unresolved selected executable before persistence, usage polling, or spawn', async () => {
+    it('saves the conversation before rejecting an unresolved executable', async () => {
         const claudeUsagePoller = { requestPoll: vi.fn(), stop: vi.fn() };
-        const persistConversationCheckpoint = vi.fn();
+        const persistConversationCheckpoint = vi.fn(async () => undefined);
         const spawn = vi.fn();
         const service = new AgentRunnerService({
             claudeUsagePoller,
@@ -369,7 +373,7 @@ describe('AgentRunnerService state handling', () => {
 
         await expect(service.start(project, request, vi.fn(), vi.fn(), vi.fn()))
             .rejects.toThrow('Executable not found for claude: missing-claude');
-        expect(persistConversationCheckpoint).not.toHaveBeenCalled();
+        expect(persistConversationCheckpoint).toHaveBeenCalledOnce();
         expect(claudeUsagePoller.requestPoll).not.toHaveBeenCalled();
         expect(spawn).not.toHaveBeenCalled();
     });
@@ -1418,8 +1422,9 @@ describe('AgentRunnerService state handling', () => {
         };
         service.processes.set('run-1', run);
 
-        await service.sendMessage('run-1', 'Queued prompt');
+        await service.sendMessage('run-1', 'Queued prompt', 'message-2');
 
+        expect(run.conversation.entries.at(-1)).toMatchObject({ content: 'Queued prompt', id: 'message-2', role: 'user' });
         expect(run.waitingForQuestion).toBe(true);
         expect(run.pendingQuestionRequestId).toBe(8);
         expect(run.conversation.status).toBe('waitingForInput');

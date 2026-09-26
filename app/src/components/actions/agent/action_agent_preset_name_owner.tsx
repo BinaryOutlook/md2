@@ -37,7 +37,7 @@ export function ActionAgentPresetNameOwner(props: ActionAgentPresetNameOwnerProp
         const run = currentActionRun(bindingStore)
         const runStatus = run?.status ?? 'idle'
         const sessionActive = runStatus === 'queued' || runStatus === 'running' || runStatus === 'waitingForInput'
-        const promptDraft = currentActionPromptDraft(action, context, bindingStore, false)
+        const promptDraft = currentActionPromptDraft(action, context, bindingStore, conversationStore, false)
         const runState = {
             agentActive: sessionActive && run?.activeActionType === 'agent',
             hasApprovals: !!run?.approvals.length,

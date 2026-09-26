@@ -60,6 +60,7 @@ class ActionRun {
         this.changedPaths = new Set();
         this.conversationIds = [];
         this.completion = null;
+        this.initialConversationSaved = Promise.withResolvers();
         this.controller = new AbortController();
         this.rootDetails = null;
         this.rootConversationId = null;
@@ -73,6 +74,17 @@ class ActionRun {
     start(finalize) {
         const runCompletion = this.run();
         this.completion = finalize(runCompletion);
+    }
+
+    async waitForInitialConversationSave() {
+        const completedBeforeSave = this.completion.then((result) => {
+            throw new Error(result.failure ?? 'Agent run ended before its conversation was saved');
+        });
+        await Promise.race([this.initialConversationSaved.promise, completedBeforeSave]);
+    }
+
+    markInitialConversationSaved() {
+        this.initialConversationSaved.resolve();
     }
 
     cancel() {
@@ -101,7 +113,7 @@ class ActionRun {
         return this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);
     }
 
-    enqueueAgentPrompt(content) {
+    enqueueAgentPrompt(content, submissionId) {
         if (typeof content !== 'string' || content.trim().length === 0) throw new Error('Queued agent prompt is empty');
 
         const operation = this.queuePromptOperation(() => {
@@ -110,7 +122,7 @@ class ActionRun {
             const entry = {
                 content,
                 dispatchState: 'queued',
-                id: `prompt-${crypto.randomUUID()}`,
+                id: submissionId ?? `prompt-${crypto.randomUUID()}`,
                 revision: 0,
             };
             this.promptQueue.push(entry);
@@ -143,7 +155,7 @@ class ActionRun {
             this.requirePromptQueueOpen();
             const entry = this.requireQueuedPrompt(id, revision);
             this.promptQueue = this.promptQueue.filter(({ id: entryId }) => entryId !== id);
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDeleted', { promptId: entry.id, revision: entry.revision });
 
             return { deleted: true };
         });
@@ -217,7 +229,7 @@ class ActionRun {
         const entries = this.promptQueue.filter(({ dispatchState }) => dispatchState === 'queued');
         this.promptQueue = [];
         for (const entry of entries) {
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDiscarded', { promptId: entry.id, revision: entry.revision });
         }
     }
 
@@ -233,9 +245,9 @@ class ActionRun {
 
             entry.dispatchState = 'dispatching';
             this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDispatched', { promptId: entry.id, revision: entry.revision });
             const prompt = this.resolveActiveAgentPrompt(entry.content);
-            await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);
+            await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt, entry.id);
 
             return !!this.activeAgentRunId
                 && !!this.activeAction?.streaming
@@ -260,9 +272,9 @@ class ActionRun {
 
             entry.dispatchState = 'dispatching';
             this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDispatched', { promptId: entry.id, revision: entry.revision });
 
-            return entry.content;
+            return entry;
         });
     }
 
@@ -762,6 +774,7 @@ class ActionRun {
             diagramFooter: this.diagramFooter,
             runId: this.runId,
             onActiveRunChange,
+            ...(isRoot ? { onConversationSaved: this.markInitialConversationSaved.bind(this) } : {}),
             onEvent,
             project,
             projectFolder: this.projectFolder,
@@ -796,7 +809,8 @@ class ActionRun {
                     runInput: {
                         ...runInput,
                         continueFrom: result.reference,
-                        prompt: queuedPrompt,
+                        prompt: queuedPrompt.content,
+                        submissionId: queuedPrompt.id,
                     },
                 });
                 this.throwDiagramWatcherFailure();

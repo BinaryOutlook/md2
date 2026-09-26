@@ -28,7 +28,11 @@ describe('validateStartRequest', () => {
     });
 
     it('preserves accepted optional strings', () => {
-        const runInput = { agent: 'codex', command: 'npm test', continueFrom: 'log.json', diagramPath: 'design/diagrams/output.json', extraPrompt: 'next', model: 'gpt', permissionMode: 'approve-for-me', prompt: '', thinkingLevel: 'high' };
+        const runInput = {
+            agent: 'codex', command: 'npm test', conversationId: 'agent-1', continueFrom: 'log.json',
+            diagramPath: 'design/diagrams/output.json', extraPrompt: 'next', model: 'gpt',
+            permissionMode: 'approve-for-me', prompt: '', submissionId: 'submission-1', thinkingLevel: 'high',
+        };
 
         expect(validateStartRequest({ actionId: 'main', context: { kind: 'project' }, runInput }).runInput).toEqual({ ...runInput, version: undefined });
     });
@@ -51,7 +55,7 @@ describe('validateStartRequest', () => {
             .toMatchObject({ conversationReservation });
     });
 
-    it.each(['agent', 'command', 'continueFrom', 'diagramPath', 'extraPrompt', 'model', 'permissionMode', 'prompt', 'thinkingLevel'])('rejects non-string %s', (fieldName) => {
+    it.each(['agent', 'command', 'conversationId', 'continueFrom', 'diagramPath', 'extraPrompt', 'model', 'permissionMode', 'prompt', 'submissionId', 'thinkingLevel'])('rejects non-string %s', (fieldName) => {
         const request = { actionId: 'main', context: { kind: 'project' }, runInput: { [fieldName]: 1 } };
 
         expect(() => validateStartRequest(request)).toThrow(`Invalid action run input ${fieldName}`);

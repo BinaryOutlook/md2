@@ -67,7 +67,9 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
     })
     const interactionReady = useRunSelector(boundRunId, (run) => !!run?.interactionReady)
     const liveConversationId = useRunSelector(boundRunId, (run) => run?.conversation?.id ?? null)
-    const promptDraft = currentActionPromptDraft(action, assignmentContext, bindingStore, false, agentActive ? '' : undefined)
+    const promptDraft = currentActionPromptDraft(
+        action, assignmentContext, bindingStore, conversationStore, false, agentActive ? '' : undefined,
+    )
     const prompt = useSyncExternalStore(promptDraft.subscribe, promptDraft.getSnapshot, promptDraft.getSnapshot)
     const editorSnapshot = useSyncExternalStore(
         promptDraft.subscribeEditor,
@@ -147,12 +149,12 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
     const handleCancel = () => {
         if (browsingHistory) return
 
-        void cancelPopupAction(action, bindingStore, assignmentContext, conversationStore)
+        void cancelPopupAction(bindingStore, conversationStore)
     }
     const handleFinish = () => {
         if (browsingHistory) return
 
-        void finishPopupAction(action, bindingStore, assignmentContext, conversationStore)
+        void finishPopupAction(bindingStore, conversationStore)
     }
     const handleToggleSchedule = (event: MouseEvent<HTMLButtonElement>) => scheduleStore.toggle(event.currentTarget)
 

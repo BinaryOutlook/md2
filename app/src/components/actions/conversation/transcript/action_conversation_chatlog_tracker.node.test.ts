@@ -3,7 +3,7 @@ import type { AgentConversation, AgentConversationEntry, AgentConversationEventE
 import type { ActionRun, ActionRunRegistry } from '../../../../services/actions/action_run_registry'
 import type { ActionRunBindingStore } from '../../run/state/action_run_binding_store'
 import { ActionConversationChatlogTracker } from './action_conversation_chatlog_tracker'
-import type { ActionConversationStore } from '../state/action_conversation_store'
+import type { ActionConversationStore, PendingActionSubmission } from '../state/action_conversation_store'
 
 function message(id: string, role: 'assistant' | 'user', content = id) {
     return { agent: 'codex', content, id, kind: 'message' as const, role, timestamp: 'now' }
@@ -78,8 +78,21 @@ class FakeBindingStore extends EventTarget {
 
 class FakeConversationStore extends EventTarget {
     private selectedConversation: AgentConversation | null = null
+    private submissions: PendingActionSubmission[] = []
+    private submissionConversationId: string | null = null
+    private submissionRunId: string | null = null
+    private readonly submissionEvents = new EventTarget()
 
     readonly getSnapshot = () => ({ conversations: [], loading: false, selectedConversation: this.selectedConversation })
+    readonly getSubmissions = () => this.submissions
+    readonly getVisibleSubmissions = (conversationId: string | null, runId: string | null) => (
+        conversationId ? conversationId === this.submissionConversationId : runId === this.submissionRunId
+    ) ? this.submissions : []
+    readonly subscribeSubmissions = (listener: () => void) => {
+        this.submissionEvents.addEventListener('changed', listener)
+
+        return () => this.submissionEvents.removeEventListener('changed', listener)
+    }
 
     readonly subscribe = (listener: () => void) => {
         this.addEventListener('changed', listener)
@@ -90,6 +103,13 @@ class FakeConversationStore extends EventTarget {
     select(selectedConversation: AgentConversation | null) {
         this.selectedConversation = selectedConversation
         this.dispatchEvent(new Event('changed'))
+    }
+
+    setSubmissions(submissions: PendingActionSubmission[], conversationId: string | null, runId: string | null) {
+        this.submissions = submissions
+        this.submissionConversationId = conversationId
+        this.submissionRunId = runId
+        this.submissionEvents.dispatchEvent(new Event('changed'))
     }
 }
 
@@ -152,6 +172,25 @@ describe('ActionConversationChatlogTracker', () => {
         expect(statuses).toEqual(['waitingForInput', 'completed'])
     })
 
+    it('shows an unbound new submission and hides live pending rows for history', () => {
+        const live = conversation('conversation-1', [])
+        const historical = conversation('conversation-2', [], 'completed')
+        const { bindingStore, conversationStore, tracker } = setup(run('run-1', live))
+        bindingStore.setRunId(null)
+        tracker.load()
+        conversationStore.setSubmissions([
+            { content: 'Start now', id: 'submission-1', prompt: null, state: 'transmitting' },
+        ], null, null)
+        expect(tracker.getSubmissions().map(({ content }) => content)).toEqual(['Start now'])
+
+        bindingStore.setRunId('run-1')
+        conversationStore.setSubmissions([
+            { content: 'Continue', id: 'submission-2', prompt: null, state: 'transmitting' },
+        ], live.id, 'run-1')
+        expect(tracker.getSubmissions().map(({ content }) => content)).toEqual(['Continue'])
+        conversationStore.select(historical)
+        expect(tracker.getSubmissions()).toEqual([])
+    })
     it('registers every source listener on load and removes them on unload', () => {
         const value = conversation('conversation-1', [message('user-1', 'user')])
         const { bindingStore, conversationStore, registry, tracker } = setup(run('run-1', value))

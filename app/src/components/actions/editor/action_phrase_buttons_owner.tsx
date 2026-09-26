@@ -56,7 +56,7 @@ export function ActionPhraseButtonsOwner(props: ActionPhraseButtonsOwnerProps) {
     if (action.type !== 'agent' || action.phrases.length === 0) return null
 
     const handleSelect = async (text: string) => {
-        const promptDraft = currentActionPromptDraft(action, context, bindingStore, false)
+        const promptDraft = currentActionPromptDraft(action, context, bindingStore, conversationStore, false)
         const insertion = promptDraft.requestInsertion(text)
         pendingInsertionRef.current = insertion
         await insertion
@@ -69,7 +69,7 @@ export function ActionPhraseButtonsOwner(props: ActionPhraseButtonsOwnerProps) {
             return
         }
 
-        const promptDraft = currentActionPromptDraft(action, context, bindingStore, false)
+        const promptDraft = currentActionPromptDraft(action, context, bindingStore, conversationStore, false)
         promptDraft.requestFlush()
         await runPopupAction({
             action,

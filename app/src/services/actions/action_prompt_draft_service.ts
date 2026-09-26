@@ -18,8 +18,12 @@ interface ActionPromptDraftOptions {
     prepare: boolean
 }
 
-function promptDraftKey(actionId: string, context: ActionContext, runId: string | null) {
-    return `${actionId}${DRAFT_KEY_SEPARATOR}${actionContextIdentity(context)}${DRAFT_KEY_SEPARATOR}${runId ?? 'new'}`
+function promptDraftContextIdentity(context: ActionContext) {
+    return context.cardInternalId ? `card${DRAFT_KEY_SEPARATOR}${context.cardInternalId}` : actionContextIdentity(context)
+}
+
+function promptDraftKey(actionId: string, context: ActionContext, conversationId: string | null) {
+    return `${actionId}${DRAFT_KEY_SEPARATOR}${promptDraftContextIdentity(context)}${DRAFT_KEY_SEPARATOR}${conversationId ?? 'new'}`
 }
 
 /** Stable prompt state shared by editor and prompt-dependent leaf controls. */
@@ -103,6 +107,13 @@ export class ActionPromptDraft {
         this.preparationStarted = false
     }
 
+    /** Clears submitted text without preparing another default for the same conversation. */
+    clearForSend() {
+        this.diagramPath = null
+        this.replace('')
+        this.preparationRequired = false
+    }
+
     async prepare(load: () => Promise<PreparedActionPrompt>) {
         if (!this.preparationRequired || this.preparationStarted) return
 
@@ -131,16 +142,12 @@ export class ActionPromptDraft {
         }
     }
 
-    getRevision() {
-        return this.revision
-    }
-
     getDiagramPath() {
         return this.diagramPath
     }
 
     hasLocalEdits() {
-        return this.locallyEdited && this.getSnapshot().length > 0
+        return this.locallyEdited
     }
 
     /** Asks a mounted editor to commit its debounced buffer before this value is inspected. */
@@ -157,11 +164,9 @@ export class ActionPromptDraft {
     private readonly handleMarkdownEdit = () => {
         if (this.applyingExternalValue) return
 
-        const empty = this.getSnapshot().length === 0
         this.revision += 1
-        this.locallyEdited = !empty
-        this.preparationRequired = empty
-        if (empty) this.preparationStarted = false
+        this.locallyEdited = true
+        this.preparationRequired = false
         this.setPreparationStatus('ready')
     }
 
@@ -177,7 +182,7 @@ export class ActionPromptDraft {
     }
 }
 
-/** Owns lifetime-stable prompt drafts, revisions, and explicit cleanup. */
+/** Owns prompt drafts by action, context, and conversation. */
 export class ActionPromptDraftService {
     private readonly drafts = new Map<string, ActionPromptDraft>()
 
@@ -185,8 +190,8 @@ export class ActionPromptDraftService {
         register('actionPromptDraftService', this)
     }
 
-    getDraft(actionId: string, context: ActionContext, runId: string | null, options: ActionPromptDraftOptions) {
-        const key = promptDraftKey(actionId, context, runId)
+    getDraft(actionId: string, context: ActionContext, conversationId: string | null, options: ActionPromptDraftOptions) {
+        const key = promptDraftKey(actionId, context, conversationId)
         const current = this.drafts.get(key)
         if (current) return current
 
@@ -196,37 +201,30 @@ export class ActionPromptDraftService {
         return draft
     }
 
-    /** Empties the editor while keeping the draft object the editor is bound to. */
-    clearDraft(actionId: string, context: ActionContext, runId: string | null) {
-        this.drafts.get(promptDraftKey(actionId, context, runId))?.clear()
+    /** Commits editor buffers before a run changes the displayed conversation. */
+    flushContextDrafts(actionId: string, context: ActionContext) {
+        const prefix = `${actionId}${DRAFT_KEY_SEPARATOR}${promptDraftContextIdentity(context)}${DRAFT_KEY_SEPARATOR}`
+        for (const [key, draft] of this.drafts) {
+            if (key.startsWith(prefix)) draft.requestFlush()
+        }
     }
 
-    /** Drops a prepared default the user never touched and keeps every typed character. */
-    discardUneditedDraft(actionId: string, context: ActionContext, runId: string | null) {
-        const draft = this.drafts.get(promptDraftKey(actionId, context, runId))
-        if (!draft) return
-
+    /** Gives a newly created conversation the draft used to start it. */
+    attachNewConversation(actionId: string, context: ActionContext, conversationId: string) {
+        const newKey = promptDraftKey(actionId, context, null)
+        const conversationKey = promptDraftKey(actionId, context, conversationId)
+        const draft = this.drafts.get(newKey)
+        if (!draft || this.drafts.has(conversationKey)) return
         draft.requestFlush()
-        if (draft.hasLocalEdits()) return
-
-        draft.clear()
-    }
-
-    /** Removes released run state unless it contains text the user edited. */
-    deleteUneditedDraft(actionId: string, context: ActionContext, runId: string | null) {
-        const key = promptDraftKey(actionId, context, runId)
-        const draft = this.drafts.get(key)
-        if (!draft) return
-
-        draft.requestFlush()
-        if (!draft.hasLocalEdits()) this.drafts.delete(key)
+        this.drafts.set(conversationKey, draft)
+        this.drafts.delete(newKey)
     }
 
     /** Flushes editor buffers, then removes every exact-empty prompt draft. */
     deleteEmptyDrafts() {
         for (const [key, draft] of this.drafts) {
             draft.requestFlush()
-            if (draft.getSnapshot().length === 0) this.drafts.delete(key)
+            if (draft.getSnapshot().length === 0 && !draft.hasLocalEdits()) this.drafts.delete(key)
         }
     }
 

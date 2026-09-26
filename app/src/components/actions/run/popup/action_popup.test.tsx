@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActionContext } from '../../../../data/action_context'
-import type { ActionRunEvent, ActionStartRequest } from '../../../../data/action_run_types'
+import type { ActionQueuedPrompt, ActionRunEvent, ActionStartRequest } from '../../../../data/action_run_types'
 import { CUSTOM_PROMPT_ACTION_ID, type ActionFile } from '../../../../data/action_types'
 import type { AgentConversation, Card, ProjectReference, StateConfig, StorageService, WorktreeRecord } from '../../../../data/data_types'
 import type { AgentSelectionState } from '../../../../data/agent_selection'
@@ -1407,7 +1407,7 @@ describe('ActionPopup', () => {
         fireEvent.click(await screen.findByRole('option', { name: /First conversation/u }))
         fireEvent.change(prompt, { target: { value: 'Continue first' } })
         fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue first'))
+        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue first', expect.any(String)))
         expect(actionRunRegistry.getRunStore('run-2')?.getSnapshot().status).toBe('running')
     })
 
@@ -1498,7 +1498,7 @@ describe('ActionPopup', () => {
         expect(prepareActionPrompt).toHaveBeenCalledOnce()
         await waitFor(() => expect(runListener).not.toBeNull())
 
-        act(() => actionPromptDraftService.clearDraft('stream', context, null))
+        act(() => actionPromptDraftService.getDraft('stream', context, null, { prepare: false }).clear())
         act(() => {
             runListener?.({
                 actionId: 'stream', context, runId: 'run-1', phase: 'main', rootActionId: 'stream',
@@ -1692,7 +1692,7 @@ describe('ActionPopup', () => {
         expect(prepareActionPrompt).not.toHaveBeenCalled()
     })
 
-    it('clears the prompt for history and restores the stored prompt for New conversation', async () => {
+    it('keeps the new-conversation prompt separate from history without preparing history', async () => {
         const historicalContext = { ...context, cardInternalId: 'card-1' }
         const historicalConversation: AgentConversation = {
             actionId: 'review',
@@ -1731,7 +1731,7 @@ describe('ActionPopup', () => {
         fireEvent.click(await screen.findByRole('option', { name: 'New conversation' }))
 
         await waitFor(() => expect(prompt).toHaveValue('Stored prompt'))
-        expect(prepareActionPrompt).toHaveBeenCalledTimes(2)
+        expect(prepareActionPrompt).toHaveBeenCalledTimes(1)
     })
 
     it('clears stored prefill when switching to an active action and restores its draft after reopen', async () => {
@@ -1780,7 +1780,7 @@ describe('ActionPopup', () => {
         await waitFor(() => expect(within(screen.getByLabelText('Prompt')).getByRole('textbox')).toHaveValue(''))
         const activeRun = actionRunRegistry.getActionRunStore('active', context)?.getSnapshot()
         if (!activeRun) throw new Error('Missing active run')
-        act(() => actionPromptDraftService.getDraft('active', context, activeRun.runId, { prepare: false }).edit('Keep active draft'))
+        act(() => actionPromptDraftService.getDraft('active', context, activeRun.conversation?.id ?? null, { prepare: false }).edit('Keep active draft'))
         cleanup()
         renderPopup()
         fireEvent.click(within(screen.getByRole('group', { name: 'Actions' })).getByRole('button', { name: /Active action/u }))
@@ -1875,7 +1875,7 @@ describe('ActionPopup', () => {
                 runListener = listener
                 return vi.fn()
             }),
-            prepareActionPrompt: vi.fn(async () => ({ prompt: 'Plan' })),
+            prepareActionPrompt: vi.fn(async () => ({ prompt: '' })),
         } as unknown as typeof window.md2Actions
         actionRunRegistry.start()
         actionService.loadFromFiles([file(agentDefinition('stream', { label: 'Stream', streaming: true }))])
@@ -1905,15 +1905,15 @@ describe('ActionPopup', () => {
 
         const activeRun = actionRunRegistry.getActionRunStore('stream', context)?.getSnapshot()
         if (!activeRun) throw new Error('Expected active stream run')
-        act(() => actionPromptDraftService.getDraft('stream', context, activeRun.runId, { prepare: false }).edit('Continue'))
+        act(() => actionPromptDraftService.getDraft('stream', context, activeRun.conversation?.id ?? null, { prepare: false }).edit('Continue'))
         expect(screen.getByRole('button', { name: 'Schedule' })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
         fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
         expect(screen.getByRole('dialog', { name: 'Schedule action' })).toBeInTheDocument()
-        act(() => actionPromptDraftService.getDraft('stream', context, activeRun.runId, { prepare: false }).edit(''))
+        act(() => actionPromptDraftService.getDraft('stream', context, activeRun.conversation?.id ?? null, { prepare: false }).edit(''))
         await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Schedule action' })).not.toBeInTheDocument())
         expect(screen.queryByRole('button', { name: 'Schedule' })).not.toBeInTheDocument()
-        act(() => actionPromptDraftService.getDraft('stream', context, activeRun.runId, { prepare: false }).edit('Continue'))
+        act(() => actionPromptDraftService.getDraft('stream', context, activeRun.conversation?.id ?? null, { prepare: false }).edit('Continue'))
         fireEvent.click(screen.getByRole('button', { name: 'Finish' }))
         await waitFor(() => expect(finishActionRun).toHaveBeenCalledWith('run-1'))
     })
@@ -1952,7 +1952,7 @@ describe('ActionPopup', () => {
         const typedPrompt = 'Typed while the agent was finishing'
         const promptBox = within(screen.getByLabelText('Prompt')).getByRole('textbox')
         fireEvent.change(promptBox, { target: { value: typedPrompt } })
-        const draft = actionPromptDraftService.getDraft('stream', context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft('stream', context, null, { prepare: false })
         expect(draft.getSnapshot()).toBe(typedPrompt)
 
         act(() => runListener?.({ ...eventBase, interactionReady: false, status: 'waitingForInput', type: 'action' }))
@@ -1962,7 +1962,7 @@ describe('ActionPopup', () => {
         act(() => runListener?.({ ...eventBase, status: 'completed', type: 'run' }))
 
         expect(within(screen.getByLabelText('Prompt')).getByRole('textbox')).toHaveValue(typedPrompt)
-        expect(actionPromptDraftService.getDraft('stream', context, 'run-1', { prepare: false })).toBe(draft)
+        expect(actionPromptDraftService.getDraft('stream', context, null, { prepare: false })).toBe(draft)
     })
 
     it('accepts Send while running and Ctrl+Enter while waiting through the same live run', async () => {
@@ -2001,26 +2001,145 @@ describe('ActionPopup', () => {
         const sendButton = screen.getByRole('button', { name: 'Send' })
         expect(sendButton).toBeEnabled()
         fireEvent.click(sendButton)
-        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Steer while running'))
+        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Steer while running', expect.any(String)))
         await waitFor(() => expect(prompt).toHaveValue(''))
 
         act(() => runListener?.({ ...eventBase, status: 'waitingForInput', type: 'agentState' }))
         fireEvent.change(prompt, { target: { value: 'Continue manually' } })
         fireEvent.keyDown(prompt, { ctrlKey: true, key: 'Enter' })
 
-        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue manually'))
+        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue manually', expect.any(String)))
         await waitFor(() => expect(prompt).toHaveValue(''))
     })
 
-    it('retains manually typed waiting input and reports a failed live send', async () => {
+    it('shows an active submission before bridge response and replaces it through queued and sent states', async () => {
+        actionRunRegistry.stop()
+        const waitingContext: ActionContext = { kind: 'project' }
+        const response = deferredValue<ActionQueuedPrompt>()
+        const enqueueActionPrompt = vi.fn((...request: [string, string, string]) => {
+            expect(request).toHaveLength(3)
+            return response.promise
+        })
+        let runListener: ((event: ActionRunEvent) => void) | null = null
+        window.md2Actions = {
+            enqueueActionPrompt,
+            loadActionRunHistory: vi.fn(async () => []),
+            onActionRun: vi.fn((listener) => {
+                runListener = listener
+
+                return vi.fn()
+            }),
+            prepareActionPrompt: vi.fn(async () => ({ prompt: '' })),
+        } as unknown as typeof window.md2Actions
+        mockCodexAvailable()
+        actionRunRegistry.start()
+        actionService.loadFromFiles([file(agentDefinition('stream', { label: 'Stream', streaming: true }))])
+        renderPopup(waitingContext)
+        await waitFor(() => expect(runListener).not.toBeNull())
+        const eventBase = {
+            actionId: 'stream', actionType: 'agent' as const, autoFinish: null, context: waitingContext,
+            interactionReady: true, phase: 'main' as const, rootActionId: 'stream', runId: 'run-1', streaming: true,
+        }
+        const liveConversation = agentConversation({ actionId: 'stream', cardInternalId: null, cardPath: null })
+        act(() => {
+            runListener?.({ ...eventBase, status: 'running', type: 'run' })
+            runListener?.({ ...eventBase, status: 'running', type: 'action' })
+            runListener?.({
+                ...eventBase, status: 'running', type: 'update',
+                update: { continued: false, conversation: liveConversation, kind: 'agentStarted' },
+            })
+        })
+        const prompt = within(screen.getByLabelText('Prompt')).getByRole('textbox')
+        fireEvent.change(prompt, { target: { value: 'Send this' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+        const pending = await screen.findByLabelText('Pending prompt')
+        expect(pending).toHaveTextContent('In transmission')
+        expect(pending).toHaveTextContent('Send this')
+        expect(prompt).toHaveValue('')
+
+        const submissionId = enqueueActionPrompt.mock.calls[0]?.[2]
+        if (!submissionId) throw new Error('Missing local submission ID')
+        const queuedPrompt = { content: 'Send this', dispatchState: 'queued' as const, id: submissionId, revision: 0 }
+        act(() => runListener?.({
+            ...eventBase, status: 'running', type: 'update',
+            update: { entry: queuedPrompt, kind: 'agentPromptQueued' },
+        }))
+        expect(screen.queryByLabelText('Pending prompt')).not.toBeInTheDocument()
+        expect(screen.getAllByLabelText('Queued prompt')).toHaveLength(1)
+        fireEvent.change(prompt, { target: { value: 'Newer edit' } })
+        await act(async () => response.resolve(queuedPrompt))
+        expect(prompt).toHaveValue('Newer edit')
+        expect(screen.getAllByLabelText('Queued prompt')).toHaveLength(1)
+
+        act(() => runListener?.({
+            ...eventBase, status: 'running', type: 'update',
+            update: { kind: 'agentPromptDispatched', promptId: queuedPrompt.id, revision: 0 },
+        }))
+        expect(screen.getByLabelText('Pending prompt')).toHaveTextContent('Send this')
+        act(() => runListener?.({
+            ...eventBase, status: 'running', type: 'update',
+            update: {kind: 'agentUserMessage', userMessage: {agent: 'codex', content: 'Send this', id: submissionId, kind: 'message', role: 'user', timestamp: 'now'}},
+        }))
+        expect(screen.queryByLabelText('Pending prompt')).not.toBeInTheDocument()
+        expect(screen.queryByLabelText('Queued prompt')).not.toBeInTheDocument()
+        expect(screen.getAllByText('Send this')).toHaveLength(1)
+    })
+
+    it('shows a new-run submission before start returns and removes it when startup conversation arrives', async () => {
+        actionRunRegistry.stop()
+        const projectContext: ActionContext = { kind: 'project' }
+        const startResponse = deferredValue<string>()
+        let runListener: ((event: ActionRunEvent) => void) | null = null
+        window.md2Actions = {
+            loadActionRunHistory: vi.fn(async () => []),
+            onActionRun: vi.fn((listener) => {
+                runListener = listener
+
+                return vi.fn()
+            }),
+            prepareActionPrompt: vi.fn(async () => ({ prompt: '' })),
+            startAction: vi.fn(() => startResponse.promise),
+        } as unknown as typeof window.md2Actions
+        mockCodexAvailable()
+        actionRunRegistry.start()
+        actionService.loadFromFiles([file(agentDefinition('stream', { label: 'Stream', streaming: true }))])
+        renderPopup(projectContext)
+        const prompt = within(screen.getByLabelText('Prompt')).getByRole('textbox')
+        await waitFor(() => expect(prompt).not.toHaveAttribute('readonly'))
+        fireEvent.change(prompt, { target: { value: 'Start now' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+        expect(await screen.findByLabelText('Pending prompt')).toHaveTextContent('In transmission')
+        expect(screen.getByLabelText('Pending prompt')).toHaveTextContent('Start now')
+
+        const eventBase = {
+            actionId: 'stream', actionType: 'agent' as const, autoFinish: null, context: projectContext,
+            interactionReady: true, phase: 'main' as const, rootActionId: 'stream', runId: 'run-1', streaming: true,
+        }
+        const userMessage = {
+            agent: 'codex', content: 'Start now', id: 'user-1', kind: 'message' as const,
+            role: 'user' as const, timestamp: 'now',
+        }
+        const liveConversation = agentConversation({actionId: 'stream', cardInternalId: null, cardPath: null, entries: [userMessage]})
+        act(() => {
+            runListener?.({ ...eventBase, status: 'running', type: 'run' })
+            runListener?.({
+                ...eventBase, status: 'running', type: 'update',
+                update: { continued: false, conversation: liveConversation, kind: 'agentStarted' },
+            })
+        })
+        await act(async () => startResponse.resolve('run-1'))
+        expect(screen.queryByLabelText('Pending prompt')).not.toBeInTheDocument()
+        expect(screen.getAllByText('Start now')).toHaveLength(1)
+    })
+
+    it('shows a rejected transmission in the chatlog without overwriting newer input', async () => {
         actionRunRegistry.stop()
         const waitingContext: ActionContext = { kind: 'project' }
         let runListener: ((event: ActionRunEvent) => void) | null = null
         const sendError = new Error('live send failed')
+        const rejection = rejectableDeferred<ActionQueuedPrompt>()
         window.md2Actions = {
-            enqueueActionPrompt: vi.fn(async () => {
-                throw sendError
-            }),
+            enqueueActionPrompt: vi.fn(() => rejection.promise),
             loadActionRunHistory: vi.fn(async () => []),
             onActionRun: vi.fn((listener) => {
                 runListener = listener
@@ -2046,9 +2165,14 @@ describe('ActionPopup', () => {
 
         fireEvent.change(prompt, { target: { value: 'Keep this draft' } })
         fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+        expect(await screen.findByLabelText('Pending prompt')).toHaveTextContent('Keep this draft')
+        fireEvent.change(prompt, { target: { value: 'Newer draft' } })
+        await act(async () => rejection.reject(sendError))
 
-        await waitFor(() => expect(reportError).toHaveBeenCalledWith(sendError, { fallbackMessage: 'Could not send agent message' }))
-        expect(prompt).toHaveValue('Keep this draft')
+        await waitFor(() => expect(screen.getByLabelText('Pending prompt')).toHaveTextContent('Failed to send'))
+        expect(screen.getByLabelText('Pending prompt')).toHaveTextContent(sendError.message)
+        expect(reportError).not.toHaveBeenCalledWith(sendError, { fallbackMessage: 'Could not send agent message' })
+        expect(prompt).toHaveValue('Newer draft')
         expect(prompt).not.toHaveAttribute('readonly')
     })
 
@@ -2148,7 +2272,7 @@ describe('ActionPopup', () => {
         expect(prompt).toHaveValue('Draft before decisions')
         expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
         fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Draft before decisions'))
+        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Draft before decisions', expect.any(String)))
         await waitFor(() => expect(prompt).toHaveValue(''))
 
         act(() => runListener?.({
@@ -2211,7 +2335,7 @@ describe('ActionPopup', () => {
         expect(promptSurface.lastElementChild).toBe(bottomRow)
 
         await user.dblClick(phraseButton)
-        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue with tests'))
+        await waitFor(() => expect(enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Continue with tests', expect.any(String)))
         expect(enqueueActionPrompt).toHaveBeenCalledTimes(1)
 
         act(() => runListener?.({ ...eventBase, status: 'completed', type: 'run' }))
@@ -2248,7 +2372,7 @@ describe('ActionPopup', () => {
         const promptSurface = screen.getByLabelText('Prompt')
         const textbox = within(promptSurface).getByRole('textbox') as HTMLTextAreaElement
         const phraseButton = await within(promptSurface).findByRole('button', { name: 'Continue' })
-        const promptDraft = actionPromptDraftService.getDraft('respond', context, 'run-1', { prepare: false })
+        const promptDraft = actionPromptDraftService.getDraft('respond', context, null, { prepare: false })
 
         act(() => promptDraft.replace('Existing prompt'))
         fireEvent.click(phraseButton)
@@ -2298,7 +2422,7 @@ describe('ActionPopup', () => {
         const promptSurface = screen.getByLabelText('Prompt')
         const textbox = within(promptSurface).getByRole('textbox') as HTMLTextAreaElement
         const phraseButton = await within(promptSurface).findByRole('button', { name: 'Continue' })
-        const promptDraft = actionPromptDraftService.getDraft('respond', context, 'run-1', { prepare: false })
+        const promptDraft = actionPromptDraftService.getDraft('respond', context, null, { prepare: false })
         const insertionError = new Error('Insertion failed')
         const reportError = vi.spyOn(dialogService, 'error')
         act(() => promptDraft.replace('Keep typed prompt'))
@@ -2750,7 +2874,13 @@ describe('ActionPopup', () => {
             models: { error: null, loading: false, values: [] },
             thinkingLevels: { error: null, loading: false, values: [] },
         })
-        const restartActionRun = vi.fn(async () => {
+        const restartActionRun = vi.fn(async (_runId: string, request: ActionStartRequest) => {
+            const messageId = request.runInput.submissionId
+            if (!messageId) throw new Error('Missing submitted message ID')
+            const startedConversation = {
+                ...switchedConversation,
+                entries: switchedConversation.entries.map((entry) => entry.id === 'user-2' ? { ...entry, id: messageId } : entry),
+            }
             const oldEvent = {
                 actionId: 'stream', actionType: 'agent' as const, autoFinish: null, context: projectContext,
                 interactionReady: true, phase: 'main' as const, rootActionId: 'stream', runId: 'run-1', streaming: true,
@@ -2762,13 +2892,13 @@ describe('ActionPopup', () => {
                 ...newEvent,
                 status: 'running',
                 type: 'update',
-                update: { continued: true, conversation: switchedConversation, kind: 'agentStarted' },
+                update: { continued: true, conversation: startedConversation, kind: 'agentStarted' },
             })
             runListener?.({
                 ...newEvent,
                 status: 'completed',
                 type: 'update',
-                update: { conversation: switchedConversation, kind: 'agentClosed', persisted: true },
+                update: { conversation: startedConversation, kind: 'agentClosed', persisted: true },
             })
             runListener?.({ ...newEvent, status: 'completed', type: 'run' })
 
@@ -2809,7 +2939,7 @@ describe('ActionPopup', () => {
         fireEvent.click(await screen.findByRole('menuitem', { name: 'claude' }))
         const activeRun = actionRunRegistry.getActionRunStore('stream', projectContext)?.getSnapshot()
         if (!activeRun) throw new Error('Expected active stream run')
-        act(() => actionPromptDraftService.getDraft('stream', projectContext, activeRun.runId, { prepare: false }).edit('Continue with Claude'))
+        act(() => actionPromptDraftService.getDraft('stream', projectContext, activeRun.conversation?.id ?? null, { prepare: false }).edit('Continue with Claude'))
         fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
         await waitFor(() => expect(restartActionRun).toHaveBeenCalledWith(
@@ -3027,7 +3157,7 @@ describe('ActionPopup', () => {
                 runListener = listener
                 return vi.fn()
             }),
-            prepareActionPrompt: vi.fn(async () => ({ prompt: 'Plan' })),
+            prepareActionPrompt: vi.fn(async () => ({ prompt: '' })),
         } as unknown as typeof window.md2Actions
         actionRunRegistry.start()
         actionService.loadFromFiles([file(agentDefinition('one-shot', { label: 'One shot' }))])

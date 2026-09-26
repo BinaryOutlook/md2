@@ -20,12 +20,14 @@ export type ActionUserInputResponse = { type: 'version', value: string }
 export interface ActionRunInput {
     agent?: string
     command?: string
+    conversationId?: string
     continueFrom?: string
     diagramPath?: string
     extraPrompt?: string
     model?: string
     permissionMode?: PermissionMode
     prompt?: string
+    submissionId?: string
     thinkingLevel?: ThinkingLevel
     version?: string
 }
@@ -189,7 +191,7 @@ export type ActionRunUpdate =
         kind: 'agentPromptQueued' | 'agentPromptEdited'
     }
     | {
-        kind: 'agentPromptRemoved'
+        kind: 'agentPromptDeleted' | 'agentPromptDiscarded' | 'agentPromptDispatched'
         promptId: string
         revision: number
     }

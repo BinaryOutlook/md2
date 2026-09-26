@@ -757,7 +757,7 @@ export class ActionRunRegistry extends EventTarget {
                 status: result.status,
             }
             store.update(next)
-            actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
+            actionPromptDraftService.flushContextDrafts(next.rootActionId, next.context)
             this.publishActiveIndexes(contextKey(current.context), contextKey(next.context))
         }
 
@@ -832,7 +832,7 @@ export class ActionRunRegistry extends EventTarget {
         }
         if (event.type === 'run' && TERMINAL_STATUSES.has(event.status as ActionRunTerminalStatus)) {
             next = { ...next, approvals: [], question: null, queuedPrompts: [] }
-            actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
+            actionPromptDraftService.flushContextDrafts(next.rootActionId, next.context)
         }
         if (event.type === 'agentState') next = { ...next, status: event.status }
         if (event.type === 'action') {
@@ -849,7 +849,7 @@ export class ActionRunRegistry extends EventTarget {
                 reference: event.reference ?? next.reference,
             }
             if (active) next.status = event.status
-            if (!active) actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
+            else actionPromptDraftService.flushContextDrafts(next.rootActionId, next.context)
         }
         if (event.type === 'agentState') {
             next = {
@@ -870,14 +870,12 @@ export class ActionRunRegistry extends EventTarget {
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentStarted') {
-            const { continued } = event.update
             next = {
                 ...next,
                 conversation: event.update.conversation,
                 conversationChange: { kind: 'replace' },
                 conversationPersisted: null,
             }
-            if (continued) actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
         }
         if (event.type === 'update' && event.update.kind === 'agentClosed') {
             next = {
@@ -928,7 +926,11 @@ export class ActionRunRegistry extends EventTarget {
                     : entry),
             }
         }
-        if (event.type === 'update' && event.update.kind === 'agentPromptRemoved') {
+        if (event.type === 'update' && (
+            event.update.kind === 'agentPromptDeleted'
+            || event.update.kind === 'agentPromptDiscarded'
+            || event.update.kind === 'agentPromptDispatched'
+        )) {
             const { promptId } = event.update
             next = {
                 ...next,
@@ -1116,7 +1118,6 @@ export class ActionRunRegistry extends EventTarget {
         this.runs.delete(runId)
         this.runContexts.delete(runId)
         this.eventSequences.delete(runId)
-        actionPromptDraftService.deleteUneditedDraft(run.rootActionId, run.context, runId)
         this.dispatchEvent(new Event(runEventType(runId)))
     }
 

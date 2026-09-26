@@ -66,6 +66,15 @@ function conversation(entries: AgentConversationEntry[]): AgentConversation {
 
 class TranscriptTestConversationStore extends EventTarget {
     private snapshot = { conversations: [] as AgentConversation[], loading: false, selectedConversation: null as AgentConversation | null }
+    private readonly submissions: [] = []
+    private readonly submissionEvents = new EventTarget()
+    readonly getSubmissions = () => this.submissions
+    readonly getVisibleSubmissions = () => this.submissions
+    readonly subscribeSubmissions = (listener: () => void) => {
+        this.submissionEvents.addEventListener('changed', listener)
+
+        return () => this.submissionEvents.removeEventListener('changed', listener)
+    }
 
     readonly getSnapshot = () => this.snapshot
 

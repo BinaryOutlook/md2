@@ -478,10 +478,12 @@ function createLocalBridgeDispatch(dependencies) {
 
             return actionRunnerService.editQueuedAgentPrompt(runId, promptId, revision, content);
         },
-        enqueueActionPrompt: (runId, content) => {
+        enqueueActionPrompt: (runId, content, submissionId) => {
             if (!actionRunnerService) throw new Error('Action runner is not available');
 
-            return actionRunnerService.enqueueAgentPrompt(runId, content);
+            return submissionId
+                ? actionRunnerService.enqueueAgentPrompt(runId, content, submissionId)
+                : actionRunnerService.enqueueAgentPrompt(runId, content);
         },
         generateDiff: async (request) => {
             const result = await diffService.generateDiff(currentLocalProject, request);

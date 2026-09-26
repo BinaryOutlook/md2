@@ -20,5 +20,7 @@ export function ActionConversationQueuedPrompts({ tracker }: ActionConversationQ
     )
     if (!runId) return null
 
-    return queuedPrompts.map((entry) => <ActionQueuedPromptRow entry={entry} key={entry.id} runId={runId} />)
+    return queuedPrompts.map((entry) => (
+        <ActionQueuedPromptRow entry={entry} key={entry.id} runId={runId} />
+    ))
 }

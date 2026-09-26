@@ -31,6 +31,7 @@ export function ActionPopupContent(props: ActionPopupContentProps) {
         return () => {
             bindings.usageValuesService.stop()
             bindings.bindingStore.dispose()
+            bindings.conversationStore.dispose()
         }
     }, [bindings])
     const runtime: ActionPopupRuntime = {

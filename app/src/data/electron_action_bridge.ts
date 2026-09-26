@@ -178,7 +178,7 @@ export interface ElectronActionBridge {
     deleteSchedule?(scheduleId: string): Promise<AnySchedule[]>
     dismissActionQuestions?(runId: string, requestId: number | string | null): Promise<void>
     editActionQueuedPrompt?(runId: string, promptId: string, revision: number, content: string): Promise<ActionQueuedPrompt>
-    enqueueActionPrompt?(runId: string, content: string): Promise<ActionQueuedPrompt>
+    enqueueActionPrompt?(runId: string, content: string, submissionId: string): Promise<ActionQueuedPrompt>
     finishActionRun?(runId: string): Promise<void>
     generateDiff(request: DiffRequest): Promise<DiffResult>
     generateWorktreeDiff(request: WorktreeDiffRequest): Promise<WorktreeDiffResult>

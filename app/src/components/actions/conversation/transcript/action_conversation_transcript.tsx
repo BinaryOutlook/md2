@@ -6,6 +6,7 @@ import { ActionConversationChatlogTracker } from './action_conversation_chatlog_
 import { ActionConversationEvolvingGroups } from './action_conversation_evolving_groups'
 import { ActionConversationHistory } from './action_conversation_history'
 import { ActionConversationQueuedPrompts } from './action_conversation_queued_prompts'
+import { ActionConversationPendingSubmissions } from './action_conversation_pending_submissions'
 import { ActionConversationReservedBlocks } from './action_conversation_reserved_blocks'
 import type { ActionConversationStore } from '../state/action_conversation_store'
 import type { ActionConversationCommandOperations } from '../state/action_conversation_command_service'
@@ -99,6 +100,7 @@ export const ActionConversationTranscript = memo(function ActionConversationTran
             tracker.subscribeEvolvingGroups(handleContentChange),
             tracker.subscribeReservedBlockCount(handleContentChange),
             tracker.subscribeQueuedPrompts(handleContentChange),
+            tracker.subscribeSubmissions(handleContentChange),
             tracker.subscribeConversation(handleConversationChange),
         ]
 
@@ -134,6 +136,7 @@ export const ActionConversationTranscript = memo(function ActionConversationTran
             {tracker ? <ActionConversationEvolvingGroups commands={commands} tracker={tracker} /> : null}
             {tracker ? <ActionConversationReservedBlocks tracker={tracker} /> : null}
             {tracker ? <ActionConversationQueuedPrompts tracker={tracker} /> : null}
+            {tracker ? <ActionConversationPendingSubmissions tracker={tracker} /> : null}
         </Stack>
     )
 })

@@ -108,7 +108,9 @@ export function ActionPromptOwner(props: ActionPromptOwnerProps) {
         && conversationSnapshot.selectedConversation === null
     const prepare = newConversationDraft && !conversationSnapshot.loading
     const commandInitialValue = sessionActive && activeActionType === 'agent' ? '' : undefined
-    const promptDraft = currentActionPromptDraft(action, context, bindingStore, newConversationDraft, commandInitialValue)
+    const promptDraft = currentActionPromptDraft(
+        action, context, bindingStore, conversationStore, newConversationDraft, commandInitialValue,
+    )
     const handleAttachments = useCallback(async (files: File[], insertMarkdown: (markdown: string) => void) => {
         const attachmentWorkflow = await import('../../../services/attachments/attachment_workflow')
         if (context.file) {

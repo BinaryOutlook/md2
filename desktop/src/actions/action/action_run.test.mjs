@@ -672,14 +672,14 @@ describe('ActionRun', () => {
         await agentStarted.promise;
 
         await run.sendAgentMessage('Direct {{worktree-folder}} {{repository-folder}} {{card-file}} {{card-prompt}} {{unknown}}');
-        const entry = await run.enqueueAgentPrompt('Queued {{worktree-folder}} {{card-file}}');
+        const entry = await run.enqueueAgentPrompt('Queued {{worktree-folder}} {{card-file}}', 'submission-1');
         await expect(run.enqueueAgentPrompt('Broken {{card-title}}')).rejects.toThrow('without a card title');
         expect(events).toContainEqual(expect.objectContaining({update: { entry, kind: 'agentPromptQueued' }}));
         agentInput.onEvent({ state: 'waitingForInput', status: 'waitingForInput', type: 'state' });
         await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
 
         expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Direct C:/worktrees/2 C:/repo design/card.md  {{unknown}}');
-        expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Queued C:/worktrees/2 design/card.md');
+        expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Queued C:/worktrees/2 design/card.md', 'submission-1');
 
         agentCompletion.resolve();
         await run.completion;
@@ -731,12 +731,12 @@ describe('ActionRun', () => {
         runState.question = true;
         agentInput.onEvent({ state: 'waitingForInput', status: 'waitingForInput', type: 'state' });
         agentInput.onEvent({questions: [{ id: 'confirm', question: 'Proceed?' }], requestId: 7, status: 'waitingForInput', type: 'question'});
-        await run.enqueueAgentPrompt('Continue differently');
+        const queuedPrompt = await run.enqueueAgentPrompt('Continue differently');
         await Promise.resolve();
         expect(sendMessage).not.toHaveBeenCalled();
 
         await run.dismissAgentQuestions(7);
-        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Continue differently'));
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Continue differently', queuedPrompt.id));
 
         expect(dismissQuestions).toHaveBeenCalledWith('agent-run', 7);
         expect(events).toContainEqual(expect.objectContaining({
@@ -822,11 +822,11 @@ describe('ActionRun', () => {
                 .mockResolvedValue({ ...result, reference: 'continued.json' }),
         };
         const rootAction = action('main', { agent: 'codex', model: 'gpt', prompt: 'run', type: 'agent' });
-        const { run } = createRun(rootAction, { agentExecutor });
+        const { events, run } = createRun(rootAction, { agentExecutor });
         await vi.waitFor(() => expect(agentExecutor.execute).toHaveBeenCalledOnce());
-        const first = await run.enqueueAgentPrompt('First');
-        const second = await run.enqueueAgentPrompt('Second');
-        await run.enqueueAgentPrompt('Third');
+        const first = await run.enqueueAgentPrompt('First', 'message-1');
+        const second = await run.enqueueAgentPrompt('Second', 'message-2');
+        const third = await run.enqueueAgentPrompt('Third', 'message-3');
         const editedSecond = await run.editQueuedAgentPrompt(second.id, second.revision, 'Edited second');
         await expect(run.editQueuedAgentPrompt(second.id, second.revision, 'Stale edit')).rejects.toThrow('changed before operation');
         expect(() => run.editQueuedAgentPrompt(first.id, first.revision, '   ')).toThrow('cannot be empty');
@@ -835,10 +835,14 @@ describe('ActionRun', () => {
 
         await run.completion;
 
+        expect(first.id).toBe('message-1');
+        expect(events).toContainEqual(expect.objectContaining({ update: { kind: 'agentPromptDeleted', promptId: first.id, revision: 0 } }));
         expect(editedSecond).toMatchObject({ content: 'Edited second', revision: 1 });
         expect(agentExecutor.execute).toHaveBeenCalledTimes(3);
         expect(agentExecutor.execute.mock.calls.slice(1).map(([input]) => input.runInput.prompt))
             .toEqual(['Edited second', 'Third']);
+        expect(agentExecutor.execute.mock.calls.slice(1).map(([input]) => input.runInput.submissionId))
+            .toEqual([second.id, third.id]);
     });
 
     it('drains prompts queued before streaming completion through ordered continuations', async () => {
@@ -918,7 +922,7 @@ describe('ActionRun', () => {
         ]);
         expect(agentRunnerService.sendMessage).not.toHaveBeenCalled();
         const removedPromptIds = events
-            .filter(({ update }) => update?.kind === 'agentPromptRemoved')
+            .filter(({ update }) => update?.kind === 'agentPromptDispatched')
             .map(({ update }) => update.promptId);
         expect(removedPromptIds).toEqual([firstEntry.id, secondEntry.id]);
         expect(events).not.toContainEqual(expect.objectContaining({ status: 'completed', type: 'action' }));
@@ -927,7 +931,7 @@ describe('ActionRun', () => {
         finalCompletion.resolve();
         await expect(run.completion).resolves.toMatchObject({ status: 'completed' });
 
-        const lastRemovalIndex = events.findLastIndex(({ update }) => update?.kind === 'agentPromptRemoved');
+        const lastRemovalIndex = events.findLastIndex(({ update }) => update?.kind === 'agentPromptDispatched');
         const actionCompletionIndex = events.findIndex(({ status, type }) => status === 'completed' && type === 'action');
         const runCompletionIndex = events.findIndex(({ status, type }) => status === 'completed' && type === 'run');
         expect(actionCompletionIndex).toBeGreaterThan(lastRemovalIndex);
@@ -983,7 +987,7 @@ describe('ActionRun', () => {
         firstCompletion.resolve();
         await followUpStarted.promise;
 
-        expect(events.filter(({ update }) => update?.kind === 'agentPromptRemoved'))
+        expect(events.filter(({ update }) => update?.kind === 'agentPromptDispatched'))
             .toEqual([expect.objectContaining({ update: expect.objectContaining({ promptId: firstEntry.id }) })]);
         followUpCompletion.resolve();
         await expect(run.completion).resolves.toMatchObject({ status: 'failed' });
@@ -994,8 +998,10 @@ describe('ActionRun', () => {
             prompt: 'First follow-up',
         });
         expect(agentRunnerService.sendMessage).not.toHaveBeenCalled();
-        expect(events.filter(({ update }) => update?.kind === 'agentPromptRemoved').map(({ update }) => update.promptId))
-            .toEqual([firstEntry.id, laterEntry.id]);
+        expect(events.filter(({ update }) => update?.kind === 'agentPromptDispatched').map(({ update }) => update.promptId))
+            .toEqual([firstEntry.id]);
+        expect(events.filter(({ update }) => update?.kind === 'agentPromptDiscarded').map(({ update }) => update.promptId))
+            .toEqual([laterEntry.id]);
     });
 
     it('sends a project agent follow-up during a streaming run and publishes its live event', async () => {
@@ -1027,8 +1033,8 @@ describe('ActionRun', () => {
         });
         await agentStarted.promise;
 
-        await run.enqueueAgentPrompt('Next instruction');
-        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Next instruction'));
+        const queuedPrompt = await run.enqueueAgentPrompt('Next instruction');
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith('agent-run', 'Next instruction', queuedPrompt.id));
         expect(events).toContainEqual(expect.objectContaining({
             context: { kind: 'project' },
             update: expect.objectContaining({ kind: 'agentEvent', entryIndex: 1 }),
@@ -1082,7 +1088,7 @@ describe('ActionRun', () => {
         runState.approvals.delete(41);
         agentInput.onEvent({ requestId: 41, state: 'running', status: 'running', type: 'approvalResolved' });
         await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
-        expect(sendMessage).toHaveBeenLastCalledWith('agent-run', 'First');
+        expect(sendMessage).toHaveBeenLastCalledWith('agent-run', 'First', first.id);
         expect(run.promptQueue.map(({ content }) => content)).toEqual(['Second']);
         expect(run.promptQueue.some(({ id }) => id === first.id)).toBe(false);
 
@@ -1093,13 +1099,13 @@ describe('ActionRun', () => {
 
         sendCompletions[0].resolve();
         await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
-        expect(sendMessage).toHaveBeenLastCalledWith('agent-run', 'Second');
+        expect(sendMessage).toHaveBeenLastCalledWith('agent-run', 'Second', second.id);
         expect(run.promptQueue).toEqual([]);
 
         sendCompletions[1].resolve();
         const third = await thirdEntryPromise;
         await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(3));
-        expect(sendMessage).toHaveBeenLastCalledWith('agent-run', 'Third');
+        expect(sendMessage).toHaveBeenLastCalledWith('agent-run', 'Third', third.id);
         expect(run.promptQueue).toEqual([]);
         sendCompletions[2].resolve();
         await expect(run.editQueuedAgentPrompt(first.id, first.revision, 'Too late')).rejects.toThrow('already sent or removed');
@@ -1108,7 +1114,7 @@ describe('ActionRun', () => {
         expect(maximumActiveWrites).toBe(1);
         expect(new Set(deliveredPrompts).size).toBe(3);
         expect(events
-            .filter(({ update }) => update?.kind === 'agentPromptRemoved')
+            .filter(({ update }) => update?.kind === 'agentPromptDispatched')
             .map(({ update }) => update.promptId))
             .toEqual([first.id, second.id, third.id]);
 
@@ -1144,7 +1150,7 @@ describe('ActionRun', () => {
         run.finishAgent();
 
         expect(agentRunnerService.finish).toHaveBeenCalledWith('agent-run');
-        expect(events).toContainEqual(expect.objectContaining({update: { kind: 'agentPromptRemoved', promptId: entry.id, revision: entry.revision }}));
+        expect(events).toContainEqual(expect.objectContaining({update: { kind: 'agentPromptDiscarded', promptId: entry.id, revision: entry.revision }}));
         await expect(run.enqueueAgentPrompt('Too late')).rejects.toThrow('no longer accepts');
         agentCompletion.resolve();
         await run.completion;

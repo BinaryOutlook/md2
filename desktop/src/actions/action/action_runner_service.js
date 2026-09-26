@@ -217,6 +217,7 @@ class ActionRunnerService {
         this.runEvents.set(runId, []);
         this.runs.set(runId, run);
         run.start(this.finalizeRun.bind(this, run));
+        if (rootAction.type === 'agent') await run.waitForInitialConversationSave();
 
         return runId;
     }
@@ -229,7 +230,7 @@ class ActionRunnerService {
         const action = await this.loadRootAction(startRequest.actionId);
         if (action.type !== 'agent') throw new Error('Cannot reserve a conversation for a command action');
         const origin = activityOrigin(startRequest.context);
-        const conversationId = `agent-${crypto.randomUUID()}`;
+        const conversationId = startRequest.runInput.conversationId ?? `agent-${crypto.randomUUID()}`;
         const reference = this.localGitService.activityConversationReference(this.projectFolder, origin, conversationId);
         const { activityPath } = parseConversationActivityReference(reference);
         const reservation = { activityPath, conversationId, reference };
@@ -349,8 +350,8 @@ class ActionRunnerService {
         return this.requireRun(runId).sendAgentMessage(content);
     }
 
-    enqueueAgentPrompt(runId, content) {
-        return this.requireRun(runId).enqueueAgentPrompt(content);
+    enqueueAgentPrompt(runId, content, submissionId) {
+        return this.requireRun(runId).enqueueAgentPrompt(content, submissionId);
     }
 
     editQueuedAgentPrompt(runId, promptId, revision, content) {

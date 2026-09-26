@@ -140,6 +140,14 @@ function conversation(
 
 class TranscriptTestConversationStore extends EventTarget {
     private readonly snapshot = { conversations: [], loading: false, selectedConversation: null }
+    private readonly submissions: [] = []
+    private readonly submissionEvents = new EventTarget()
+    readonly getSubmissions = () => this.submissions
+    readonly subscribeSubmissions = (listener: () => void) => {
+        this.submissionEvents.addEventListener('changed', listener)
+
+        return () => this.submissionEvents.removeEventListener('changed', listener)
+    }
 
     readonly getSnapshot = () => this.snapshot
 
