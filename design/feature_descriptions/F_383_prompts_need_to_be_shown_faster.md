@@ -32,10 +32,26 @@ changedFiles:
   - app/src/components/actions/run/popup/action_popup_content.tsx
   - app/src/components/actions/run/popup/action_popup_operations.node.test.ts
   - app/src/components/actions/run/popup/action_popup_operations.ts
+  - app/src/data/action_run_types.ts
+  - app/src/data/electron_action_bridge.ts
   - app/src/services/actions/action_prompt_draft_service.node.test.ts
   - app/src/services/actions/action_prompt_draft_service.ts
   - app/src/services/actions/action_run_registry.node.test.ts
   - app/src/services/actions/action_run_registry.ts
+  - app/src/services/data/remote_control_storage_service.node.test.ts
+  - app/src/services/data/remote_control_storage_service.ts
+  - desktop/src/actions/action/action_agent_executor.js
+  - desktop/src/actions/action/action_agent_executor.test.mjs
+  - desktop/src/actions/action/action_run.js
+  - desktop/src/actions/action/action_run.test.mjs
+  - desktop/src/actions/action/action_run_request.js
+  - desktop/src/actions/action/action_run_request.test.mjs
+  - desktop/src/actions/action/action_runner_service.js
+  - desktop/src/actions/action/action_runner_service.test.mjs
+  - desktop/src/actions/agent/agent_run_interactions.js
+  - desktop/src/actions/agent/agent_runner_service.js
+  - desktop/src/actions/agent/agent_runner_state.test.mjs
+  - desktop/src/shell/local_bridge_dispatch.js
 ---
 We generated a squence diagram (json file), of the action popup and its interactions. There, you can see that input sent by the user to the agent, first goes to backend and back to frontend before it is shown in the chatlog. This is too late.
 
