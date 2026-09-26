@@ -9,8 +9,6 @@ affects:
 agents:
   - design/activity/card__2b159c84-ea24-4b1c-9969-b0ddb00f3051.json
 policy:
-branch: f_386_remove_buttons_from_cards
-worktree: 1
 changedFiles:
   - app/src/components/card_view/card_body_popover.tsx
   - app/src/components/card_view/card_body_popover_state.test.tsx
