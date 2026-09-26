@@ -1123,13 +1123,50 @@
         "totalTokens": 1239259
       },
       "usageSchemaVersion": 1,
-      "viewed": true
+      "viewed": false
     }
   ],
   "origin": {
     "cardInternalId": "2b159c84-ea24-4b1c-9969-b0ddb00f3051",
     "kind": "card"
   },
-  "records": [],
+  "records": [
+    {
+      "commits": [
+        {
+          "branch": "dev_main",
+          "commit": "81b175372ffac419680b5937c97eb31d7cbbe7d8",
+          "committedAt": "2026-09-26T19:08:11+02:00",
+          "deletions": 2,
+          "filePaths": [
+            "design/feature_descriptions/F_386_remove_buttons_from_cards.md"
+          ],
+          "filesChanged": 1,
+          "insertions": 21
+        }
+      ],
+      "completedAt": "2026-09-26T17:08:11.844Z",
+      "conversationIds": [
+        "agent-ecd9ff6c-0391-4d18-9537-b28621835910"
+      ],
+      "details": {
+        "agent": "codex",
+        "model": "gpt-6-sol",
+        "permissionMode": "approve-for-me",
+        "thinkingLevel": "medium",
+        "type": "agent"
+      },
+      "runId": "action-47d55bc1-4abe-42f3-b1b0-72be7b801a17",
+      "origin": {
+        "cardInternalId": "2b159c84-ea24-4b1c-9969-b0ddb00f3051",
+        "kind": "card"
+      },
+      "rootActionId": "5b88355d-f964-459a-bc67-6618650866ba",
+      "rootActionLabel": "complete",
+      "rootConversationId": "agent-ecd9ff6c-0391-4d18-9537-b28621835910",
+      "startedAt": "2026-09-26T17:03:36.758Z",
+      "status": "completed"
+    }
+  ],
   "version": 5
 }
