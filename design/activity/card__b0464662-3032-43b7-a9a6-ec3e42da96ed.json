@@ -5,7 +5,7 @@
       "actionId": "md2.custom-prompt",
       "cardInternalId": "b0464662-3032-43b7-a9a6-ec3e42da96ed",
       "cardPath": "design/feature_descriptions/J_53_fix_bad_design_open_project_dialog.md",
-      "completedAt": null,
+      "completedAt": "2026-09-26T09:21:44.396Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 29580
@@ -5381,7 +5381,7 @@
         }
       ],
       "startedAt": "2026-09-24T08:05:36.285Z",
-      "status": "waitingForInput",
+      "status": "completed",
       "timer": {
         "breakdown": {
           "reasoningMs": 696521,
@@ -5462,11 +5462,11 @@
         "agent-37906e1d-f38b-432f-b21f-cee5dc51d19b"
       ],
       "details": {
+        "type": "agent",
         "agent": "codex",
         "model": "gpt-6-sol",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-f5cec707-e2c1-4246-bb22-716a6916988f",
       "origin": {
@@ -5475,9 +5475,9 @@
       },
       "rootActionId": "md2.custom-prompt",
       "rootActionLabel": "+",
-      "rootConversationId": "agent-37906e1d-f38b-432f-b21f-cee5dc51d19b",
       "startedAt": "2026-09-25T08:57:59.611Z",
-      "status": "cancelled"
+      "status": "cancelled",
+      "rootConversationId": "agent-37906e1d-f38b-432f-b21f-cee5dc51d19b"
     }
   ],
   "version": 5
