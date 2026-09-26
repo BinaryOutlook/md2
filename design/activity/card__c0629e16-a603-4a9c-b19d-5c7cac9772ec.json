@@ -12510,7 +12510,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 95344
+        "usedTokens": 95749
       },
       "entries": [
         {
@@ -14902,6 +14902,36 @@
           "role": "assistant",
           "sequence": 175,
           "timestamp": "2026-09-26T14:13:16.977Z"
+        },
+        {
+          "content": "> The fix is to include the removal reason in the backend event, so every popup can clear a deleted prompt while retaining a dispatching prompt until its sent message arrives.\n\ndon't we have a message id?&#x20;\n\nalso using the same message for 2 different meanings is not a good idea",
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-user-175",
+          "kind": "message",
+          "role": "user",
+          "sequence": 176,
+          "timestamp": "2026-09-26T14:29:32.761Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-177",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_0b3fa084abbc22fe016ab7d6d10aec87d28fefd7c12629f896",
+          "sequence": 177,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T14:29:39.174Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "We have IDs, but they identify **which submission** is involved, not **why it left the queue**. The queued prompt has a `promptId`; the eventual sent message gets a different message ID and carries the local `submissionId`. A deleted prompt never produces that sent message.\n\nI agree that `agentPromptRemoved` carries two meanings. The cleaner fix is separate events for **deleted**, **dispatched**, and **discarded** prompts, each carrying the queued prompt ID. Then every popup can clear deleted or discarded rows immediately and keep a dispatched row until its matching sent message arrives.\n\n",
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-5-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 178,
+          "timestamp": "2026-09-26T14:29:40.876Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -14911,27 +14941,27 @@
           "agent": "codex",
           "conversationId": "01a0ddea-373b-7831-913e-d069f8e3719b",
           "createdAt": "2026-09-26T13:33:03.472Z",
-          "lastUsedAt": "2026-09-26T14:11:29.942Z",
-          "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-3-assistant-4"
+          "lastUsedAt": "2026-09-26T14:13:16.977Z",
+          "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-4-assistant-2"
         }
       ],
       "startedAt": "2026-09-26T13:29:07.331Z",
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 118509,
+          "reasoningMs": 123052,
           "toolMs": 13589
         },
-        "elapsedMs": 375736,
-        "runningStartedAt": "2026-09-26T14:12:53.213Z"
+        "elapsedMs": 399500,
+        "runningStartedAt": "2026-09-26T14:29:32.761Z"
       },
       "title": "review (split) (split)",
       "usage": {
-        "cachedInputTokens": 2482304,
-        "inputTokens": 135059,
-        "outputTokens": 7609,
-        "reasoningTokens": 5478,
-        "totalTokens": 2630450
+        "cachedInputTokens": 2577152,
+        "inputTokens": 135621,
+        "outputTokens": 7735,
+        "reasoningTokens": 5691,
+        "totalTokens": 2726199
       },
       "usageSchemaVersion": 1,
       "viewed": true
