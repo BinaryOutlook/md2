@@ -764,6 +764,14 @@
           "role": "assistant",
           "sequence": 57,
           "timestamp": "2026-09-26T18:15:52.829Z"
+        },
+        {
+          "content": "Used types \\= entries derived from nodes and connections already innlegend",
+          "id": "submission-dc373672-d189-45ef-8b91-4cbf20a6f574",
+          "kind": "message",
+          "role": "user",
+          "sequence": 58,
+          "timestamp": "2026-09-26T18:23:00.140Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -778,14 +786,14 @@
         }
       ],
       "startedAt": "2026-09-26T18:13:06.639Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 42653,
           "toolMs": 1361
         },
         "elapsedMs": 166190,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-26T18:23:00.140Z"
       },
       "title": "complete",
       "usage": {
