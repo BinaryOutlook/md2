@@ -9,4 +9,9 @@ affects:
 agents:
 policy:
 ---
+The stats view currently already supports 2 view modes: tables and charts. Currently selection between the 2 is made based on screen size.
 
+We need to change 2 things:
+
+* Switch between mode should be possible from the stats menu: 2 icon buttons in group
+* When on small screen, show bars in charts horizontally, so user can scroll down to see more values(phone format)
