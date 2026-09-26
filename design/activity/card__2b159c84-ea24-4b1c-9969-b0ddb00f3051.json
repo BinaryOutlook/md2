@@ -5,7 +5,7 @@
       "actionId": "5b88355d-f964-459a-bc67-6618650866ba",
       "cardInternalId": "2b159c84-ea24-4b1c-9969-b0ddb00f3051",
       "cardPath": "design/feature_descriptions/F_386_remove_buttons_from_cards.md",
-      "completedAt": null,
+      "completedAt": "2026-09-26T17:08:10.977Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 68840
@@ -1090,21 +1090,29 @@
           "kind": "message",
           "role": "assistant",
           "sequence": 80,
-          "timestamp": "2026-09-26T17:08:10.449Z"
+          "timestamp": "2026-09-26T17:08:10.977Z"
         }
       ],
       "hasExplicitTitle": true,
       "id": "agent-ecd9ff6c-0391-4d18-9537-b28621835910",
-      "providerSessions": [],
+      "providerSessions": [
+        {
+          "agent": "codex",
+          "conversationId": "01a0deac-2198-7de2-8aaf-1485cf47f41d",
+          "createdAt": "2026-09-26T17:08:10.977Z",
+          "lastUsedAt": "2026-09-26T17:08:10.977Z",
+          "synchronizedThroughMessageId": "agent-turn-79a1ea3c-c4a5-4f9a-9bde-1651dc410735-turn-1-assistant-8"
+        }
+      ],
       "startedAt": "2026-09-26T17:03:36.761Z",
-      "status": "running",
+      "status": "completed",
       "timer": {
         "breakdown": {
           "reasoningMs": 72825,
           "toolMs": 4137
         },
-        "elapsedMs": 0,
-        "runningStartedAt": "2026-09-26T17:03:36.761Z"
+        "elapsedMs": 274216,
+        "runningStartedAt": null
       },
       "title": "complete",
       "usage": {
