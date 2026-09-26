@@ -4744,6 +4744,14 @@
           "role": "assistant",
           "sequence": 69,
           "timestamp": "2026-09-26T09:48:52.373Z"
+        },
+        {
+          "content": "yes, this is clearly a bad algorithm\n\n> While that request is pending, the text remains in the editor and Send remains enabled. A second click or Ctrl/Cmd+Enter submits it again.\n\nif a second request is sent, it should go into the 'queue' which we already support.\n\n> What is an editor revision? It is an existing counter that changes when the draft is edited. This code compares it before clearing the draft so a late response does not erase newer typing. Clearing on Send would remove the need for that comparison in this submission path. That does not imply removing revisions used elsewhere.\n\na draft gets cleared when it is sent. why should it be cleared for any other reason? the only thing we need to keep track of:\n\n* for each (card or type of global agent)-action-conversation: a draft\n* per draft: has user changed it or not\n\nI don't think we need more. investigate and come back to me on this.\n\n> Why would a submission be rejected? The backend can refuse the queue request if, for example, the run ends or stops accepting prompts before the request is processed. A new run can also fail to start. Those are ordinary failure paths, so the submitted text still needs to be recoverable.\n\nthat is not not a reason to put the text back into the draft. it means the operation failed, we need to show in the log that we could not send it.",
+          "id": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-user-69",
+          "kind": "message",
+          "role": "user",
+          "sequence": 70,
+          "timestamp": "2026-09-26T09:55:16.610Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -4758,14 +4766,14 @@
         }
       ],
       "startedAt": "2026-09-26T09:19:26.107Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 54889,
           "toolMs": 2518
         },
         "elapsedMs": 141271,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-26T09:55:16.610Z"
       },
       "title": "review",
       "usage": {
