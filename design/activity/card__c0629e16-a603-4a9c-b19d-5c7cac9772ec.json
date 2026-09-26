@@ -7867,19 +7867,19 @@
           "agent": "codex",
           "conversationId": "01a0dd03-27ce-7681-8cb3-2fa35b61993f",
           "createdAt": "2026-09-26T09:21:25.705Z",
-          "lastUsedAt": "2026-09-26T11:56:15.662Z",
-          "synchronizedThroughMessageId": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-turn-4-assistant-1"
+          "lastUsedAt": "2026-09-26T12:19:11.705Z",
+          "synchronizedThroughMessageId": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-turn-5-assistant-6"
         }
       ],
       "startedAt": "2026-09-26T09:19:26.107Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 427450,
           "toolMs": 417675
         },
-        "elapsedMs": 202623,
-        "runningStartedAt": "2026-09-26T11:58:19.107Z"
+        "elapsedMs": 1455221,
+        "runningStartedAt": null
       },
       "title": "review",
       "usage": {
