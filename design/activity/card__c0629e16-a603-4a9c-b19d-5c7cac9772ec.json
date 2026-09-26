@@ -3783,7 +3783,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 116821
+        "usedTokens": 117595
       },
       "entries": [
         {
@@ -5025,6 +5025,28 @@
           "role": "user",
           "sequence": 90,
           "timestamp": "2026-09-26T11:56:01.405Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-event-91",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_0c64a24ada5c6a81016ab7b2d6bfa487d2a8e55b2d351baa90",
+          "sequence": 91,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T11:56:10.345Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "Yes. A **run ID identifies one execution of an agent**; a conversation ID identifies the conversation. Restarting or continuing a conversation can create a new run ID while keeping the same conversation ID. Using the run ID in the draft key is therefore wrong for the ownership you want.\n\nI’ve got the rule now: one draft per card or global-agent type, action, and conversation, with a separate identity for a *new* conversation. **Send is the operation that clears that draft.** Backend acceptance changes the submission row; run start, cancel, finish, and conversation selection must not clear user text. A failed send leaves a failed row in the chatlog and does not put text back into the draft.\n\nThe current UI starts prompt preparation only when “new conversation” is selected. There is still a gap: an already-running preparation can finish after the user selects an existing conversation, and the current run-based draft key does not isolate those drafts. The conversation-based key needs to make that late result belong only to the new-conversation draft. The “user changed it” flag remains useful for deciding whether a prepared default may be applied. No files were changed.\n\n",
+          "id": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-turn-4-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 92,
+          "timestamp": "2026-09-26T11:56:15.662Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -5042,7 +5064,7 @@
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 69545,
+          "reasoningMs": 75135,
           "toolMs": 3742
         },
         "elapsedMs": 188366,
@@ -5050,11 +5072,11 @@
       },
       "title": "review",
       "usage": {
-        "cachedInputTokens": 1041664,
-        "inputTokens": 174808,
-        "outputTokens": 4481,
-        "reasoningTokens": 2926,
-        "totalTokens": 1223879
+        "cachedInputTokens": 1157504,
+        "inputTokens": 176013,
+        "outputTokens": 4722,
+        "reasoningTokens": 3235,
+        "totalTokens": 1341474
       },
       "usageSchemaVersion": 1,
       "viewed": true
