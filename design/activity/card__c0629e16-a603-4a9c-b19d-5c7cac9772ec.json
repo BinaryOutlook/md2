@@ -12507,7 +12507,7 @@
       "actionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
       "cardInternalId": "c0629e16-a603-4a9c-b19d-5c7cac9772ec",
       "cardPath": "design/feature_descriptions/F_383_prompts_need_to_be_shown_faster.md",
-      "completedAt": "2026-09-26T15:22:00.155Z",
+      "completedAt": "2026-09-26T15:22:30.930Z",
       "contextWindowUsage": {
         "capacityTokens": 258400,
         "usedTokens": 155255
@@ -16582,7 +16582,7 @@
           "kind": "message",
           "role": "assistant",
           "sequence": 301,
-          "timestamp": "2026-09-26T14:42:20.953Z"
+          "timestamp": "2026-09-26T15:22:30.930Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -16592,7 +16592,7 @@
           "agent": "codex",
           "conversationId": "01a0ddea-373b-7831-913e-d069f8e3719b",
           "createdAt": "2026-09-26T13:33:03.472Z",
-          "lastUsedAt": "2026-09-26T14:42:20.953Z",
+          "lastUsedAt": "2026-09-26T15:22:30.930Z",
           "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-7-assistant-4"
         }
       ],
@@ -16714,11 +16714,11 @@
         "6390a61d-2fca-43db-8b11-2a03dec5e957"
       ],
       "details": {
+        "type": "agent",
         "agent": "codex",
         "model": "gpt-6-sol",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-6580e798-4aa0-4f10-ac1d-83b31331b03d",
       "origin": {
@@ -16727,9 +16727,9 @@
       },
       "rootActionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
       "rootActionLabel": "review",
-      "rootConversationId": "6390a61d-2fca-43db-8b11-2a03dec5e957",
       "startedAt": "2026-09-26T12:27:51.721Z",
-      "status": "completed"
+      "status": "completed",
+      "rootConversationId": "6390a61d-2fca-43db-8b11-2a03dec5e957"
     }
   ],
   "version": 5
