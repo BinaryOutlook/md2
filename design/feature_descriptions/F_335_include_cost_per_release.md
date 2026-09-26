@@ -3,12 +3,12 @@ author:
 id: F_335
 internalId: 22e1a692-a35c-4fe0-a4ea-70545e3e6009
 title: include cost per release
-status: new
+status: design
 owner: 
 affects:
 agents:
 policy:
-after: a796a8b9-1d2c-426a-89ad-926cc55a98da
+after: 2775052a-2e84-4466-a320-155c8ec05bac
 ---
 
 we show the total token count usage in the status bar. when the user clicks on this, we show a popup with the token count divided over release versions and the current.
