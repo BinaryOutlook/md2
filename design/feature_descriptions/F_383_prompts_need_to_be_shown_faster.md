@@ -10,8 +10,6 @@ agents:
   - design/activity/card__c0629e16-a603-4a9c-b19d-5c7cac9772ec.json
 policy:
 after: eb1707b3-15c4-4a42-b86e-db35fbfd9060
-branch: f_383_prompts_need_to_be_shown_faster
-worktree: 3
 changedFiles:
   - app/src/components/actions/agent/action_agent_preset_name_owner.tsx
   - app/src/components/actions/agent/action_prompt_owner.tsx
