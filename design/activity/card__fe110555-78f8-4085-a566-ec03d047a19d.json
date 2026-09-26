@@ -8,7 +8,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 66327
+        "usedTokens": 70342
       },
       "entries": [
         {
@@ -772,6 +772,239 @@
           "role": "user",
           "sequence": 58,
           "timestamp": "2026-09-26T18:23:00.140Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-59",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80d88ef0487d2800a35f94d9bd78b",
+          "sequence": 59,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:23:08.178Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "Thanks. “Used types” means types already shown because diagram nodes or connections use them. I’ll document that meaning and preserve those derived entries when adding first explicit item.\n\n",
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-turn-2-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 60,
+          "timestamp": "2026-09-26T18:23:08.926Z"
+        },
+        {
+          "agent": "codex",
+          "content": "",
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-turn-2-assistant-2",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 61,
+          "timestamp": "2026-09-26T18:23:10.233Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-62",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80d938eec87d29ccd6df2183118a1",
+          "sequence": 62,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:23:15.921Z",
+          "type": "reasoning"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content '\"'app/src/services/diagrams/diagram_edit_session_service.ts'; \"'$f[1768..1805]'",
+          "content": "        const change: DiagramChange = {\r\n            category: 'field', field, id: changeId, objectId, objectKind: 'formatting',\r\n            originalValue, ownerId: null, regionIndex: null, value,\r\n        }\r\n        this.changeRegistry.set(change, `formatting:${objectId}:${field}`, sameFormattingValue(originalValue, value))\r\n        this.commitTransaction([])\r\n        const detail = { field, objectId, objectKind: 'formatting' as const, previousValue, value }\r\n        this.dispatchEvent(new CustomEvent<DiagramFieldChangeDetail>(changeId, { detail }))\r\n    }\r\n\r\n    /** Republishes only the legend key-list view, then dispatches one legend membership event. */\r\n    private finishLegendMembershipChange(addedKeys: readonly string[], removedKeys: readonly string[]) {\r\n        const diagram = this.requireEditableDiagram()\r\n        this.legendEntryKeys = Object.freeze((diagram.meta.legend ?? []).map(diagramLegendEntryKey))\r\n        this.changeRegistry.markLegendPresence()\r\n        for (const entryKey of removedKeys) this.changeRegistry.purgeOwner(`legendEntry:${entryKey}`)\r\n        for (const entryKey of [...addedKeys, ...removedKeys]) this.changeRegistry.markLegendMembership(entryKey)\r\n        for (const entryKey of addedKeys) {\r\n            if (this.changeRegistry.originalLegendKeys.includes(entryKey)) this.changeRegistry.markLegendEntryLabelChange(entryKey)\r\n        }\r\n        this.changeRegistry.markLegendOrderChanges()\r\n        this.commitTransaction([])\r\n        const detail: DiagramLegendMembershipChangeDetail = { addedKeys, removedKeys }\r\n        this.dispatchEvent(new CustomEvent<DiagramLegendMembershipChangeDetail>(\r\n            diagramLegendMembershipChangedEvent(),\r\n            { detail },\r\n        ))\r\n    }\r\n\r\n    private finishEntityFieldMembershipChange(\r\n        nodeId: string,\r\n        addedIndexes: readonly number[],\r\n        removedIndexes: readonly number[],\r\n    ) {\r\n        const node = this.requireNode(nodeId)\r\n        this.entityFieldIndexesByNodeId.set(nodeId, DiagramEditSessionService.entityFieldIndexes(node))\r\n        this.changeRegistry.markEntityFieldMembership(nodeId)\r\n        this.commitTransaction([])\r\n",
+          "durationMs": 37,
+          "exitCode": 0,
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-63",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content '\"'app/src/services/diagrams/diagram_edit_session_service.ts'; \"'$f[1768..1805]'",
+          "providerItemId": "exec-54741e0b-acad-4c4e-860b-2bc87240cdf8",
+          "sequence": 63,
+          "status": "completed",
+          "timestamp": "2026-09-26T18:23:17.717Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-64",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80d9b567487d2aeff3eb66d457b0c",
+          "sequence": 64,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:23:23.556Z",
+          "type": "reasoning"
+        },
+        {
+          "content": "item/started: sleep (call_ISfMRpyEVSIXaMm2kVzfUMpY)\nitem/completed: sleep (call_ISfMRpyEVSIXaMm2kVzfUMpY)",
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-65",
+          "kind": "event",
+          "label": "Codex protocol diagnostic",
+          "providerItemId": "diagnostic:call_ISfMRpyEVSIXaMm2kVzfUMpY:13",
+          "sequence": 65,
+          "status": "completed",
+          "timestamp": "2026-09-26T18:23:24.089Z",
+          "type": "diagnostic"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-66",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80dab816087d2b8c2339214bc7a61",
+          "sequence": 66,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:23:43.199Z",
+          "type": "reasoning"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$bytes=[System.IO.File]::ReadAllBytes('\"'design/feature_descriptions/B_252_adding_legends_to_diagrams_removes_existing.md'); \"'$text=[System.Text.Encoding]::UTF8.GetString($bytes); Write-Output \"CRLF=$(([regex]::Matches($text,\"`r`n\")).Count) LF=$(([regex]::Matches($text,\"(?<!`r)`n\")).Count)\"'",
+          "content": "",
+          "durationMs": 2,
+          "exitCode": 0,
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-67",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$bytes=[System.IO.File]::ReadAllBytes('\"'design/feature_descriptions/B_252_adding_legends_to_diagrams_removes_existing.md'); \"'$text=[System.Text.Encoding]::UTF8.GetString($bytes); Write-Output \"CRLF=$(([regex]::Matches($text,\"`r`n\")).Count) LF=$(([regex]::Matches($text,\"(?<!`r)`n\")).Count)\"'",
+          "providerItemId": "exec-973a2109-e000-4df0-80bf-f5aff0fa327f",
+          "sequence": 67,
+          "status": "completed",
+          "timestamp": "2026-09-26T18:23:46.292Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-68",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80db7f08087d29b5f1c3f5b7d3378",
+          "sequence": 68,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:23:49.365Z",
+          "type": "reasoning"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-69",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80dc7129c87d298c613146af74bd5",
+          "sequence": 69,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:24:04.477Z",
+          "type": "reasoning"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$text=[System.IO.File]::ReadAllText('\"'design/feature_descriptions/B_252_adding_legends_to_diagrams_removes_existing.md'); \"'$text.Split(\"`n\") | ForEach-Object { '\"'[' + \"'$_ + '\"']' }\"",
+          "content": "[---]\r\n[author: ]\r\n[id: B_252]\r\n[internalId: fe110555-78f8-4085-a566-ec03d047a19d]\r\n[title: Adding legends to diagrams removes existing]\r\n[status: design]\r\n[owner: ]\r\n[affects:]\r\n[agents:]\r\n[  - design/activity/card__fe110555-78f8-4085-a566-ec03d047a19d.json]\r\n[policy:]\r\n[---]\r\n[]\r\n[When adding a legend item to a legend that already has items, all existing items are removed. This is wrong.]\r\n[]\r\n[We also need to simplify adding items. We already have a list of types. Show the select containing all unused types. Include checkbox to include used types. Show them in separate group in select. Label can be prefilled from type.]\r\n",
+          "durationMs": 0,
+          "exitCode": 0,
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-70",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$text=[System.IO.File]::ReadAllText('\"'design/feature_descriptions/B_252_adding_legends_to_diagrams_removes_existing.md'); \"'$text.Split(\"`n\") | ForEach-Object { '\"'[' + \"'$_ + '\"']' }\"",
+          "providerItemId": "exec-f5f33dbc-b90e-40db-b396-b52640d2f617",
+          "sequence": 70,
+          "status": "completed",
+          "timestamp": "2026-09-26T18:24:06.859Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-71",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80dcbbf9c87d2a257fe761d308496",
+          "sequence": 71,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:24:08.995Z",
+          "type": "reasoning"
+        },
+        {
+          "content": "update: C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\B_252_adding_legends_to_diagrams_removes_existing.md",
+          "deletions": 1,
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-72",
+          "insertions": 22,
+          "kind": "event",
+          "label": "File changes",
+          "providerItemId": "exec-a6d42e4b-41f7-46d8-b502-a9208d990b8e",
+          "sequence": 72,
+          "status": "completed",
+          "timestamp": "2026-09-26T18:24:22.008Z",
+          "type": "fileChange"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-73",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80ddac9a087d29c88009d87a34fa0",
+          "sequence": 73,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:24:24.233Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "Draft sections now in feature file. One behavior remains unresolved before I set status: what Add does when selected type already appears in derived legend.\n\n",
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-turn-2-assistant-3",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 74,
+          "timestamp": "2026-09-26T18:24:24.977Z"
+        },
+        {
+          "content": "item/started: sleep (call_7tsNKSTnCW7gATvgXY65XSB9)\nitem/completed: sleep (call_7tsNKSTnCW7gATvgXY65XSB9)",
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-75",
+          "kind": "event",
+          "label": "Codex protocol diagnostic",
+          "providerItemId": "diagnostic:call_7tsNKSTnCW7gATvgXY65XSB9:15",
+          "sequence": 75,
+          "status": "completed",
+          "timestamp": "2026-09-26T18:24:25.153Z",
+          "type": "diagnostic"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-event-76",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_02fb0d5aaf73ce71016ab80dee8fd887d2b01e8667e36a5232",
+          "sequence": 76,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T18:24:44.370Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "Added draft `Current state`, `Implementation details`, and `Acceptance criteria` to [B_252](C:/Users/janbo/Documents/dev/md2/design/feature_descriptions/B_252_adding_legends_to_diagrams_removes_existing.md). Code review confirmed first add replaces displayed derived entries.\n\n**Status remains `design`** until one behavior is clear: when user selects type already shown in derived legend, should Add update that entry’s label or create second entry? Current diagram format rejects duplicate types. No code changed; nothing staged or committed.\n\n",
+          "id": "agent-turn-767ad429-00c8-404f-a035-463dcab3c201-turn-2-assistant-4",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 77,
+          "timestamp": "2026-09-26T18:24:46.526Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -789,19 +1022,19 @@
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 42653,
-          "toolMs": 1361
+          "reasoningMs": 64737,
+          "toolMs": 1857
         },
         "elapsedMs": 166190,
         "runningStartedAt": "2026-09-26T18:23:00.140Z"
       },
       "title": "complete",
       "usage": {
-        "cachedInputTokens": 818176,
-        "inputTokens": 56727,
-        "outputTokens": 1851,
-        "reasoningTokens": 1717,
-        "totalTokens": 878471
+        "cachedInputTokens": 1373824,
+        "inputTokens": 116413,
+        "outputTokens": 3829,
+        "reasoningTokens": 2877,
+        "totalTokens": 1496943
       },
       "usageSchemaVersion": 1,
       "viewed": true
