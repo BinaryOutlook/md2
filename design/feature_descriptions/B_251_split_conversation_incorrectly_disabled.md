@@ -3,12 +3,19 @@ author:
 id: B_251
 internalId: 74c0373d-337f-4b51-92d8-9bc336528275
 title: split conversation incorrectly disabled
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
   - design/activity/card__74c0373d-337f-4b51-92d8-9bc336528275.json
 policy:
+changedFiles:
+  - app/src/components/actions/conversation/messages/action_conversation_item_commands.test.tsx
+  - app/src/components/actions/conversation/messages/action_conversation_message.tsx
+  - app/src/components/actions/conversation/messages/action_conversation_message_commands.tsx
+  - app/src/components/actions/conversation/transcript/action_conversation_chatlog_tracker.node.test.ts
+  - app/src/components/actions/conversation/transcript/action_conversation_chatlog_tracker.ts
+  - app/src/components/actions/conversation/transcript/action_conversation_rendering.test.tsx
 ---
 A previously split conversation is currently waiting for input. yet all 'split' buttons in the conversation are disabled.
 
