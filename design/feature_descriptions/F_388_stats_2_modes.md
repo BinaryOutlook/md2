@@ -3,7 +3,7 @@ author:
 id: F_388
 internalId: 890d7f2c-90e4-4069-b408-1c01db9f7607
 title: Stats 2 modes
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -11,6 +11,18 @@ agents:
 policy:
 branch: f_388_stats_2_modes
 worktree: 3
+changedFiles:
+  - app/src/components/stats_view/stats_bar_chart.test.tsx
+  - app/src/components/stats_view/stats_bar_chart.tsx
+  - app/src/components/stats_view/stats_content.test.tsx
+  - app/src/components/stats_view/stats_content.tsx
+  - app/src/components/stats_view/stats_horizontal_bar_chart.tsx
+  - app/src/components/stats_view/stats_menu_tab.test.tsx
+  - app/src/components/stats_view/stats_menu_tab.tsx
+  - app/src/components/stats_view/stats_usage_comparison_charts.tsx
+  - app/src/services/stats/project_stats_service.node.test.ts
+  - app/src/services/stats/project_stats_service.ts
+  - app/src/services/stats/project_stats_types.ts
 ---
 The stats view currently already supports 2 view modes: tables and charts. Currently selection between the 2 is made based on screen size.
 
