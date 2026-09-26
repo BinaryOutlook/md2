@@ -1,6 +1,6 @@
 {
   "activePath": [
-    "ade041f8-5ae0-498b-9c33-df4b25a87b72"
+    "f01987bb-9920-44f1-88e2-ec1dce7f6473"
   ],
   "children": {
     "15cbc9ca-d130-42b3-8c03-ff19e895d665": {
@@ -51,6 +51,14 @@
       "id": "7d312d42-dce2-4322-a915-3163f9b6702d",
       "label": "New mindmap",
       "path": "design/diagrams/mindmap-7d312d42-dce2-4322-a915-3163f9b6702d.json"
+    },
+    "f01987bb-9920-44f1-88e2-ec1dce7f6473": {
+      "actionId": "user-created",
+      "createdAt": "2026-09-26T18:01:07.549Z",
+      "id": "f01987bb-9920-44f1-88e2-ec1dce7f6473",
+      "label": "New mindmap",
+      "pendingImplementation": true,
+      "path": "design/diagrams/mindmap-f01987bb-9920-44f1-88e2-ec1dce7f6473.json"
     }
   },
   "roots": {
@@ -64,7 +72,8 @@
       "ade041f8-5ae0-498b-9c33-df4b25a87b72"
     ],
     "user-created": [
-      "7d312d42-dce2-4322-a915-3163f9b6702d"
+      "7d312d42-dce2-4322-a915-3163f9b6702d",
+      "f01987bb-9920-44f1-88e2-ec1dce7f6473"
     ]
   },
   "version": 1
