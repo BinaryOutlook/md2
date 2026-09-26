@@ -669,6 +669,10 @@
       "cardInternalId": "fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0",
       "cardPath": "design/feature_descriptions/F_385_action_buttons_in_scrollbox.md",
       "completedAt": null,
+      "contextWindowUsage": {
+        "capacityTokens": 1000000,
+        "usedTokens": 57099
+      },
       "entries": [
         {
           "content": "Read and implement the feature/job described in:  `C:\\Users\\janbo\\Documents\\dev\\md2\\design/feature_descriptions/F_385_action_buttons_in_scrollbox.md`\n\nYou do not need to look at the git status. This is not your concern.  The worktree is what it is, you only need to touch what is required for the above mentioned job/feature description.\n\nUse the Block Workflow:\n\n1. Propose a Change Plan with blocks (no edits yet).\n2. create a task for each block\n3. Wait for approval.\n4. include tests.\n5. After implementation is done, update the field `status` in the markdown feature description file to \\`ready\\`. Be carefully, you are working in `C:\\Users\\janbo\\Documents\\dev\\md2`, the file to update is at `C:\\Users\\janbo\\Documents\\dev\\md2\\design/feature_descriptions/F_385_action_buttons_in_scrollbox.md`\n\nYou may read any files referenced by relative paths in the spec and any file you think is related to the spec.\nRespect the Test Plan and Acceptance Criteria.&#x20;\n\nYou should only run the related tests, do not run the entire test suite, that will be done manually later on.\n\nBe brief, but never compress away the subject, timing, or causal chain. Define ambiguous technical phrases. use $caveman skill",
@@ -677,6 +681,159 @@
           "role": "user",
           "sequence": 1,
           "timestamp": "2026-09-26T12:58:51.010Z"
+        },
+        {
+          "content": "",
+          "details": [
+            ""
+          ],
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-2",
+          "kind": "event",
+          "label": "Thinking",
+          "providerItemId": "msg_011CfS6Ed93JXN9EX971aLwi:thinking:0",
+          "sequence": 2,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:58:54.841Z",
+          "type": "reasoning"
+        },
+        {
+          "content": "{\"skill\":\"caveman:caveman\"}",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-3",
+          "kind": "event",
+          "label": "Skill",
+          "output": "Launching skill: caveman:caveman",
+          "providerItemId": "toolu_01EjCJa2V94n7Uc1JVHnycCi",
+          "sequence": 3,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:58:54.887Z",
+          "type": "tool.Skill"
+        },
+        {
+          "content": "{\"file_path\":\"C:\\\\Users\\\\janbo\\\\Documents\\\\dev\\\\md2\\\\design\\\\feature_descriptions\\\\F_385_action_buttons_in_scrollbox.md\"}",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-4",
+          "kind": "event",
+          "label": "Read",
+          "output": "1\t---\n2\tauthor: \n3\tid: F_385\n4\tinternalId: fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0\n5\ttitle: Action buttons in scrollbox\n6\tstatus: ready for implementation\n7\towner: \n8\taffects:\n9\tagents:\n10\t  - design/activity/card__fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0.json\n11\tpolicy:\n12\tbranch: f_385_action_buttons_in_scrollbox\n13\tworktree: 1\n14\t---\n15\tOn the action popup, we no show the action buttons with a wrap.\n16\t\n17\tWe should remove the wrap and replace with the new scrollbox we recently added for the markdown toolbar (with left / right scroll buttons  and scrollwheel)\n18\t\n19\t## Current state\n20\t\n21\t`ActionPopupFrame` renders `ActionSelector` in the fixed popup header, below the toolbar. `ActionSelector` renders the action buttons as a `ToggleButtonGroup` (aria-label `Actions`), one `ActionSelectorButton` per action. The group uses the shared `ACTION_SELECTOR_GROUP_SX` (`action_selector_styles.ts`), which sets `flexWrap: 'wrap'`; the outer `Box` in `ActionSelector` also sets `flexWrap: 'wrap'`. When the buttons exceed the popup width, they wrap onto extra rows, which makes the header taller.\n22\t\n23\t`HorizontalScrollArea` (`app/src/components/horizontal_scroll_area.tsx`) is the scrollbox used by the markdown editor toolbar and the app menu `Tab`. It keeps its content on one row, hides the native scrollbar, shows a `Scroll left` / `Scroll right` button with a `background.paper` fade only when content overflows in that direction, maps vertical wheel movement to horizontal scrolling, and scrolls a focused child into view.\n24\t\n25\t`CardSequenceActionSelector` also uses `ACTION_SELECTOR_GROUP_SX`. It is not part of the action popup.\n26\t\n27\t## implementation details\n28\t\n29\t* In `ActionSelector`, replace the outer wrapping `Box` with `HorizontalScrollArea` and render the `ToggleButtonGroup` inside it.\n30\t* Keep the action buttons on one row: override `flexWrap` to `nowrap` on the group in `ActionSelector` only, and keep each button at its natural width (no shrinking or label wrapping).\n31\t* Scroll the selected action button into view when the popup opens and whenever `selectedAction.id` changes. In `ActionSelector`, use an effect keyed on `selectedAction.id` that finds the selected button (`aria-pressed=\"true\"`) inside the group and calls `scrollIntoView({ block: 'nearest', inline: 'nearest' })`. `block: 'nearest'` prevents vertical scrolling of the popup or page. `HorizontalScrollArea` already sets `scrollPaddingInline` to the scroll button width, so the selected button does not end up under a scroll button.\n32\t* Do not change `ACTION_SELECTOR_GROUP_SX`; `CardSequenceActionSelector` keeps its current wrapping behavior.\n33\t* Keep button selection, live and persisted state indicators, tooltips, and the `Actions` group label unchanged.\n34\t* The scroll buttons are interactive elements inside the header drag handle, so clicking them scrolls the actions and does not start a popup drag. The fade color already matches the header background (`background.paper`).\n35\t* Tests: in `action_selector.test.tsx`, add a test that stubs overflow measurements (same pattern as `horizontal_scroll_area.test.tsx`) and verifies the action buttons are rendered inside a scroll area that shows `Scroll right`. Add a test that stubs `scrollIntoView` (jsdom does not implement it) and verifies that it is called on the selected button on first render and again after `selectedAction` changes. Run `action_selector.test.tsx` and `action_popup.test.tsx`.\n36\t\n37\t## acceptance criteria\n38\t\n39\t* Action buttons in the action popup stay on one row at every popup width; the header height does not grow with the number of actions.\n40\t* When the buttons overflow, a `Scroll right` and/or `Scroll left` button appears on the side that has hidden buttons; clicking it scrolls the row.\n41\t* The mouse wheel over the action row scrolls it horizontally when it overflows.\n42\t* Tabbing to a hidden action button scrolls it into view.\n43\t* When the popup opens, the selected action is fully visible, even if it sits beyond the visible part of the row. When the selected action changes, the new selection is scrolled into view. The popup does not scroll vertically when this happens.\n44\t* When all buttons fit, no scroll buttons are shown.\n45\t* Clicking a scroll button does not select an action and does not drag the popup.\n46\t* Action selection, state indicators, and tooltips behave as before.\n47\t* The sequence action selector is unchanged.",
+          "providerItemId": "toolu_01Ht8fB6GLg3uZCZ2b8Umqjt",
+          "sequence": 4,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:58:55.833Z",
+          "type": "tool.Read"
+        },
+        {
+          "command": "cd /c/Users/janbo/Documents/dev/md2_workers/dev1/app/src; grep -rl \"ActionSelector\\b\\|horizontal_scroll_area\" --include=*.tsx --include=*.ts . | head -30; find . -name \"action_selector*\"",
+          "content": "./components/actions/run/popup/action_popup.test.tsx\n./components/actions/run/popup/action_popup_frame.tsx\n./components/actions/run/popup/action_selector.test.tsx\n./components/actions/run/popup/action_selector.tsx\n./components/actions/run/sequence/card_sequence_action_selector.tsx\n./components/actions/run/sequence/card_sequence_dialog.tsx\n./components/editor/markdown_editor.tsx\n./components/horizontal_scroll_area.test.tsx\n./components/shell/menu/tab.tsx\n./components/actions/editor/action_selector_field.tsx\n./components/actions/run/popup/action_selector.test.tsx\n./components/actions/run/popup/action_selector.tsx\n./components/actions/run/popup/action_selector_button.tsx\n./components/actions/run/popup/action_selector_styles.ts",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-5",
+          "kind": "event",
+          "label": "cd /c/Users/janbo/Documents/dev/md2_workers/dev1/app/src; grep -rl \"ActionSelector\\b\\|horizontal_scroll_area\" --include=*.tsx --include=*.ts . | head -30; find . -name \"action_selector*\"",
+          "providerItemId": "toolu_01AcyA12uzgkSdV7ATG5zEHo",
+          "sequence": 5,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:58:59.829Z",
+          "type": "commandExecution"
+        },
+        {
+          "command": "cd /c/Users/janbo/Documents/dev/md2_workers/dev1/app/src/components; cat actions/run/popup/action_selector.tsx actions/run/popup/action_selector_styles.ts actions/run/popup/action_selector_button.tsx horizontal_scroll_area.tsx; cat actions/run/popup/action_selector.test.tsx; cat horizontal_scroll_area.test.tsx",
+          "content": "import { Box, ToggleButtonGroup } from '@mui/material'\nimport type { MouseEvent } from 'react'\nimport type { ActionContext } from '../../../../data/action_context'\nimport type { ActionRunStatus } from '../../../../data/action_run_types'\nimport type { ActionDefinition } from '../../../../data/action_types'\nimport { useActiveActionRunsForContext } from '../../../hooks/use_action_runs'\nimport { ActionSelectorButton } from './action_selector_button'\nimport { ACTION_SELECTOR_GROUP_SX } from './action_selector_styles'\n\ninterface ActionSelectorProps {\n    actions: ActionDefinition[]\n    context: ActionContext\n    onSelect: (actionId: string) => void\n    selectedAction: ActionDefinition\n}\n\n/** Horizontally scrollable, mutually exclusive action selector used by the card Run popup. */\nexport function ActionSelector(props: ActionSelectorProps) {\n    const { actions, context, onSelect, selectedAction } = props\n    const activeRuns = useActiveActionRunsForContext(context)\n    const activeActionStatuses: Record<string, ActionRunStatus> = {}\n    for (const { rootActionId, status } of activeRuns) {\n        if (status === 'waitingForInput' || !activeActionStatuses[rootActionId]) activeActionStatuses[rootActionId] = status\n    }\n    const handleChange = (_event: MouseEvent<HTMLElement>, actionId: string | null) => {\n        if (actionId) onSelect(actionId)\n    }\n\n    return (\n        <Box sx={{ alignItems: 'center', display: 'flex', flex: 1, flexWrap: 'wrap', gap: 1, minWidth: 0 }}>\n            <Box sx={{ minWidth: 0 }}>\n                <ToggleButtonGroup\n                    aria-label=\"Actions\"\n                    exclusive\n                    onChange={handleChange}\n                    size=\"small\"\n                    sx={ACTION_SELECTOR_GROUP_SX}\n                    value={selectedAction.id}\n                >\n                    {actions.map((action) => (\n                        <ActionSelectorButton\n                            action={action}\n                            context={context}\n                            key={action.id}\n                            liveStatus={activeActionStatuses[action.id]}\n                        />\n                    ))}\n                </ToggleButtonGroup>\n            </Box>\n        </Box>\n    )\n}\n/** Shared grouped action-button presentation for run surfaces. */\nexport const ACTION_SELECTOR_GROUP_SX = {\n    display: 'flex',\n    flexWrap: 'wrap',\n    gap: 1,\n    '& .MuiToggleButtonGroup-grouped': {\n        bgcolor: 'action.selected',\n        border: '1px solid transparent',\n        borderRadius: '7px !important',\n        color: 'text.secondary',\n        fontSize: 12,\n        fontWeight: 600,\n        height: 26,\n        m: '0 !important',\n        px: 1.5,\n        textTransform: 'none',\n        '&:hover': { bgcolor: 'action.hover', borderColor: 'text.disabled', color: 'text.primary' },\n        '&.Mui-selected': {\n            bgcolor: 'action.selected',\n            borderColor: 'primary.main',\n            color: 'primary.main',\n            '&:hover': { bgcolor: 'action.selected' },\n        },\n    },\n} as const\nimport { Box, ToggleButton, Tooltip } from '@mui/material'\nimport Circle from 'mdi-material-ui/Circle'\nimport HelpCircleOutline from 'mdi-material-ui/HelpCircleOutline'\nimport Play from 'mdi-material-ui/Play'\nimport type { ActionContext } from '../../../../data/action_context'\nimport type { ActionRunStatus } from '../../../../data/action_run_types'\nimport { CUSTOM_PROMPT_ACTION_ID, type ActionDefinition } from '../../../../data/action_types'\nimport { useContextActionAgentState } from '../../../hooks/use_context_action_agent_state'\n\ninterface ActionSelectorButtonProps {\n    action: ActionDefinition\n    context: ActionContext\n    liveStatus?: ActionRunStatus\n}\n\n/** One action selector leaf, including scoped live and persisted agent state. */\nexport function ActionSelectorButton({ action, context, liveStatus }: ActionSelectorButtonProps) {\n    const persistedState = useContextActionAgentState(action.id, context)\n    const hasLiveState = liveStatus === 'queued' || liveStatus === 'running' \n[17204 characters omitted]\n         configurable: true,\n            get: () => layout.scrollLeft,\n            set: (value: number) => { layout.scrollLeft = value; },\n        },\n        scrollWidth: { configurable: true, get: () => layout.contentWidth },\n    });\n    fireEvent.scroll(scroller);\n\n    return { layout, scrollBy, scroller };\n}\n\nfunction scrollEndPosition() {\n    return OVERFLOWING_CONTENT_WIDTH - SCROLLER_WIDTH;\n}\n\ndescribe('HorizontalScrollArea', () => {\n    afterEach(cleanup);\n\n    it('shows no buttons when content fits', () => {\n        renderScrollArea(FITTING_CONTENT_WIDTH);\n\n        expect(screen.queryByRole('button', { name: 'Scroll left' })).not.toBeInTheDocument();\n        expect(screen.queryByRole('button', { name: 'Scroll right' })).not.toBeInTheDocument();\n    });\n\n    it('shows only the right button at the start', () => {\n        renderScrollArea(OVERFLOWING_CONTENT_WIDTH);\n\n        expect(screen.queryByRole('button', { name: 'Scroll left' })).not.toBeInTheDocument();\n        expect(screen.getByRole('button', { name: 'Scroll right' })).toBeInTheDocument();\n    });\n\n    it('shows both buttons in the middle', () => {\n        renderScrollArea(OVERFLOWING_CONTENT_WIDTH, SCROLL_STEP);\n\n        expect(screen.getByRole('button', { name: 'Scroll left' })).toBeInTheDocument();\n        expect(screen.getByRole('button', { name: 'Scroll right' })).toBeInTheDocument();\n    });\n\n    it('shows only the left button at the end', () => {\n        renderScrollArea(OVERFLOWING_CONTENT_WIDTH, scrollEndPosition());\n\n        expect(screen.getByRole('button', { name: 'Scroll left' })).toBeInTheDocument();\n        expect(screen.queryByRole('button', { name: 'Scroll right' })).not.toBeInTheDocument();\n    });\n\n    it('updates buttons when scrolled', () => {\n        const { layout, scroller } = renderScrollArea(OVERFLOWING_CONTENT_WIDTH);\n\n        layout.scrollLeft = scrollEndPosition();\n        fireEvent.scroll(scroller);\n\n        expect(screen.getByRole('button', { name: 'Scroll left' })).toBeInTheDocument();\n        expect(screen.queryByRole('button', { name: 'Scroll right' })).not.toBeInTheDocument();\n    });\n\n    it('scrolls by one step when a button is clicked', () => {\n        const { scrollBy } = renderScrollArea(OVERFLOWING_CONTENT_WIDTH, SCROLL_STEP);\n\n        fireEvent.click(screen.getByRole('button', { name: 'Scroll right' }));\n        fireEvent.click(screen.getByRole('button', { name: 'Scroll left' }));\n\n        expect(scrollBy).toHaveBeenNthCalledWith(1, { behavior: 'smooth', left: SCROLL_STEP });\n        expect(scrollBy).toHaveBeenNthCalledWith(2, { behavior: 'smooth', left: -SCROLL_STEP });\n    });\n\n    it('converts vertical wheel movement into horizontal scrolling when content overflows', () => {\n        const { layout, scroller } = renderScrollArea(OVERFLOWING_CONTENT_WIDTH);\n\n        const notCancelled = fireEvent.wheel(scroller, { deltaX: 0, deltaY: WHEEL_DELTA });\n\n        expect(notCancelled).toBe(false);\n        expect(layout.scrollLeft).toBe(WHEEL_DELTA);\n    });\n\n    it('leaves sideways wheel movement alone', () => {\n        const { layout, scroller } = renderScrollArea(OVERFLOWING_CONTENT_WIDTH);\n\n        const notCancelled = fireEvent.wheel(scroller, { deltaX: WHEEL_DELTA, deltaY: 0 });\n\n        expect(notCancelled).toBe(true);\n        expect(layout.scrollLeft).toBe(0);\n    });\n\n    it('does not capture the wheel when content fits', () => {\n        const { layout, scroller } = renderScrollArea(FITTING_CONTENT_WIDTH);\n\n        const notCancelled = fireEvent.wheel(scroller, { deltaX: 0, deltaY: WHEEL_DELTA });\n\n        expect(notCancelled).toBe(true);\n        expect(layout.scrollLeft).toBe(0);\n    });\n\n    it('scrolls a focused control into view', () => {\n        renderScrollArea(OVERFLOWING_CONTENT_WIDTH);\n        const lastButton = screen.getByRole('button', { name: 'Last' });\n        const scrollIntoView = vi.fn();\n        lastButton.scrollIntoView = scrollIntoView;\n\n        fireEvent.focusIn(lastButton);\n\n        expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });\n    });\n});",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-6",
+          "kind": "event",
+          "label": "cd /c/Users/janbo/Documents/dev/md2_workers/dev1/app/src/components; cat actions/run/popup/action_selector.tsx actions/run/popup/action_selector_styles.ts actions/run/popup/action_selector_button.tsx horizontal_scroll_area.tsx; cat actions/run/popup/action_selector.test.tsx; cat horizontal_scroll_area.test.tsx",
+          "providerItemId": "toolu_017iiZUqrGULFxibWpBf5NVW",
+          "sequence": 6,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:59:02.252Z",
+          "type": "commandExecution"
+        },
+        {
+          "content": "",
+          "details": [
+            ""
+          ],
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-7",
+          "kind": "event",
+          "label": "Thinking",
+          "providerItemId": "msg_011CfS6FJDJ2Uvh1PHaa1MAB:thinking:0",
+          "sequence": 7,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:59:04.009Z",
+          "type": "reasoning"
+        },
+        {
+          "command": "cd /c/Users/janbo/Documents/dev/md2_workers/dev1/app/src/components; cat actions/run/popup/action_popup_frame.tsx; grep -n \"HorizontalScrollArea\" -B3 -A8 editor/markdown_editor.tsx shell/menu/tab.tsx | head -60; grep -rn \"scrollIntoView\" ../test* ../setupTests* 2>/dev/null | head",
+          "content": "import { Box, IconButton, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material'\nimport ArrowCollapseVertical from 'mdi-material-ui/ArrowCollapseVertical'\nimport ArrowExpandVertical from 'mdi-material-ui/ArrowExpandVertical'\nimport Close from 'mdi-material-ui/Close'\nimport type { KeyboardEvent, ReactNode } from 'react'\nimport type { ActionContext } from '../../../../data/action_context'\nimport { ResizablePopper } from '../../../resizable_popper'\nimport type { WorktreeAssignmentTarget } from '../../../worktree_selector'\nimport { MarkdownTypeaheadLayerProvider } from '../../../editor/typeahead/markdown_typeahead_layer_provider'\nimport { NO_DRAG_REGION } from '../../../shell/drag_region'\nimport { ActionConversationPickerOwner } from '../../conversation/picker/action_conversation_picker_owner'\nimport type { ActionConversationStore } from '../../conversation/state/action_conversation_store'\nimport type { ActionConversationSearchService } from '../../conversation/search/action_conversation_search_service'\nimport { ActionConversationSearchButton } from '../../conversation/search/action_conversation_search_button'\nimport { ActionConversationSearchRow } from '../../conversation/search/action_conversation_search_row'\nimport type { ActionRunBindingStore } from '../state/action_run_binding_store'\nimport { ActionSelector } from './action_selector'\nimport type { ActionPopupContentProps } from './action_popup_types'\nimport { ActionWorktreeSelectorOwner } from './action_worktree_selector_owner'\n\nexport const CARD_RUN_POPUP_SIZE_STORAGE_KEY = 'md2.cardRunPopupSize'\nexport const PROJECT_AGENT_POPUP_SIZE_STORAGE_KEY = 'md2.projectAgentPopupSize'\n\ninterface ActionPopupFrameProps {\n    bindingStore: ActionRunBindingStore\n    children: ReactNode\n    contentProps: ActionPopupContentProps\n    conversationSearchService: ActionConversationSearchService\n    conversationStore: ActionConversationStore\n}\n\nfunction worktreeAssignmentTarget(context: ActionContext): WorktreeAssignmentTarget | null {\n    if (context.kind === 'project') return { kind: 'project' }\n    if ((context.kind === 'card' || context.kind === 'file') && context.file && context.cardInternalId) {\n        return { cardInternalId: context.cardInternalId, kind: 'card', path: context.file }\n    }\n\n    return null\n}\n\n/** Shared popup surface, toolbar, and action selector. */\nexport function ActionPopupFrame(\n    { bindingStore, children, contentProps, conversationSearchService, conversationStore }: ActionPopupFrameProps,\n) {\n    const {\n        action, actions, anchorElement, assignmentContext, baseContext, draggable, fullHeight, onActivate,\n        onClose, onSelectAction, onToggleFullHeight, open, primaryPath, readOnlyMessage, stackPosition,\n        target, targetTitle, titleId,\n    } = contentProps\n    const theme = useTheme()\n    const isMobile = useMediaQuery(theme.breakpoints.down('md'))\n    const sizeStorageKey = baseContext.kind === 'project'\n        ? PROJECT_AGENT_POPUP_SIZE_STORAGE_KEY\n        : CARD_RUN_POPUP_SIZE_STORAGE_KEY\n    const parsedWorktree = assignmentContext.worktree && /^[1-9]\\d*$/u.test(assignmentContext.worktree)\n        ? Number.parseInt(assignmentContext.worktree, 10)\n        : null\n    const worktreeAssignment = {\n        worktree: parsedWorktree,\n        worktreeError: assignmentContext.worktreeError ?? null,\n        worktreeValue: assignmentContext.worktree ?? null,\n    }\n    const assignmentTarget = baseContext.kind === 'card' || baseContext.kind === 'file' || baseContext.kind === 'project'\n        ? worktreeAssignmentTarget(baseContext)\n        : null\n    // The badge stays a span carrying only tabIndex: a button or a role attribute would match the\n    // popper's INTERACTIVE_SELECTOR, which would stop a pointer press on the badge from dragging the popup.\n    const targetBadge = target ? (\n        <Box\n            component=\"span\"\n            sx={{\n                bgcolor: 'custom.primaryBg', borderRadius: '5px', color: 'primary.main', flexShrink: 0,\n                fontFamily: '\"Roboto Mono\", ui-monospace, monospace', fontSize: 1\n[6689 characters omitted]\nntrols'\neditor/markdown_editor.tsx-22-import type { MarkdownToolbarContext } from './toolbar/markdown_toolbar_context'\neditor/markdown_editor.tsx-23-import { markdownFileSearchPlugin } from './file_search/markdown_file_search_realm_plugin'\neditor/markdown_editor.tsx-24-import { markdownLocalTextSearchPlugin } from './local_search/markdown_local_text_search_realm_plugin'\neditor/markdown_editor.tsx-25-import { plainMarkdownPlugin } from './plain_markdown_realm_plugin'\neditor/markdown_editor.tsx-26-import { markdownPlaceholderPlugin } from './placeholders/markdown_placeholder_realm_plugin'\n--\neditor/markdown_editor.tsx-377-\neditor/markdown_editor.tsx-378-    const onAttachFiles = attachmentHandler && !hideAttachmentControl ? attachFiles : undefined\neditor/markdown_editor.tsx-379-    const toolbarContents = useCallback(() => (\neditor/markdown_editor.tsx:380:        <HorizontalScrollArea>\neditor/markdown_editor.tsx-381-            {!hideToolbar ? (\neditor/markdown_editor.tsx-382-                customToolbarContents?.({ onAttachFiles })\neditor/markdown_editor.tsx-383-                ?? (\neditor/markdown_editor.tsx-384-                    <MarkdownFormatToolbarControls\neditor/markdown_editor.tsx-385-                        onAttachFiles={onAttachFiles}\neditor/markdown_editor.tsx-386-                        overlayContainer={overlayContainer}\neditor/markdown_editor.tsx-387-                        placeholders={placeholders}\neditor/markdown_editor.tsx-388-                        readOnly={readOnly}\n--\neditor/markdown_editor.tsx-390-                )\neditor/markdown_editor.tsx-391-            ) : null}\neditor/markdown_editor.tsx-392-            {hideToolbar && onAttachFiles ? <MarkdownAttachmentControl disabled={readOnly} onFiles={onAttachFiles} /> : null}\neditor/markdown_editor.tsx:393:        </HorizontalScrollArea>\neditor/markdown_editor.tsx-394-    ), [customToolbarContents, hideToolbar, onAttachFiles, overlayContainer, placeholders, readOnly])\neditor/markdown_editor.tsx-395-    const editorSx = {\neditor/markdown_editor.tsx-396-        ...markdownContentSx,\neditor/markdown_editor.tsx-397-        ...(monospace ? {'& .mdxeditor-content, & .mdxeditor-content *': { fontFamily: 'monospace !important' }} : {}),\neditor/markdown_editor.tsx-398-        '& .mdxeditor-toolbar': { bgcolor: 'background.paper', overflow: 'hidden', position: 'sticky', top: 0, zIndex: 1 },\neditor/markdown_editor.tsx-399-    }\neditor/markdown_editor.tsx-400-    const historyPlugin = historyPluginConfig ? markdownDocumentHistoryPlugin(historyPluginConfig) : null\neditor/markdown_editor.tsx-401-    const plugins = [\n--\nshell/menu/tab.tsx-1-import { Stack } from '@mui/material'\nshell/menu/tab.tsx-2-import type { ReactNode } from 'react'\nshell/menu/tab.tsx:3:import { HorizontalScrollArea } from '../../horizontal_scroll_area'\nshell/menu/tab.tsx-4-\nshell/menu/tab.tsx-5-interface TabProps {\nshell/menu/tab.tsx-6-    children: ReactNode\nshell/menu/tab.tsx-7-    label?: string\nshell/menu/tab.tsx-8-}\nshell/menu/tab.tsx-9-\nshell/menu/tab.tsx-10-/** A single page of the app menu; renders one or more Sections in a row. Holds no state of its own. */\nshell/menu/tab.tsx-11-export function Tab(props: TabProps) {\nshell/menu/tab.tsx-12-    const { children } = props\nshell/menu/tab.tsx-13-\nshell/menu/tab.tsx-14-    return (\nshell/menu/tab.tsx:15:        <HorizontalScrollArea>\nshell/menu/tab.tsx-16-            <Stack direction=\"row\" spacing={1} sx={{ alignItems: 'center', flex: 1, height: 52 }}>\nshell/menu/tab.tsx-17-                {children}\nshell/menu/tab.tsx-18-            </Stack>\nshell/menu/tab.tsx:19:        </HorizontalScrollArea>\nshell/menu/tab.tsx-20-    )\nshell/menu/tab.tsx-21-}\n../test/real_editor_setup.ts:32:// jsdom has no layout, so scrollIntoView does not exist.\n../test/real_editor_setup.ts:33:if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}\n../test/setup.ts:22:// jsdom has no layout, so scrollIntoView does not exist.\n../test/setup.ts:23:if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {}",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-8",
+          "kind": "event",
+          "label": "cd /c/Users/janbo/Documents/dev/md2_workers/dev1/app/src/components; cat actions/run/popup/action_popup_frame.tsx; grep -n \"HorizontalScrollArea\" -B3 -A8 editor/markdown_editor.tsx shell/menu/tab.tsx | head -60; grep -rn \"scrollIntoView\" ../test* ../setupTests* 2>/dev/null | head",
+          "providerItemId": "toolu_01Ks8TXCx6ocGUAuMs7ieBwm",
+          "sequence": 8,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:59:05.341Z",
+          "type": "commandExecution"
+        },
+        {
+          "content": "",
+          "details": [
+            ""
+          ],
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-9",
+          "kind": "event",
+          "label": "Thinking",
+          "providerItemId": "msg_011CfS6FXR3SW4QnK2Sp5J5L:thinking:0",
+          "sequence": 9,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:59:07.205Z",
+          "type": "reasoning"
+        },
+        {
+          "content": "{\"pattern\":\"INTERACTIVE_SELECTOR\",\"path\":\"C:\\\\Users\\\\janbo\\\\Documents\\\\dev\\\\md2_workers\\\\dev1\\\\app\\\\src\\\\components\\\\resizable_popper.tsx\",\"output_mode\":\"content\"}",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-10",
+          "kind": "event",
+          "label": "Grep",
+          "output": "59:const INTERACTIVE_SELECTOR = [\n345:            if (target.closest(INTERACTIVE_SELECTOR)) return",
+          "providerItemId": "toolu_012RAMuJqkPoRMv7cU1fjUJa",
+          "sequence": 10,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:59:07.877Z",
+          "type": "tool.Grep"
+        },
+        {
+          "content": "{\"file_path\":\"C:\\\\Users\\\\janbo\\\\Documents\\\\dev\\\\md2_workers\\\\dev1\\\\app\\\\src\\\\components\\\\resizable_popper.tsx\",\"offset\":59,\"limit\":12}",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-11",
+          "kind": "event",
+          "label": "Read",
+          "output": "59\tconst INTERACTIVE_SELECTOR = [\n60\t    'button', 'input', 'select', 'textarea', 'a', 'label',\n61\t    '[role=\"button\"]', '[role=\"combobox\"]', '[role=\"option\"]', '[role=\"listbox\"]', '[role=\"tab\"]', '[role=\"switch\"]',\n62\t    '[contenteditable=\"true\"]',\n63\t].join(', ')\n64\tconst MIN_WIDTH = 280\n65\tconst MIN_HEIGHT = 200\n66\tconst DEFAULT_MINIMUM_SIZE = { height: MIN_HEIGHT, width: MIN_WIDTH }\n67\tconst HANDLE_SIZE = 16\n68\tconst EDGE_HANDLE_SIZE = 6\n69\tconst VIEWPORT_MARGIN = 16\n70\tconst OVERLAY_LAYER_OFFSET = 1",
+          "providerItemId": "toolu_015cjvmgo3g3oMMMMX7MBMbd",
+          "sequence": 11,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:59:09.438Z",
+          "type": "tool.Read"
+        },
+        {
+          "content": "",
+          "details": [
+            ""
+          ],
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-event-12",
+          "kind": "event",
+          "label": "Thinking",
+          "providerItemId": "msg_011CfS6FpsXGm6CgXShwrG2d:thinking:0",
+          "sequence": 12,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:59:18.902Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "claude",
+          "content": "Analysis done. Checking: `ResizablePopper` skips drag for any `button` target, so the scroll buttons already avoid starting a drag. Global test setup (`app/src/test/setup.ts`) stubs `scrollIntoView` as a no-op function, so `action_popup.test.tsx` will not crash.\n\n## Change Plan\n\n**Block 1: `ActionSelector` uses scrollbox** (`app/src/components/actions/run/popup/action_selector.tsx`)\n- Remove both wrapping `Box`es. Render `<HorizontalScrollArea>` holding the `ToggleButtonGroup`.\n- Group `sx` becomes `{ ...ACTION_SELECTOR_GROUP_SX, flexWrap: 'nowrap', '& .MuiToggleButtonGroup-grouped': { ...existing, flexShrink: 0, whiteSpace: 'nowrap' } }`. This is a local constant in the file. The shared `ACTION_SELECTOR_GROUP_SX` stays unchanged, so `CardSequenceActionSelector` keeps wrapping.\n- Add a `groupRef` on the group. Add a `useEffect` keyed on `selectedAction.id`. It runs `groupRef.current?.querySelector('[aria-pressed=\"true\"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })`.\n- Selection, tooltips, state indicators and the `Actions` label stay unchanged.\n\n**Block 2: tests** (`action_selector.test.tsx`)\n- Overflow test: stub `scrollWidth`, `clientWidth` and `scrollLeft` on the scroll area's content and scroller elements (same pattern as `horizontal_scroll_area.test.tsx`). Fire a scroll event, then check that the `Actions` group is inside the scroll area and `Scroll right` is shown.\n- Scroll-into-view test: spy on `Element.prototype.scrollIntoView`. Check it is called on the selected button with `{ block: 'nearest', inline: 'nearest' }` on first render. Then `rerender` with the other `selectedAction` and check it is called on the newly selected button.\n- Run `action_selector.test.tsx` and `action_popup.test.tsx`, then lint.\n\n**Block 3: status**: set `status: ready` in `md2/design/feature_descriptions/F_385_action_buttons_in_scrollbox.md`.\n\nNote: I have no task-tracking tool in this session, so the blocks above serve as the task list.\n\nApprove?",
+          "id": "agent-turn-a1f15c9e-028a-460c-af79-d66dff80a9f1-turn-1-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 13,
+          "timestamp": "2026-09-26T12:59:18.952Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -685,10 +842,22 @@
       "startedAt": "2026-09-26T12:58:51.010Z",
       "status": "running",
       "timer": {
+        "breakdown": {
+          "reasoningMs": 9982,
+          "toolMs": 8266
+        },
         "elapsedMs": 0,
         "runningStartedAt": "2026-09-26T12:58:51.010Z"
       },
       "title": "implement",
+      "usage": {
+        "cachedInputTokens": 333201,
+        "inputTokens": 14,
+        "outputTokens": 2249,
+        "reasoningTokens": 0,
+        "totalTokens": 335464,
+        "costUsd": 0.4276776
+      },
       "usageSchemaVersion": 1,
       "viewed": true
     }
