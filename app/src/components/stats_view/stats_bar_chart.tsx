@@ -1,10 +1,11 @@
-import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useContext, useMemo } from 'react';
 import type { StatsChartRow } from '../../services/stats/project_stats_types';
 import { barsForBucket, barTotal, bucketRows, type BucketRows, type StatsBarMode } from './stats_bar_groups';
 import { StatsSeriesColorsContext } from './stats_series_colors_context';
 import { assignSeriesColorsFromKeys, seriesColorInputs, seriesColorKey, type StatsSeriesPalettes } from './stats_series_colors';
 import { formattedValue, stackTotalLabel } from './stats_value_format';
+import { StatsHorizontalBarChart } from './stats_horizontal_bar_chart';
 
 const BAR_SLOT_WIDTH = 72;
 const BUCKET_WIDTH = 112;
@@ -65,6 +66,7 @@ function positionCss({ labelOffset, percentage }: ScaledPosition, baselinePercen
 /** Theme-backed chart with fixed bucket geometry and accessible grouped stacks. */
 export function StatsBarChart({ ariaLabel = 'Stats bar chart', mode = 'single', rows, shortTokenCounts = false }: StatsBarChartProps) {
     const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
     const buckets = bucketRows(rows);
     const maximum = maximumMagnitude(buckets, mode);
     const hasNegativeDomain = mode !== 'stacked' && mode !== 'groupedStacked' && rows.some(({ value }) => value < 0);
@@ -82,7 +84,7 @@ export function StatsBarChart({ ariaLabel = 'Stats bar chart', mode = 'single', 
     const domainPercentage = hasNegativeDomain ? 50 : 100;
 
     return (
-        <Stack sx={{ height: '100%', minHeight: MINIMUM_CHART_HEIGHT + 72 }}>
+        <Stack sx={{ height: { xs: 'auto', md: '100%' }, minHeight: { xs: 0, md: MINIMUM_CHART_HEIGHT + 72 }, minWidth: 0 }}>
             {legend.length > 0 ? (
                 <Box
                     aria-label={`${ariaLabel} legend`}
@@ -119,7 +121,18 @@ export function StatsBarChart({ ariaLabel = 'Stats bar chart', mode = 'single', 
                     ))}
                 </Box>
             ) : null}
-            <Box
+            {isSmallScreen ? (
+                <StatsHorizontalBarChart
+                    ariaLabel={ariaLabel}
+                    buckets={buckets}
+                    colors={localColors}
+                    groupNames={groupNames}
+                    hasNegativeDomain={hasNegativeDomain}
+                    maximum={maximum}
+                    mode={mode}
+                    shortTokenCounts={shortTokenCounts}
+                />
+            ) : <Box
                 aria-label={ariaLabel}
                 data-chart-mode={mode}
                 role="list"
@@ -305,7 +318,7 @@ export function StatsBarChart({ ariaLabel = 'Stats bar chart', mode = 'single', 
                         </Box>
                     );
                 })}
-            </Box>
+            </Box>}
         </Stack>
     );
 }

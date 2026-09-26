@@ -135,6 +135,33 @@ async function openService(
     await service.open(loadedCards, agentProfiles)
 }
 
+describe('ProjectStatsService view mode', () => {
+    it('keeps a manual mode across control changes and stats sessions without rebuilding rows', async () => {
+        const statsStorage = storage({ 'design/usage_metrics.csv': `${metricsHeader}\r\n${metricsRow('2026-08-12T10:00:00.000Z', 10)}` })
+        const service = new ProjectStatsService()
+        service.setControls({ activityMetric: 'tokens', dataset: 'activityOverTime' })
+        await openService(service, statsStorage)
+        const snapshot = service.getSnapshot()
+        const listener = vi.fn()
+        const unsubscribe = service.subscribeViewMode(listener)
+
+        expect(service.getViewModeChoice()).toBeNull()
+        service.setViewModeChoice('tables')
+        expect(service.getSnapshot()).toBe(snapshot)
+        expect(service.getSnapshot().rows).toBe(snapshot.rows)
+        expect(listener).toHaveBeenCalledTimes(1)
+
+        service.setControls({ dataset: 'usageComparison' })
+        service.close()
+        await service.open(cards, BUILTIN_AGENT_PROFILES)
+        expect(service.getViewModeChoice()).toBe('tables')
+        service.setViewModeChoice('charts')
+        expect(listener).toHaveBeenCalledTimes(2)
+        unsubscribe()
+        service.clear()
+    })
+})
+
 describe('ProjectStatsService source parsing', () => {
     it('discovers current and released card and project activity plus project usage metrics', () => {
         expect(findStatsSourcePaths([

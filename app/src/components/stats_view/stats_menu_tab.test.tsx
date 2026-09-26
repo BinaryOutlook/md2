@@ -80,6 +80,23 @@ describe('StatsMenuTab', () => {
         vi.mocked(downloadStatsCsv).mockClear()
     })
 
+    it('shows grouped mode buttons and keeps selection while datasets change', async () => {
+        await openStats('modes', activityStorage())
+        renderTab()
+        const group = screen.getByRole('group', { name: 'Stats display mode' })
+        const tables = within(group).getByRole('button', { name: 'Tables' })
+        const charts = within(group).getByRole('button', { name: 'Charts' })
+
+        expect(charts).toHaveAttribute('aria-pressed', 'true')
+        expect(tables).toHaveAttribute('aria-pressed', 'false')
+        fireEvent.click(tables)
+        expect(tables).toHaveAttribute('aria-pressed', 'true')
+        expect(charts).toHaveAttribute('aria-pressed', 'false')
+        chooseOption('Dataset', 'Project usage vs account usage')
+        expect(tables).toHaveAttribute('aria-pressed', 'true')
+        expect(projectStatsService.getViewModeChoice()).toBe('tables')
+    })
+
     it('groups the controls into labelled sections without stacked captions', async () => {
         await openStats('sections', activityStorage())
         renderTab()

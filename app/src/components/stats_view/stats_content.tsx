@@ -23,10 +23,14 @@ const EXCLUSION_LABELS: Record<StatsExclusionReason, string> = {
 /** Smallest stats-data subscriber; renders chart states and reports new load failures. */
 export function StatsContent() {
     const snapshot = useSyncExternalStore(projectStatsService.subscribe, projectStatsService.getSnapshot, projectStatsService.getSnapshot);
+    const modeChoice = useSyncExternalStore(
+        projectStatsService.subscribeViewMode, projectStatsService.getViewModeChoice, projectStatsService.getViewModeChoice,
+    );
     const reportedErrorRef = useRef<Error | null>(null);
     const reportedWarningRef = useRef('');
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+    const viewMode = modeChoice ?? (isSmallScreen ? 'tables' : 'charts');
 
     useEffect(() => {
         if (!snapshot.error || reportedErrorRef.current === snapshot.error) return;
@@ -108,10 +112,10 @@ export function StatsContent() {
                 ) : (
                     <Box data-testid="stats-chart-viewport" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                         {controls.dataset === 'usageComparison'
-                            ? isSmallScreen
+                            ? viewMode === 'tables'
                                 ? <StatsUsageComparisonTables rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
                                 : <StatsUsageComparisonCharts rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
-                            : isSmallScreen
+                            : viewMode === 'tables'
                                 ? <StatsTable
                                     mode={chartMode}
                                     rows={snapshot.rows}

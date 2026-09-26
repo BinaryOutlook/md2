@@ -277,6 +277,61 @@ describe('StatsContent screen size', () => {
         window.matchMedia = originalMatchMedia
     })
 
+    it('keeps a manual chart choice after leaving Stats and changing screen size', async () => {
+        mockMatchMedia(true)
+        await openTokenActivity('manual-chart')
+        const view = renderContent()
+        expect(screen.getByRole('table', { name: 'Stats table' })).toBeInTheDocument()
+
+        act(() => projectStatsService.setViewModeChoice('charts'))
+        expect(screen.getByRole('list', { name: 'Stats bar chart' })).toHaveAttribute('data-chart-orientation', 'horizontal')
+        view.unmount()
+        projectStatsService.close()
+        mockMatchMedia(false)
+        await projectStatsService.open([], BUILTIN_AGENT_PROFILES)
+        renderContent()
+        expect(screen.getByRole('list', { name: 'Stats bar chart' })).toBeInTheDocument()
+        expect(screen.queryByRole('table')).toBeNull()
+    })
+
+    it('switches every populated dataset between tables and charts using current rows', async () => {
+        mockMatchMedia(false)
+        const origin = { cardInternalId: 'card-1', kind: 'card' }
+        const storedConversation = {
+            actionId: 'review', cardInternalId: 'card-1', cardPath: 'design/F_1.md', completedAt: '2026-08-12T10:00:00.000Z',
+            entries: [], id: 'conversation-1', providerSessions: [], startedAt: '2026-08-12T09:00:00.000Z',
+            status: 'completed', timer: { breakdown: { reasoningMs: 20_000, toolMs: 50_000 }, elapsedMs: 100_000, runningStartedAt: null },
+            title: 'Review', viewed: true,
+        }
+        const record = {
+            commits: [], completedAt: '2026-08-12T10:00:00.000Z', conversationIds: ['conversation-1'],
+            details: { agent: 'codex', model: 'gpt-5', type: 'agent' }, origin, rootActionId: 'review',
+            rootActionLabel: 'Review', rootConversationId: 'conversation-1', runId: 'run-1',
+            startedAt: '2026-08-12T09:00:00.000Z', status: 'completed',
+        }
+        const activity = JSON.stringify({ actionSettings: {}, conversations: [storedConversation], origin, records: [record], version: 4 })
+        const metrics = [metricsHeader,
+            '2026-08-12T10:00:00.000Z,token_usage,codex,,,,,3,2,4,1,10,,',
+            '2026-08-12T09:00:00.000Z,account_usage,codex,weekly,window-a,10080,2026-08-17T00:00:00.000Z,,,,,,50,2',
+        ].join('\r\n')
+        projectStatsService.setControls({ activityMetric: 'actions', dataset: 'activityOverTime' })
+        projectStatsService.bindProject({config, project: { branch: 'main', id: 'all-modes' }, storage: storage({'design/activity/card__card-1.json': activity, 'design/usage_metrics.csv': metrics})})
+        await projectStatsService.open([], BUILTIN_AGENT_PROFILES)
+        renderContent()
+
+        for (const dataset of ['activityOverTime', 'agentPerformance', 'totals', 'usageComparison'] as const) {
+            act(() => projectStatsService.setControls({ dataset }))
+            expect(projectStatsService.getSnapshot().rows.length).toBeGreaterThan(0)
+            const rows = projectStatsService.getSnapshot().rows
+            act(() => projectStatsService.setViewModeChoice('tables'))
+            expect(screen.getAllByRole('table')).toHaveLength(dataset === 'usageComparison' ? 9 : 1)
+            expect(projectStatsService.getSnapshot().rows).toBe(rows)
+            act(() => projectStatsService.setViewModeChoice('charts'))
+            expect(screen.getAllByRole('list')).toHaveLength(dataset === 'usageComparison' ? 9 : 1)
+            expect(projectStatsService.getSnapshot().rows).toBe(rows)
+        }
+    })
+
     it('shows a table instead of the bar chart on a small screen', async () => {
         mockMatchMedia(true)
         await openTokenActivity('small')

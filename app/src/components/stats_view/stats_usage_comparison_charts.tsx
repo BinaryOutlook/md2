@@ -13,7 +13,7 @@ interface StatsUsageComparisonChartsProps {
 export function StatsUsageComparisonCharts({ rows, shortTokenCounts = false }: StatsUsageComparisonChartsProps) {
     return (
         <StatsSeriesColorProvider rows={rows}>
-            <Stack spacing={2} sx={{ minWidth: '100%', p: 2, width: 'max-content' }}>
+            <Stack spacing={2} sx={{ minWidth: 0, p: 2, width: { xs: '100%', md: 'max-content' } }}>
                 {USAGE_COMPARISON_SECTIONS.map(({ label, mode, role }) => (
                     <Paper
                         key={role}
@@ -34,6 +34,7 @@ export function StatsUsageComparisonCharts({ rows, shortTokenCounts = false }: S
                                 alignSelf: 'flex-start',
                                 bgcolor: 'background.paper',
                                 left: 0,
+                                maxWidth: { xs: '100%', md: 'none' },
                                 position: 'sticky',
                                 px: 2,
                                 pt: 1.5,

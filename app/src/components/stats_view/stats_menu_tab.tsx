@@ -1,7 +1,9 @@
-import { Box, Divider, MenuItem, Popover, Stack, TextField, Typography } from '@mui/material';
+import { Box, Divider, MenuItem, Popover, Stack, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import DateRangeOutlined from '@mui/icons-material/DateRangeOutlined';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
+import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
+import TableChartOutlined from '@mui/icons-material/TableChartOutlined';
 import { useState, useSyncExternalStore } from 'react';
 import type { ChangeEvent } from 'react';
 import { dialogService } from '../../services/dialog_service';
@@ -120,11 +122,17 @@ function exportStats(dataset: StatsDataset, rows: StatsChartRow[]) {
 /** Stats app-menu content; subscribes on its own so control changes never republish the stats page. */
 export function StatsMenuTab({ service = projectStatsService }: { service?: ProjectStatsService }) {
     const snapshot = useSyncExternalStore(service.subscribe, service.getSnapshot, service.getSnapshot);
+    const modeChoice = useSyncExternalStore(service.subscribeViewMode, service.getViewModeChoice, service.getViewModeChoice);
+    const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+    const viewMode = modeChoice ?? (isSmallScreen ? 'tables' : 'charts');
     const [dateRangeAnchorElement, setDateRangeAnchorElement] = useState<HTMLSpanElement | null>(null);
     const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
     const { controls, options, rows } = snapshot;
     const disabled = snapshot.status === 'loading' || snapshot.status === 'error';
     const handleExport = exportStats.bind(null, controls.dataset, rows);
+    const selectTables = service.setViewModeChoice.bind(service, 'tables');
+    const selectCharts = service.setViewModeChoice.bind(service, 'charts');
 
     const openDateRange = () => {
         setIsDateRangeOpen(true);
@@ -146,6 +154,14 @@ export function StatsMenuTab({ service = projectStatsService }: { service?: Proj
             </Section>
             <Divider flexItem orientation="vertical" sx={{ my: 1.5 }} />
             <Section label="View">
+                <Box role="group" aria-label="Stats display mode" sx={{ display: 'inline-flex' }}>
+                    <MenuIconButton label="Tables" onClick={selectTables} pressed={viewMode === 'tables'}>
+                        <TableChartOutlined fontSize="small" />
+                    </MenuIconButton>
+                    <MenuIconButton label="Charts" onClick={selectCharts} pressed={viewMode === 'charts'}>
+                        <BarChartOutlined fontSize="small" />
+                    </MenuIconButton>
+                </Box>
                 {controls.dataset === 'activityOverTime' ? (
                     <>
                         <MenuSelect disabled={disabled} label="Activity metric" onChange={handleActivityMetricChange} value={controls.activityMetric}>

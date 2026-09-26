@@ -10,6 +10,13 @@ import { StatsUsageComparisonCharts } from './stats_usage_comparison_charts';
 
 const CSS_COLOR_VALUE_COUNT = 0x1000000;
 
+function useSmallScreen() {
+    window.matchMedia = ((query: string) => ({
+        addEventListener: () => {}, addListener: () => {}, dispatchEvent: () => false,
+        matches: true, media: query, onchange: null, removeEventListener: () => {}, removeListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+}
+
 function row(overrides: Partial<StatsChartRow> = {}): StatsChartRow {
     return {
         actionId: null,
@@ -81,9 +88,71 @@ function barColor(chartName: string, identity: string) {
 }
 
 describe('StatsBarChart', () => {
+    const originalMatchMedia = window.matchMedia;
+
     afterEach(() => {
         cleanup();
         vi.restoreAllMocks();
+        window.matchMedia = originalMatchMedia;
+    });
+
+    it('lays narrow single and grouped buckets down the page with horizontal bars', () => {
+        useSmallScreen();
+        renderChart(<StatsBarChart mode="grouped" rows={[
+            row({ identity: 'first', value: 5 }),
+            row({ identity: 'second', seriesIdentity: 'second', seriesLabel: 'Second', value: 10 }),
+            row({ displayLabel: '19 Aug', identity: 'third', utcBucketStart: '2026-08-19T00:00:00.000Z', value: 3 }),
+        ]} />);
+
+        const chart = screen.getByRole('list', { name: 'Stats bar chart' });
+        expect(chart).toHaveAttribute('data-chart-orientation', 'horizontal');
+        expect(chart).toHaveStyle({ width: '100%' });
+        expect(screen.getAllByTestId('stats-bucket')).toHaveLength(2);
+        expect(screen.getAllByTestId('stats-chart-canvas')).toHaveLength(3);
+        expect(screen.getAllByTestId('stats-bar')[0]).toHaveStyle({ left: '0%', width: '50%' });
+        expect(screen.getAllByRole('listitem', { name: '18 Aug; codex; 5 tokens; exact context' })).toHaveLength(3);
+    });
+
+    it('keeps narrow stacked segments together and positions negative and deviation values from baseline', () => {
+        useSmallScreen();
+        const stacked = renderChart(<StatsBarChart mode="stacked" rows={[
+            row({ identity: 'first', value: 5 }),
+            row({ identity: 'second', seriesIdentity: 'second', value: 3 }),
+        ]} />);
+        const bars = screen.getAllByTestId('stats-bar');
+        expect(bars[0]).toHaveStyle({ left: '0%', width: '62.5%' });
+        expect(bars[1]).toHaveStyle({ left: '62.5%', width: '37.5%' });
+        expect(screen.getByText('8')).toBeInTheDocument();
+
+        stacked.rerender(<AppThemeProvider><StatsBarChart mode="grouped" rows={[
+            row({ identity: 'negative', unit: 'percent', value: -5 }),
+            row({ deviation: 2, identity: 'positive', seriesIdentity: 'positive', value: 10 }),
+        ]} /></AppThemeProvider>);
+        expect(Number.parseFloat(getComputedStyle(screen.getAllByTestId('stats-bar')[0]).left)).toBeLessThan(50);
+        expect(screen.getAllByTestId('stats-bar')[1]).toHaveStyle({ left: '50%' });
+        expect(screen.getByTestId('stats-deviation-whisker')).toHaveStyle({ right: 'calc(100% - 100%)' });
+        expect(screen.getByText('-5%')).toBeInTheDocument();
+    });
+
+    it('uses narrow orientation in all nine usage comparison sections, including grouped stacks', async () => {
+        useSmallScreen();
+        renderChart(<StatsUsageComparisonCharts rows={[
+            row({ chartRole: 'accountUsage' }),
+            row({ chartRole: 'activity', identity: 'review', seriesIdentity: 'review', stackIdentity: 'codex', stackLabel: 'Codex', tooltip: 'Review value: 5' }),
+            row({ chartRole: 'activity', identity: 'test', seriesIdentity: 'test', stackIdentity: 'codex', stackLabel: 'Codex', tooltip: 'Test value: 3', value: 3 }),
+        ]} />);
+
+        expect(screen.getAllByRole('list')).toHaveLength(9);
+        for (const chart of screen.getAllByRole('list')) expect(chart).toHaveAttribute('data-chart-orientation', 'horizontal');
+        const activityChart = screen.getByRole('list', { name: 'Project activity chart' });
+        const bars = within(activityChart).getAllByTestId('stats-bar');
+        expect(bars).toHaveLength(2);
+        expect(bars[1]).toHaveStyle({ left: '62.5%' });
+        expect(getComputedStyle(bars[0]).backgroundColor).toBe(getComputedStyle(
+            within(screen.getByLabelText('Project activity chart legend')).getAllByTestId('stats-legend-swatch')[0],
+        ).backgroundColor);
+        fireEvent.mouseOver(bars[1]);
+        expect(await screen.findByRole('tooltip')).toHaveTextContent('Test value: 3');
     });
 
     it('shows upper-left series legend, short date, value-only label, and complete accessible context', () => {
