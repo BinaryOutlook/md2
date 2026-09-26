@@ -12510,7 +12510,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 86846
+        "usedTokens": 95344
       },
       "entries": [
         {
@@ -14747,6 +14747,161 @@
           "role": "assistant",
           "sequence": 163,
           "timestamp": "2026-09-26T14:11:29.942Z"
+        },
+        {
+          "content": "last thing we need to handle\n\n> Deletion in another popup leaves a false pending row.\n\ndoes deletion come from the possibility that we can delete a queued message? otherwise I don't really understand where the delete comes from",
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-user-163",
+          "kind": "message",
+          "role": "user",
+          "sequence": 164,
+          "timestamp": "2026-09-26T14:12:53.213Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-165",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_0b3fa084abbc22fe016ab7d2e9f47087d2abc1a71b76d201a8",
+          "sequence": 165,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T14:12:55.985Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "I’ll check the queued-prompt delete action and the shared removal event, then explain which case the earlier finding referred to.\n\n",
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-4-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 166,
+          "timestamp": "2026-09-26T14:12:56.660Z"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$p='\"'app/src/components/actions/conversation/state/action_conversation_store.ts'; \"'$x=Get-Content -LiteralPath $p; $x[190..250]'",
+          "content": "    }\r\n\r\n    private readonly handleRunEvent = (event: ActionRunEvent) => {\r\n        if (event.actionId !== this.actionId) return\r\n        const submissions = this.submissions.filter((submission) => (\r\n            this.submissionOwners.get(submission.id)?.runId === event.runId && submission.state !== 'failed'\r\n        ))\r\n        if (submissions.length === 0) {\r\n            const isRelevantUpdate = event.type === 'update' && (\r\n                event.update.kind === 'agentStarted'\r\n                || event.update.kind === 'agentUserMessage'\r\n                || event.update.kind === 'agentPromptQueued'\r\n                || event.update.kind === 'agentPromptRemoved'\r\n            )\r\n            if (this.submissions.some((submission) => this.submissionOwners.get(submission.id)?.runId === null)\r\n                && (isRelevantUpdate || event.type === 'run')) {\r\n                this.bufferedRunEvents.push(event)\r\n            }\r\n            return\r\n        }\r\n        if (event.type === 'run' && event.status !== 'queued' && event.status !== 'running'\r\n            && event.status !== 'waitingForInput') {\r\n            for (const submission of submissions) {\r\n                this.failSubmission(submission.id, 'Run ended before the prompt was sent')\r\n            }\r\n            return\r\n        }\r\n        if (event.type !== 'update') return\r\n        if (event.update.kind === 'agentStarted') {\r\n            const { continued, conversation, submissionId } = event.update\r\n            for (const submission of submissions) {\r\n                const owner = this.submissionOwners.get(submission.id)\r\n                if (owner && !owner.conversationId) {\r\n                    this.submissionOwners.set(submission.id, { ...owner, conversationId: conversation.id })\r\n                }\r\n            }\r\n            this.submissionEvents.dispatchEvent(new Event(SUBMISSIONS_CHANGED_EVENT))\r\n            if (!continued && submissionId) {\r\n                actionPromptDraftService.attachNewConversation(this.actionId, this.context, conversation.id)\r\n            }\r\n            const submission = submissions.find((current) => current.id === submissionId)\r\n            if (submission) this.removeSubmission(submission.id)\r\n        }\r\n        if (event.update.kind === 'agentPromptQueued') {\r\n            const { entry } = event.update\r\n            const submission = submissions.find((current) => current.id === entry.submissionId)\r\n            if (submission) this.acceptSubmission(submission.id, entry)\r\n        }\r\n        if (event.update.kind === 'agentPromptRemoved') {\r\n            const { promptId } = event.update\r\n            const submission = submissions.find((current) => current.prompt?.id === promptId)\r\n            if (submission) this.changeSubmission(submission.id, (current) => ({ ...current, state: 'removed' }))\r\n        }\r\n        if (event.update.kind === 'agentUserMessage') {\r\n            const { submissionId } = event.update\r\n            const submission = submissions.find((current) => current.id === submissionId)\r\n            if (submission) this.removeSubmission(submission.id)\r\n        }\r\n    }\r\n\r\n    private changeSubmission(id: string, change: (submission: PendingActionSubmission) => PendingActionSubmission) {\r\n",
+          "durationMs": 55,
+          "exitCode": 0,
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-167",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$p='\"'app/src/components/actions/conversation/state/action_conversation_store.ts'; \"'$x=Get-Content -LiteralPath $p; $x[190..250]'",
+          "providerItemId": "exec-2263d734-b175-4011-808c-e659d246e30c",
+          "sequence": 167,
+          "status": "completed",
+          "timestamp": "2026-09-26T14:13:01.016Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$p='\"'desktop/src/actions/action/action_run.js'; \"'$x=Get-Content -LiteralPath $p; $x[95..145]; $x[195..262]'",
+          "content": "    }\r\n\r\n    sendAgentMessage(content) {\r\n        if (!this.activeAgentRunId) throw new Error(`Action run has no active streaming agent: ${this.runId}`);\r\n        if (this.agentInteractionPending()) {\r\n            throw new Error('Answer pending agent question or approval before sending queued prompt');\r\n        }\r\n        const prompt = this.resolveActiveAgentPrompt(content);\r\n\r\n        return this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);\r\n    }\r\n\r\n    enqueueAgentPrompt(content, submissionId) {\r\n        if (typeof content !== 'string' || content.trim().length === 0) throw new Error('Queued agent prompt is empty');\r\n\r\n        const operation = this.queuePromptOperation(() => {\r\n            this.requirePromptQueueOpen();\r\n            this.resolveActiveAgentPrompt(content);\r\n            const entry = {\r\n                content,\r\n                dispatchState: 'queued',\r\n                id: `prompt-${crypto.randomUUID()}`,\r\n                revision: 0,\r\n                ...(submissionId ? { submissionId } : {}),\r\n            };\r\n            this.promptQueue.push(entry);\r\n            this.publishPromptQueueUpdate('agentPromptQueued', { entry: { ...entry } });\r\n\r\n            return { ...entry };\r\n        });\r\n        void operation.then(() => this.dispatchStreamingPrompt()).catch(() => undefined);\r\n\r\n        return operation;\r\n    }\r\n\r\n    editQueuedAgentPrompt(id, revision, content) {\r\n        if (typeof content !== 'string' || content.trim().length === 0) throw new Error('Queued agent prompt cannot be empty');\r\n\r\n        return this.queuePromptOperation(() => {\r\n            this.requirePromptQueueOpen();\r\n            const entry = this.requireQueuedPrompt(id, revision);\r\n            this.resolveActiveAgentPrompt(content);\r\n            entry.content = content;\r\n            entry.revision += 1;\r\n            this.publishPromptQueueUpdate('agentPromptEdited', { entry: { ...entry } });\r\n\r\n            return { ...entry };\r\n        });\r\n    }\r\n\r\n    deleteQueuedAgentPrompt(id, revision) {\r\n        if (this.promptQueueClosed || this.controller.signal.aborted) {\r\n            throw new Error(`Action run no longer accepts queued prompts: ${this.runId}`);\r\n        }\r\n        if (this.activeAction?.type !== 'agent') throw new Error(`Action run has no active agent: ${this.runId}`);\r\n    }\r\n\r\n    requireQueuedPrompt(id, revision) {\r\n        if (typeof id !== 'string' || id.length === 0) throw new Error('Missing queued agent prompt id');\r\n        if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('Invalid queued agent prompt revision');\r\n        const entry = this.promptQueue.find(({ id: entryId }) => entryId === id);\r\n        if (!entry || entry.dispatchState !== 'queued') throw new Error(`Queued agent prompt was already sent or removed: ${id}`);\r\n        if (entry.revision !== revision) throw new Error(`Queued agent prompt changed before operation: ${id}`);\r\n\r\n        return entry;\r\n    }\r\n\r\n    publishPromptQueueUpdate(kind, details) {\r\n        if (!this.activeAction || !this.activeActionPhase) return;\r\n        this.publish(this.activeAction, this.activeActionPhase, 'running', {\r\n            type: 'update',\r\n            update: { kind, ...details },\r\n        });\r\n    }\r\n\r\n    discardQueuedPrompts() {\r\n        this.promptQueueClosed = true;\r\n        const entries = this.promptQueue.filter(({ dispatchState }) => dispatchState === 'queued');\r\n        this.promptQueue = [];\r\n        for (const entry of entries) {\r\n            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });\r\n        }\r\n    }\r\n\r\n    dispatchStreamingPrompt() {\r\n        const operation = this.queuePromptOperation(async () => {\r\n            if (\r\n                !this.activeAgentRunId\r\n                || !this.activeAction?.streaming\r\n                || this.agentInteractionPending()\r\n            ) return false;\r\n            const entry = this.promptQueue.find(({ dispatchState }) => dispatchState === 'queued');\r\n            if (!entry) return false;\r\n\r\n            entry.dispatchState = 'dispatching';\r\n            this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);\r\n            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });\r\n            const prompt = this.resolveActiveAgentPrompt(entry.content);\r\n            if (entry.submissionId) await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt, entry.submissionId);\r\n            else await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);\r\n\r\n            return !!this.activeAgentRunId\r\n                && !!this.activeAction?.streaming\r\n                && !this.agentInteractionPending()\r\n                && this.promptQueue.some(({ dispatchState }) => dispatchState === 'queued');\r\n        });\r\n        void operation.then((dispatchNext) => {\r\n            if (dispatchNext) void this.dispatchStreamingPrompt().catch(() => undefined);\r\n        }).catch(() => undefined);\r\n\r\n        return operation;\r\n    }\r\n\r\n    claimNextQueuedPromptOrCloseQueue() {\r\n        return this.queuePromptOperation(() => {\r\n            const entry = this.promptQueue.find(({ dispatchState }) => dispatchState === 'queued');\r\n            if (!entry) {\r\n                this.promptQueueClosed = true;\r\n\r\n",
+          "durationMs": 75,
+          "exitCode": 0,
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-168",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$p='\"'desktop/src/actions/action/action_run.js'; \"'$x=Get-Content -LiteralPath $p; $x[95..145]; $x[195..262]'",
+          "providerItemId": "exec-40e05f04-eaa7-4794-8250-20d24b3f3410",
+          "sequence": 168,
+          "status": "completed",
+          "timestamp": "2026-09-26T14:13:01.078Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'rg -n -C 5 \"deleteActionQueuedPrompt|removeSubmissionByPromptId|agentPromptRemoved|removeQueuedPrompt|deleteQueuedPrompt\" app/src/components/actions app/src/services/actions desktop/src/actions/action/action_run.js'",
+          "content": "desktop/src/actions/action/action_run.js-146-    deleteQueuedAgentPrompt(id, revision) {\ndesktop/src/actions/action/action_run.js-147-        return this.queuePromptOperation(() => {\ndesktop/src/actions/action/action_run.js-148-            this.requirePromptQueueOpen();\ndesktop/src/actions/action/action_run.js-149-            const entry = this.requireQueuedPrompt(id, revision);\ndesktop/src/actions/action/action_run.js-150-            this.promptQueue = this.promptQueue.filter(({ id: entryId }) => entryId !== id);\ndesktop/src/actions/action/action_run.js:151:            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });\ndesktop/src/actions/action/action_run.js-152-\ndesktop/src/actions/action/action_run.js-153-            return { deleted: true };\ndesktop/src/actions/action/action_run.js-154-        });\ndesktop/src/actions/action/action_run.js-155-    }\ndesktop/src/actions/action/action_run.js-156-\n--\ndesktop/src/actions/action/action_run.js-220-    discardQueuedPrompts() {\ndesktop/src/actions/action/action_run.js-221-        this.promptQueueClosed = true;\ndesktop/src/actions/action/action_run.js-222-        const entries = this.promptQueue.filter(({ dispatchState }) => dispatchState === 'queued');\ndesktop/src/actions/action/action_run.js-223-        this.promptQueue = [];\ndesktop/src/actions/action/action_run.js-224-        for (const entry of entries) {\ndesktop/src/actions/action/action_run.js:225:            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });\ndesktop/src/actions/action/action_run.js-226-        }\ndesktop/src/actions/action/action_run.js-227-    }\ndesktop/src/actions/action/action_run.js-228-\ndesktop/src/actions/action/action_run.js-229-    dispatchStreamingPrompt() {\ndesktop/src/actions/action/action_run.js-230-        const operation = this.queuePromptOperation(async () => {\n--\ndesktop/src/actions/action/action_run.js-236-            const entry = this.promptQueue.find(({ dispatchState }) => dispatchState === 'queued');\ndesktop/src/actions/action/action_run.js-237-            if (!entry) return false;\ndesktop/src/actions/action/action_run.js-238-\ndesktop/src/actions/action/action_run.js-239-            entry.dispatchState = 'dispatching';\ndesktop/src/actions/action/action_run.js-240-            this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);\ndesktop/src/actions/action/action_run.js:241:            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });\ndesktop/src/actions/action/action_run.js-242-            const prompt = this.resolveActiveAgentPrompt(entry.content);\ndesktop/src/actions/action/action_run.js-243-            if (entry.submissionId) await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt, entry.submissionId);\ndesktop/src/actions/action/action_run.js-244-            else await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);\ndesktop/src/actions/action/action_run.js-245-\ndesktop/src/actions/action/action_run.js-246-            return !!this.activeAgentRunId\n--\ndesktop/src/actions/action/action_run.js-264-                return null;\ndesktop/src/actions/action/action_run.js-265-            }\ndesktop/src/actions/action/action_run.js-266-\ndesktop/src/actions/action/action_run.js-267-            entry.dispatchState = 'dispatching';\ndesktop/src/actions/action/action_run.js-268-            this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);\ndesktop/src/actions/action/action_run.js:269:            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });\ndesktop/src/actions/action/action_run.js-270-\ndesktop/src/actions/action/action_run.js-271-            return entry.content;\ndesktop/src/actions/action/action_run.js-272-        });\ndesktop/src/actions/action/action_run.js-273-    }\ndesktop/src/actions/action/action_run.js-274-\n--\napp/src/services/actions\\action_run_registry.ts-310-    if (!bridge?.sendActionMe\n[17075 characters omitted]\n/src/components/actions\\conversation\\state\\action_conversation_store.ts-237-            if (submission) this.acceptSubmission(submission.id, entry)\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts-238-        }\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts:239:        if (event.update.kind === 'agentPromptRemoved') {\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts-240-            const { promptId } = event.update\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts-241-            const submission = submissions.find((current) => current.prompt?.id === promptId)\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts-242-            if (submission) this.changeSubmission(submission.id, (current) => ({ ...current, state: 'removed' }))\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts-243-        }\napp/src/components/actions\\conversation\\state\\action_conversation_store.ts-244-        if (event.update.kind === 'agentUserMessage') {\n--\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-89-        store.acceptSubmission(second, secondPrompt)\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-90-        store.acceptSubmission(first, firstPrompt)\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-91-        expect(store.getSubmissions().map(({ id, prompt }) => [id, prompt?.id])).toEqual([\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-92-            [first, 'prompt-1'], [second, 'prompt-2'],\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-93-        ])\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts:94:        emit({...eventBase, status: 'running', type: 'update', update: {kind: 'agentPromptRemoved', promptId: firstPrompt.id, revision: 0}})\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-95-        expect(store.getSubmissions()[0]?.state).toBe('removed')\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-96-        emit({\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-97-            ...eventBase, status: 'running', type: 'update', update: {\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-98-                kind: 'agentUserMessage',\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-99-                submissionId: first,\n--\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2071-        expect(prompt).toHaveValue('Newer edit')\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2072-        expect(screen.getAllByLabelText('Queued prompt')).toHaveLength(1)\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2073-\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2074-        act(() => runListener?.({\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2075-            ...eventBase, status: 'running', type: 'update',\napp/src/components/actions\\run\\popup\\action_popup.test.tsx:2076:            update: { kind: 'agentPromptRemoved', promptId: queuedPrompt.id, revision: 0 },\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2077-        }))\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2078-        expect(screen.getByLabelText('Pending prompt')).toHaveTextContent('Send this')\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2079-        act(() => runListener?.({\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2080-            ...eventBase, status: 'running', type: 'update',\napp/src/components/actions\\run\\popup\\action_popup.test.tsx-2081-            update: {kind: 'agentUserMessage', submissionId, userMessage: {agent: 'codex', content: 'Send this', id: 'user-1', kind: 'message', role: 'user', timestamp: 'now'}},\n",
+          "durationMs": 60,
+          "exitCode": 0,
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-169",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'rg -n -C 5 \"deleteActionQueuedPrompt|removeSubmissionByPromptId|agentPromptRemoved|removeQueuedPrompt|deleteQueuedPrompt\" app/src/components/actions app/src/services/actions desktop/src/actions/action/action_run.js'",
+          "providerItemId": "exec-01fb053b-69aa-4589-a729-d8c9f027c9f8",
+          "sequence": 169,
+          "status": "completed",
+          "timestamp": "2026-09-26T14:13:01.055Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-170",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_0b3fa084abbc22fe016ab7d2f1ddec87d2bfdfd1b63c3e0894",
+          "sequence": 170,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T14:13:05.684Z",
+          "type": "reasoning"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -LiteralPath 'app/src/components/actions/conversation/transcript/action_queued_prompt.tsx'\"",
+          "content": "",
+          "durationMs": 5,
+          "exitCode": 0,
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-171",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -LiteralPath 'app/src/components/actions/conversation/transcript/action_queued_prompt.tsx'\"",
+          "providerItemId": "exec-816046c3-c71d-48a8-8b77-1bfc6946252e",
+          "sequence": 171,
+          "status": "completed",
+          "timestamp": "2026-09-26T14:13:09.002Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg -n -C 4 \\\"new ActionConversationStore|ActionConversationStore\\\\(\\\" app/src/components/actions\"",
+          "content": "app/src/components/actions\\run\\popup\\action_popup_runtime.ts-29-            ?? null\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-30-    const bindingStore = new ActionRunBindingStore(initialRunId)\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-31-    if (requestedConversationPath) bindingStore.setRunId(null)\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-32-    bindingStore.trackInitialRun(action.id, context)\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts:33:    const conversationStore = new ActionConversationStore(action.id, context, bindingStore)\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-34-    if (requestedConversationPath) conversationStore.configureInitialSelection(requestedConversationPath)\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-35-    const historyStore = new ActionHistoryStore(action, context)\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-36-    const usageScopeStore = new ActionUsageScopeStore()\napp/src/components/actions\\run\\popup\\action_popup_runtime.ts-37-    const usageValuesService = new ActionUsageValuesService({\n--\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-67-function createConversationStore(actionId: string, storeContext: ActionContext) {\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-68-    const runId = actionRunRegistry.getActionRunStore(actionId, storeContext)?.getSnapshot().runId ?? null\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-69-    const bindingStore = new ActionRunBindingStore(runId)\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-70-\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx:71:    return new ActionConversationStore(actionId, storeContext, bindingStore)\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-72-}\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-73-\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-74-function renderBottomRow(\napp/src/components/actions\\run\\popup\\action_popup_bottom_row.grouped.test.tsx-75-    actionOverride = action,\n--\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-52-function createConversationStore(actionId = 'implement', storeContext: ActionContext = context) {\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-53-    const runId = actionRunRegistry.getActionRunStore(actionId, storeContext)?.getSnapshot().runId ?? null\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-54-    const bindingStore = new ActionRunBindingStore(runId)\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-55-\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts:56:    return { bindingStore, store: new ActionConversationStore(actionId, storeContext, bindingStore) }\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-57-}\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-58-\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-59-describe('ActionConversationStore', () => {\napp/src/components/actions\\conversation\\state\\action_conversation_store.node.test.ts-60-    afterEach(() => {\n",
+          "durationMs": 0,
+          "exitCode": 0,
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-172",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg -n -C 4 \\\"new ActionConversationStore|ActionConversationStore\\\\(\\\" app/src/components/actions\"",
+          "providerItemId": "exec-f050f283-e879-4e10-8f5f-4a49c82fe2b3",
+          "sequence": 172,
+          "status": "completed",
+          "timestamp": "2026-09-26T14:13:09.061Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -LiteralPath 'app/src/components/actions/conversation/transcript/action_pending_submission_row.tsx'\"",
+          "content": "import { Box, Stack, Typography } from '@mui/material'\r\nimport type { PendingActionSubmission } from '../state/action_conversation_store'\r\n\r\ninterface ActionPendingSubmissionRowProps {\r\n    submission: PendingActionSubmission\r\n}\r\n\r\n/** Shows submitted text until its backend queue or sent message takes over. */\r\nexport function ActionPendingSubmissionRow({ submission }: ActionPendingSubmissionRowProps) {\r\n    const label = submission.state === 'transmitting' ? 'In transmission'\r\n        : submission.state === 'failed' ? 'Failed to send' : 'Queued'\r\n\r\n    return (\r\n        <Box\r\n            aria-label=\"Pending prompt\"\r\n            sx={{\r\n                alignSelf: 'flex-end', bgcolor: 'background.paper', border: 1, borderColor: 'divider',\r\n                borderRadius: 1, flexShrink: 0, maxWidth: '88%', minWidth: 0, overflowWrap: 'anywhere',\r\n                px: 1.25, py: 1,\r\n            }}\r\n        >\r\n            <Stack spacing={0.5}>\r\n                <Typography color=\"text.secondary\" variant=\"caption\">{label}</Typography>\r\n                <Typography variant=\"body2\">{submission.content}</Typography>\r\n                {submission.error ? <Typography color=\"error\" variant=\"caption\">{submission.error}</Typography> : null}\r\n            </Stack>\r\n        </Box>\r\n    )\r\n}\r\n",
+          "durationMs": 0,
+          "exitCode": 0,
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-173",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -LiteralPath 'app/src/components/actions/conversation/transcript/action_pending_submission_row.tsx'\"",
+          "providerItemId": "exec-be1de279-566d-44e8-8c60-26a05c37e836",
+          "sequence": 173,
+          "status": "completed",
+          "timestamp": "2026-09-26T14:13:09.070Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-event-174",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_0b3fa084abbc22fe016ab7d2fa3ac887d2a1d4a65b78a12540",
+          "sequence": 174,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T14:13:13.571Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "Yes. A queued message has a **Delete queued prompt** button. Deleting it emits `agentPromptRemoved` ([action_run.js](/C:/Users/janbo/Documents/dev/md2_workers/dev3/desktop/src/actions/action/action_run.js:146)).\n\nThe same event also fires when the backend takes a prompt out of the queue to send it. The frontend currently treats every removal as “wait for the sent message” ([action_conversation_store.ts](/C:/Users/janbo/Documents/dev/md2_workers/dev3/app/src/components/actions/conversation/state/action_conversation_store.ts:239)). The popup where Delete was clicked clears its own pending row through a separate callback; another open popup does not receive that callback, so it can show a false pending row.\n\nThe fix is to include the removal reason in the backend event, so every popup can clear a **deleted** prompt while retaining a **dispatching** prompt until its sent message arrives.\n\n",
+          "id": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-4-assistant-2",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 175,
+          "timestamp": "2026-09-26T14:13:16.977Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -14756,27 +14911,27 @@
           "agent": "codex",
           "conversationId": "01a0ddea-373b-7831-913e-d069f8e3719b",
           "createdAt": "2026-09-26T13:33:03.472Z",
-          "lastUsedAt": "2026-09-26T13:57:37.434Z",
-          "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-2-assistant-2"
+          "lastUsedAt": "2026-09-26T14:11:29.942Z",
+          "synchronizedThroughMessageId": "agent-turn-46c8599c-2492-4188-ac21-e30456d506c4-turn-3-assistant-4"
         }
       ],
       "startedAt": "2026-09-26T13:29:07.331Z",
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 114225,
-          "toolMs": 13255
+          "reasoningMs": 118509,
+          "toolMs": 13589
         },
-        "elapsedMs": 115278,
-        "runningStartedAt": "2026-09-26T14:07:09.484Z"
+        "elapsedMs": 375736,
+        "runningStartedAt": "2026-09-26T14:12:53.213Z"
       },
       "title": "review (split) (split)",
       "usage": {
-        "cachedInputTokens": 2216960,
-        "inputTokens": 125628,
-        "outputTokens": 7016,
-        "reasoningTokens": 5268,
-        "totalTokens": 2354872
+        "cachedInputTokens": 2482304,
+        "inputTokens": 135059,
+        "outputTokens": 7609,
+        "reasoningTokens": 5478,
+        "totalTokens": 2630450
       },
       "usageSchemaVersion": 1,
       "viewed": true
