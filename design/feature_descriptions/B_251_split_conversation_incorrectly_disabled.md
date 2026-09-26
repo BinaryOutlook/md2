@@ -9,7 +9,6 @@ affects:
 agents:
 policy:
 ---
-
 A previously split conversation is currently waiting for input. yet all 'split' buttons in the conversation are disabled.
 
-see the conversations for the 'review' action of @
+see the conversations for the 'review' action of [F\_383\_prompts\_need\_to\_be\_shown\_faster.md](design/feature_descriptions/F_383_prompts_need_to_be_shown_faster.md)
