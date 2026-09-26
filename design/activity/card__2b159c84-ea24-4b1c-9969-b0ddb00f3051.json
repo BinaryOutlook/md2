@@ -3497,6 +3497,40 @@
       "startedAt": "2026-09-26T17:16:50.542Z",
       "status": "completed",
       "rootConversationId": "agent-37b09d33-93ca-47e7-99a1-481a75dd0b74"
+    },
+    {
+      "commits": [
+        {
+          "commit": "c489150bc1c47ac5f2af4e9377adc6e940e7a878",
+          "committedAt": "2026-09-26T19:40:44+02:00",
+          "deletions": 212,
+          "filePaths": [
+            "app/src/components/card_view/card_body_popover.real.test.tsx",
+            "app/src/components/card_view/card_body_popover.tsx",
+            "app/src/components/card_view/card_body_popover_commit.test.tsx",
+            "app/src/components/card_view/card_body_popover_editor.test.tsx",
+            "app/src/components/card_view/card_body_popover_state.test.tsx",
+            "app/src/components/card_view/card_view.test.tsx",
+            "app/src/components/card_view/card_view.tsx",
+            "app/src/components/card_view/mobile_card_view.tsx",
+            "app/src/components/card_view/project_card_view.tsx",
+            "app/src/components/card_view/use_project_card.ts",
+            "app/src/components/overlay_lifecycle.test.tsx",
+            "app/src/services/attachments/attachment_workflow.service.test.ts",
+            "app/src/services/attachments/attachment_workflow.ts"
+          ],
+          "filesChanged": 13,
+          "insertions": 202,
+          "branch": "dev_main"
+        }
+      ],
+      "completedAt": "2026-09-26T19:40:44+02:00",
+      "label": "Integrate into project",
+      "origin": {
+        "cardInternalId": "2b159c84-ea24-4b1c-9969-b0ddb00f3051",
+        "kind": "card"
+      },
+      "type": "system"
     }
   ],
   "version": 5
