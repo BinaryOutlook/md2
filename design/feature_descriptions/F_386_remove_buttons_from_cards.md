@@ -9,6 +9,8 @@ affects:
 agents:
   - design/activity/card__2b159c84-ea24-4b1c-9969-b0ddb00f3051.json
 policy:
+branch: f_386_remove_buttons_from_cards
+worktree: 1
 ---
 need to simplify the cards:
 
