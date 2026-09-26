@@ -7,6 +7,7 @@ status: design
 owner: 
 affects:
 agents:
+  - design/activity/card__74c0373d-337f-4b51-92d8-9bc336528275.json
 policy:
 ---
 A previously split conversation is currently waiting for input. yet all 'split' buttons in the conversation are disabled.
