@@ -9,8 +9,7 @@ affects:
 agents:
 policy:
 ---
-
 need to simplify the cards:
 
-* remove `open as file`
+* remove `open in file mode`
 * remove 'attach file' and all related functionality to attaching files in the card header. we will only support adding links in markdown
