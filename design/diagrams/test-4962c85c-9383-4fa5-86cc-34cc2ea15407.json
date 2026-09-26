@@ -24,7 +24,7 @@
   "formatting": {
     "connectionKinds": {
       "connection": {
-        "endMarker": "filled-arrow",
+        "endMarker": "open-arrow",
         "font": {
           "bold": false,
           "italic": false,
