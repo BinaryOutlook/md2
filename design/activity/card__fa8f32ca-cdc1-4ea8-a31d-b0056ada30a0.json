@@ -20,10 +20,10 @@
       "actionId": "5b88355d-f964-459a-bc67-6618650866ba",
       "cardInternalId": "fa8f32ca-cdc1-4ea8-a31d-b0056ada30a0",
       "cardPath": "design/feature_descriptions/F_385_action_buttons_in_scrollbox.md",
-      "completedAt": "2026-09-25T18:32:52.594Z",
+      "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 1000000,
-        "usedTokens": 73129
+        "usedTokens": 76684
       },
       "entries": [
         {
@@ -541,6 +541,80 @@
           "role": "assistant",
           "sequence": 41,
           "timestamp": "2026-09-25T18:32:52.594Z"
+        },
+        {
+          "content": "> Selected action not scrolled into view.\n\nno good. selected action should be scrolled into view",
+          "id": "agent-turn-5da55fd2-7818-4b75-b786-51f967971e32-user",
+          "kind": "message",
+          "role": "user",
+          "sequence": 42,
+          "timestamp": "2026-09-26T12:56:49.365Z"
+        },
+        {
+          "content": "",
+          "details": [
+            ""
+          ],
+          "id": "agent-turn-5da55fd2-7818-4b75-b786-51f967971e32-event-43",
+          "kind": "event",
+          "label": "Thinking",
+          "providerItemId": "msg_011CfS65cenQmrnhD8YHTnYY:thinking:0",
+          "sequence": 43,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:56:54.904Z",
+          "type": "reasoning"
+        },
+        {
+          "content": "C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\F_385_action_buttons_in_scrollbox.md",
+          "deletions": 0,
+          "id": "agent-turn-5da55fd2-7818-4b75-b786-51f967971e32-event-44",
+          "insertions": 1,
+          "kind": "event",
+          "label": "Edit",
+          "output": "The file C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\F_385_action_buttons_in_scrollbox.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+          "providerItemId": "toolu_01UnJEuWGgjf7h9LqGrxiRmE",
+          "sequence": 44,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:56:57.760Z",
+          "type": "fileChange"
+        },
+        {
+          "content": "C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\F_385_action_buttons_in_scrollbox.md",
+          "deletions": 1,
+          "id": "agent-turn-5da55fd2-7818-4b75-b786-51f967971e32-event-45",
+          "insertions": 1,
+          "kind": "event",
+          "label": "Edit",
+          "output": "The file C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\F_385_action_buttons_in_scrollbox.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+          "providerItemId": "toolu_01PWbt32DFrdAR1k6mfuThyC",
+          "sequence": 45,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:56:59.438Z",
+          "type": "fileChange"
+        },
+        {
+          "content": "C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\F_385_action_buttons_in_scrollbox.md",
+          "deletions": 0,
+          "id": "agent-turn-5da55fd2-7818-4b75-b786-51f967971e32-event-46",
+          "insertions": 1,
+          "kind": "event",
+          "label": "Edit",
+          "output": "The file C:\\Users\\janbo\\Documents\\dev\\md2\\design\\feature_descriptions\\F_385_action_buttons_in_scrollbox.md has been updated successfully. (file state is current in your context — no need to Read it back)",
+          "providerItemId": "toolu_01DzTts4TSXMMuGqvcoMkmQJ",
+          "sequence": 46,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:57:01.116Z",
+          "type": "fileChange"
+        },
+        {
+          "agent": "claude",
+          "content": "I updated `F_385_action_buttons_in_scrollbox.md` so the selected action scrolls into view.\n\n- **Implementation details:**\n  - **When it happens:** when the popup opens, and again each time the selected action changes.\n  - **How:** an effect in `ActionSelector` runs whenever `selectedAction.id` changes. It finds the selected button, which is the one with `aria-pressed=\"true\"`, and calls `scrollIntoView({ block: 'nearest', inline: 'nearest' })`.\n  - **No vertical jump:** `block: 'nearest'` stops the popup or page from scrolling up or down.\n  - **Not hidden under a scroll button:** `HorizontalScrollArea` already sets `scrollPaddingInline`, which keeps space at each edge for the scroll buttons.\n- **Tests:** jsdom (the fake browser the tests run in) has no `scrollIntoView`, so the test replaces it with a stub. It then checks that the selected button is scrolled on first render and again after the selection changes.\n- **Acceptance criteria:** when the popup opens, the selected action is fully visible. A newly selected action scrolls into view. Neither case scrolls the popup vertically.\n\nMy other open question is still unanswered: should `CardSequenceActionSelector` (the sequence action selector) also get the scrollbox? For now the doc leaves it unchanged.",
+          "id": "agent-turn-5da55fd2-7818-4b75-b786-51f967971e32-turn-1-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 47,
+          "timestamp": "2026-09-26T12:57:05.868Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -555,23 +629,23 @@
         }
       ],
       "startedAt": "2026-09-25T18:31:39.661Z",
-      "status": "completed",
+      "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 21150,
-          "toolMs": 31603
+          "reasoningMs": 24042,
+          "toolMs": 37814
         },
         "elapsedMs": 72933,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-26T12:56:49.365Z"
       },
       "title": "complete",
       "usage": {
-        "cachedInputTokens": 925734,
-        "inputTokens": 32,
-        "outputTokens": 6682,
+        "cachedInputTokens": 1076763,
+        "inputTokens": 36,
+        "outputTokens": 8331,
         "reasoningTokens": 0,
-        "totalTokens": 932448,
-        "costUsd": 0.7599501999999999
+        "totalTokens": 1085130,
+        "costUsd": 2.0648847999999997
       },
       "usageSchemaVersion": 1,
       "viewed": true
