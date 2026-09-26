@@ -13,6 +13,8 @@ after: eb1707b3-15c4-4a42-b86e-db35fbfd9060
 branch: f_383_prompts_need_to_be_shown_faster
 worktree: 3
 changedFiles:
+  - app/src/components/actions/agent/action_agent_preset_name_owner.tsx
+  - app/src/components/actions/agent/action_prompt_owner.tsx
   - app/src/components/actions/conversation/action_conversation_chat.grouped.test.tsx
   - app/src/components/actions/conversation/state/action_conversation_store.node.test.ts
   - app/src/components/actions/conversation/state/action_conversation_store.ts
@@ -24,10 +26,16 @@ changedFiles:
   - app/src/components/actions/conversation/transcript/action_conversation_transcript.tsx
   - app/src/components/actions/conversation/transcript/action_pending_submission_row.tsx
   - app/src/components/actions/conversation/transcript/action_queued_prompt.tsx
+  - app/src/components/actions/editor/action_phrase_buttons_owner.tsx
   - app/src/components/actions/run/popup/action_popup.test.tsx
+  - app/src/components/actions/run/popup/action_popup_bottom_row.tsx
   - app/src/components/actions/run/popup/action_popup_content.tsx
   - app/src/components/actions/run/popup/action_popup_operations.node.test.ts
   - app/src/components/actions/run/popup/action_popup_operations.ts
+  - app/src/services/actions/action_prompt_draft_service.node.test.ts
+  - app/src/services/actions/action_prompt_draft_service.ts
+  - app/src/services/actions/action_run_registry.node.test.ts
+  - app/src/services/actions/action_run_registry.ts
 ---
 We generated a squence diagram (json file), of the action popup and its interactions. There, you can see that input sent by the user to the agent, first goes to backend and back to frontend before it is shown in the chatlog. This is too late.
 
