@@ -113,7 +113,6 @@ function useCardFieldByInternalId<T>(
 const selectTitle = (card: Card | null) => card?.header.title ?? null
 const selectBody = (card: Card | null) => card?.content ?? null
 const selectPolicy = (card: Card | null) => card?.header.policy ?? null
-const selectReferences = (card: Card | null) => card?.header.references ?? null
 const CARD_METADATA_FIELDS: CardField[] = ['identity', 'policy', 'status', 'title', 'worktree']
 
 /** Reads only title primitive for one card. */
@@ -129,11 +128,6 @@ export function useCardBody(path: string | null, service: DataService = dataServ
 /** Reads only policy map reference for one card. */
 export function useCardPolicy(path: string | null, service: DataService = dataService) {
     return useCardField(path, 'policy', selectPolicy, service)
-}
-
-/** Reads only references array for one card. */
-export function useCardReferences(path: string | null, service: DataService = dataService) {
-    return useCardField(path, 'references', selectReferences, service)
 }
 
 /** Reads stable worktree projection for one card. */

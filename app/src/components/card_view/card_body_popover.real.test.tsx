@@ -62,7 +62,6 @@ describe('CardBodyPopover with installed MDXEditor', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible

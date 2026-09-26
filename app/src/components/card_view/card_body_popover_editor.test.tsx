@@ -42,7 +42,6 @@ function renderPopover() {
                 isMobile={false}
                 onDeleteCard={vi.fn(async () => undefined)}
                 onOpenAffects={vi.fn()}
-                onOpenInFileMode={vi.fn()}
                 states={states}
                 statusColors={new Map()}
                 visible
@@ -123,7 +122,6 @@ describe('CardBodyPopover editor cleanup', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible

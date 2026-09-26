@@ -3,7 +3,6 @@ import type { ChangeEvent, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import Close from 'mdi-material-ui/Close'
 import DeleteOutline from 'mdi-material-ui/DeleteOutline'
-import FileDocumentOutline from 'mdi-material-ui/FileDocumentOutline'
 import FolderSearchOutline from 'mdi-material-ui/FolderSearchOutline'
 import type { CardTypeConfig, StateConfig } from '../../data/data_types'
 import type { ActionContext } from '../../data/action_context'
@@ -68,7 +67,6 @@ interface CardBodyPopoverProps {
     isMobile: boolean
     onDeleteCard: (path: string) => Promise<void>
     onOpenAffects: (path: string) => void
-    onOpenInFileMode: (path: string) => void
     states: StateConfig[]
     statusColors: Map<string, string>
     visible: boolean
@@ -107,7 +105,6 @@ function CardBodyPopoverEntry(props: CardBodyPopoverEntryProps) {
         isMobile,
         onDeleteCard,
         onOpenAffects,
-        onOpenInFileMode,
         states,
         statusColors,
         stackPosition,
@@ -204,12 +201,6 @@ function CardBodyPopoverEntry(props: CardBodyPopoverEntryProps) {
     }
     const selectWorktree = () => cardPopupService.selectDiff(entry.id, { kind: 'worktree' })
     const clearSelectedDiff = () => cardPopupService.clearDiff(entry.id)
-
-    const openInFileMode = () => {
-        if (!card) return
-        setIsFullscreen(false)
-        onOpenInFileMode(card.path)
-    }
 
     const closeDeleteCardDialog = () => {
         setDeleteCardPath(null)
@@ -454,12 +445,6 @@ function CardBodyPopoverEntry(props: CardBodyPopoverEntryProps) {
                                         <FolderSearchOutline />
                                     </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Open in file mode">
-                                    <IconButton aria-label="Open in file mode" onClick={openInFileMode}>
-                                        <FileDocumentOutline />
-                                    </IconButton>
-                                </Tooltip>
-                            
                                 <AgentUsageDisplay usage={cardAgentTokenUsage(activity?.conversations ?? [])} />
                                 <Box data-card-details-footer-spacer="true" sx={{ flex: 1 }} />
                                 <CardStateSelector

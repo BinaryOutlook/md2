@@ -74,7 +74,6 @@ function renderCard() {
                 isMobile={false}
                 onArchiveCard={vi.fn(async () => undefined)}
                 onDeleteCard={vi.fn(async () => undefined)}
-                onOpenInFileMode={vi.fn()}
                 onTitleChange={vi.fn()}
                 onTogglePolicy={vi.fn()}
             />

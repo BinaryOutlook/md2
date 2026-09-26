@@ -3,6 +3,7 @@ import { copyAndApplyAttachments } from '../data/card_attachment_operations'
 import { dataService } from '../data/data_service'
 import { attachmentChoiceService } from './attachment_choice_service'
 import { getOriginalFilePaths } from '../../data/electron_file_bridge'
+import { openFilesService } from '../open_files_service'
 
 export type AttachmentMarkdownInserter = (markdown: string) => void | Promise<void>
 
@@ -32,44 +33,31 @@ function attachmentMarkdown(files: File[], paths: string[], originalLocation: bo
     }).join('\n')
 }
 
-async function restoreCardReferences(cardPath: string, references: string[]) {
-    dataService.cards.setCardReferences(cardPath, references)
-    await dataService.cards.flushPendingCommits()
-}
-
-/** Runs board-card attachment choice and persists resulting references. */
-export async function attachFilesToCard(cardPath: string, files: File[]) {
-    const selection = await attachmentChoiceService.choose(files)
-    if (!selection) return []
-
-    if (selection.choice === 'original') {
-        const paths = selection.originalPaths
-        if (!paths) throw new Error('Original attachment paths are unavailable')
-        dataService.cards.addCardReferences(cardPath, paths)
-        await dataService.cards.flushPendingCommits()
-
-        return paths
+/** Appends dropped links to the latest body of one board card and persists the edit. */
+export async function attachFilesToBoardCardMarkdown(cardInternalId: string, files: File[]) {
+    if (files.length === 0) return false
+    const selectedCard = dataService.getState().snapshot?.activeCards.find(({ header }) => header.internalId === cardInternalId)
+    if (!selectedCard) throw new Error(`Cannot attach files to an unloaded card: ${cardInternalId}`)
+    let inserted = false
+    const insertMarkdown = async (markdown: string) => {
+        const card = dataService.getState().snapshot?.activeCards.find(({ header }) => header.internalId === cardInternalId)
+        if (!card) throw new Error(`Cannot attach files to an unloaded card: ${cardInternalId}`)
+        const document = openFilesService.findDocument(card)
+        const previousBody = document?.kind === 'card' && document.dirty ? document.getDraft().content : card.content
+        const separator = previousBody.length === 0 || previousBody.endsWith('\n') ? '' : '\n'
+        const nextBody = `${previousBody}${separator}${markdown}\n`
+        try {
+            dataService.cards.updateCardBody(card.path, nextBody)
+            await dataService.cards.flushPendingCommits()
+            inserted = true
+        } catch (error) {
+            dataService.cards.updateCardBody(card.path, previousBody)
+            throw error
+        }
     }
 
-    const card = dataService.getState().snapshot?.activeCards.find(({ path }) => path === cardPath)
-    if (!card) throw new Error(`Cannot attach files to an unloaded card: ${cardPath}`)
-    const previousReferences = [...card.header.references]
-    const attachments = await copyAndApplyAttachments(
-        files,
-        (selectedFiles) => dataService.cards.copyAttachmentsForCard(cardPath, selectedFiles),
-        async (savedAttachments) => {
-            try {
-                dataService.cards.addCardReferences(cardPath, savedAttachments.map(({ path }) => path))
-                await dataService.cards.flushPendingCommits()
-            } catch (error) {
-                await restoreCardReferences(cardPath, previousReferences)
-                throw error
-            }
-        },
-        (paths) => dataService.cards.deleteCopiedAttachments(paths),
-    )
-
-    return attachments.map(({ path }) => path)
+    await attachFilesToCardMarkdown(selectedCard.path, files, insertMarkdown)
+    return inserted
 }
 
 async function insertCopiedMarkdown(
