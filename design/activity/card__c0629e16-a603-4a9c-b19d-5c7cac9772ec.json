@@ -7899,7 +7899,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 47674
+        "usedTokens": 48128
       },
       "entries": [
         {
@@ -9258,6 +9258,36 @@
           "role": "assistant",
           "sequence": 99,
           "timestamp": "2026-09-26T12:39:27.645Z"
+        },
+        {
+          "content": "> temporary submissions are rebound with selectionId: null, and the chatlog filters them by the current selection ID\n\nagain, this makes no sense. rebound? where does that word come from, we are not using that in this code base, are we?\n\nselectionId, what is that, we are not doing anything with selection\n\ni don't understand any of this. with `a temporary submission` do you mean one that has not yet been 'acked' by the electron app? it has a conversation id no?",
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-user-99",
+          "kind": "message",
+          "role": "user",
+          "sequence": 100,
+          "timestamp": "2026-09-26T12:43:11.373Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-101",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_074b1aa76919ad14016ab7bde3af3887d2a2b8425e4179218b",
+          "sequence": 101,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:43:17.610Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "You’re right; “rebound” was my wording, and it obscured what the code does.\n\nA **temporary submission** is the local chat row created immediately when you press Send, before Electron has confirmed the prompt. It can remain while the app waits for a queued prompt or sent user message.\n\nThat row **does not currently store a conversation ID**. It stores a `runId` (initially `null` when starting a run) and a `selectionId`, which is a copy of whichever conversation ID was selected when Send was pressed. When Electron returns the new run ID, `bindSubmission()` assigns it to the row and sets `selectionId` to `null`. [Submission creation and binding](C:/Users/janbo/Documents/dev/md2_workers/dev3/app/src/components/actions/conversation/state/action_conversation_store.ts:131)\n\nSo your objection is valid: `selectionId` is being used as a proxy for conversation identity and display state, even though those are different things. That is why my explanation sounded unnatural. The temporary submission should identify its conversation directly; the current code does not.\n\n",
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-4-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 102,
+          "timestamp": "2026-09-26T12:43:23.068Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -9267,27 +9297,27 @@
           "agent": "codex",
           "conversationId": "01a0ddaf-ab6f-7730-9c7b-09e9abbeddeb",
           "createdAt": "2026-09-26T12:28:41.065Z",
-          "lastUsedAt": "2026-09-26T12:32:31.953Z",
-          "synchronizedThroughMessageId": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-2-assistant-2"
+          "lastUsedAt": "2026-09-26T12:39:27.645Z",
+          "synchronizedThroughMessageId": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-3-assistant-2"
         }
       ],
       "startedAt": "2026-09-26T12:20:04.763Z",
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 18367,
+          "reasoningMs": 22415,
           "toolMs": 1102
         },
-        "elapsedMs": 80902,
-        "runningStartedAt": "2026-09-26T12:38:58.864Z"
+        "elapsedMs": 109683,
+        "runningStartedAt": "2026-09-26T12:43:11.373Z"
       },
       "title": "review (split)",
       "usage": {
-        "cachedInputTokens": 447744,
-        "inputTokens": 37441,
-        "outputTokens": 2835,
-        "reasoningTokens": 604,
-        "totalTokens": 488624
+        "cachedInputTokens": 494592,
+        "inputTokens": 38377,
+        "outputTokens": 3067,
+        "reasoningTokens": 716,
+        "totalTokens": 536752
       },
       "usageSchemaVersion": 1,
       "viewed": true
