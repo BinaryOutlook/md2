@@ -6643,6 +6643,14 @@
           "role": "assistant",
           "sequence": 138,
           "timestamp": "2026-09-26T12:02:35.629Z"
+        },
+        {
+          "content": "ok, fix it so it is more generic",
+          "id": "agent-turn-768f706a-50b5-45d7-a415-240a7d3ddb7e-user-138",
+          "kind": "message",
+          "role": "user",
+          "sequence": 139,
+          "timestamp": "2026-09-26T12:06:06.331Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -6657,14 +6665,14 @@
         }
       ],
       "startedAt": "2026-09-26T09:21:24.308Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 104268,
           "toolMs": 66072
         },
         "elapsedMs": 409070,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-26T12:06:06.331Z"
       },
       "title": "+",
       "usage": {
