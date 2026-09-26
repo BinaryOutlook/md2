@@ -3775,6 +3775,34 @@
       },
       "usageSchemaVersion": 1,
       "viewed": true
+    },
+    {
+      "actionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
+      "cardInternalId": "c0629e16-a603-4a9c-b19d-5c7cac9772ec",
+      "cardPath": "design/feature_descriptions/F_383_prompts_need_to_be_shown_faster.md",
+      "completedAt": null,
+      "entries": [
+        {
+          "content": "we just implemented the feature description  `design/feature_descriptions/F_383_prompts_need_to_be_shown_faster.md`.\r\nCheck that:  everything is fully and correctly implemented.\r\nlist all:\n\n* missing stuff\n* shortcuts\n* incorrectly implemented\n* bad design\n* not following architectural design\n* code smells\n\nbe short and to the point, but report back with full normal sentences\n\nwe don't care about missing tests.\n\nMake certain every problem you report is a real issue and for each problem, include how you will fix it",
+          "id": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-user",
+          "kind": "message",
+          "role": "user",
+          "sequence": 1,
+          "timestamp": "2026-09-26T09:19:26.107Z"
+        }
+      ],
+      "hasExplicitTitle": true,
+      "id": "agent-79f3df03-4223-460f-9e24-8e2d77f6dc8a",
+      "providerSessions": [],
+      "startedAt": "2026-09-26T09:19:26.107Z",
+      "status": "running",
+      "timer": {
+        "elapsedMs": 0,
+        "runningStartedAt": "2026-09-26T09:19:26.107Z"
+      },
+      "title": "review",
+      "usageSchemaVersion": 1,
+      "viewed": true
     }
   ],
   "origin": {
@@ -3825,11 +3853,11 @@
         "agent-048889ea-409c-42ac-bf82-516aabd5f533"
       ],
       "details": {
+        "type": "agent",
         "agent": "codex",
         "model": "gpt-6-sol",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-d1f6d58d-e4f7-4e80-91b3-f0aecbcc7efa",
       "origin": {
@@ -3838,9 +3866,9 @@
       },
       "rootActionId": "47dafdc7-0be7-4d56-bb5a-07c813906416",
       "rootActionLabel": "implement",
-      "rootConversationId": "agent-048889ea-409c-42ac-bf82-516aabd5f533",
       "startedAt": "2026-09-25T18:17:51.621Z",
-      "status": "completed"
+      "status": "completed",
+      "rootConversationId": "agent-048889ea-409c-42ac-bf82-516aabd5f533"
     }
   ],
   "version": 5
