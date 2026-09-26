@@ -39,6 +39,12 @@
   "groups": [],
   "meta": {
     "description": "A test on mobile",
+    "legend": [
+      {
+        "role": "optional",
+        "label": "Optional"
+      }
+    ],
     "title": "Test",
     "type": "mindmap",
     "version": 1
