@@ -15,31 +15,38 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material'
-import { useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
-import type { AgentConversation, AgentConversationMessageEntry } from '../../../../data/data_types'
+import { useState, useSyncExternalStore, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
+import type { AgentConversationMessageEntry } from '../../../../data/data_types'
 import { dialogService } from '../../../../services/dialog_service'
 import { useProjectReadOnly } from '../../../hooks/use_project_read_only'
 import type { ActionConversationCommandOperations } from '../state/action_conversation_command_service'
 import { firstPromptMessageId } from '../state/action_conversation_command_service'
+import type { ActionConversationChatlogTracker } from '../transcript/action_conversation_chatlog_tracker'
 import { ActionConversationCopyButton } from './action_conversation_copy_button'
 
 interface ActionConversationMessageCommandsProps {
     commands: ActionConversationCommandOperations
-    conversation: AgentConversation
     message: AgentConversationMessageEntry
+    tracker: ActionConversationChatlogTracker
 }
 
 /** Message Copy, Split, and Save controls with one-command-at-a-time mutation handling. */
 export function ActionConversationMessageCommands(
-    { commands, conversation, message }: ActionConversationMessageCommandsProps,
+    { commands, message, tracker }: ActionConversationMessageCommandsProps,
 ) {
     const readOnly = useProjectReadOnly()
+    const conversationStatus = useSyncExternalStore(
+        tracker.subscribeConversationStatus,
+        tracker.getConversationStatus,
+        tracker.getConversationStatus,
+    )
+    const conversation = tracker.getConversation()
     const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [label, setLabel] = useState('')
     const [pending, setPending] = useState(false)
-    const firstPrompt = message.id === firstPromptMessageId(conversation)
-    const splitDisabled = readOnly || pending || conversation.status === 'running'
+    const firstPrompt = conversation ? message.id === firstPromptMessageId(conversation) : false
+    const splitDisabled = readOnly || pending || !conversation || conversationStatus === 'running'
     const saveDisabled = readOnly || pending
     const handleMenuOpen = (event: MouseEvent<HTMLElement>) => setMenuAnchor(event.currentTarget)
     const handleMenuClose = () => setMenuAnchor(null)
@@ -61,7 +68,12 @@ export function ActionConversationMessageCommands(
         }
     }
     const handleSplit = async () => handleMutation(
-        () => commands.split(conversation, message),
+        () => {
+            const currentConversation = tracker.getConversation()
+            if (!currentConversation) throw new Error('No displayed agent conversation to split')
+
+            return commands.split(currentConversation, message)
+        },
         'Could not split conversation',
     )
     const handleResponsePhrase = async () => {

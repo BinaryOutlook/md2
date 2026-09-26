@@ -63,9 +63,14 @@ function renderCommands(
     commands = operations(),
     value = conversation(),
 ) {
+    const tracker = {
+        getConversation: () => value,
+        getConversationStatus: () => value.status,
+        subscribeConversationStatus: () => () => undefined,
+    } as unknown as ActionConversationChatlogTracker
     render(
         <AppThemeProvider>
-            <ActionConversationMessageCommands commands={commands} conversation={value} message={message} />
+            <ActionConversationMessageCommands commands={commands} message={message} tracker={tracker} />
         </AppThemeProvider>,
     )
 
@@ -117,6 +122,19 @@ describe('conversation item commands', () => {
         renderCommands(assistantMessage, operations(), conversation('running'))
 
         expect(screen.getByRole('button', { name: 'Split conversation here' })).toBeDisabled()
+    })
+
+    it('disables Split while another message command is pending', async () => {
+        let finishSave: () => void = () => undefined
+        const saveAsResponsePhrase = vi.fn(() => new Promise<void>((resolve) => { finishSave = resolve }))
+        renderCommands(assistantMessage, operations({ saveAsResponsePhrase }))
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save message' }))
+        await userEvent.click(screen.getByRole('menuitem', { name: 'Save as response phrase' }))
+        expect(screen.getByRole('button', { name: 'Split conversation here' })).toBeDisabled()
+
+        finishSave()
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Split conversation here' })).toBeEnabled())
     })
 
     it('copies exact source Markdown', async () => {

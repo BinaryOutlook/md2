@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentConversation, AgentConversationEntry } from '../../../../data/data_types'
 import type { ActionConversationChange, ActionRun, ActionRunRegistry } from '../../../../services/actions/action_run_registry'
 import { AppThemeProvider } from '../../../../theme/theme_provider'
+import { projectAccessService } from '../../../../services/project/project_access_service'
 import type { ActionRunBindingStore } from '../../run/state/action_run_binding_store'
 import type { PopupRunStatus } from '../../run/popup/action_popup_defaults'
 import type { ActionConversationStore } from '../state/action_conversation_store'
@@ -63,7 +65,7 @@ function conversation(entries: AgentConversationEntry[]): AgentConversation {
 }
 
 class TranscriptTestConversationStore extends EventTarget {
-    private readonly snapshot = { conversations: [], loading: false, selectedConversation: null }
+    private snapshot = { conversations: [] as AgentConversation[], loading: false, selectedConversation: null as AgentConversation | null }
 
     readonly getSnapshot = () => this.snapshot
 
@@ -71,6 +73,11 @@ class TranscriptTestConversationStore extends EventTarget {
         this.addEventListener('changed', listener)
 
         return () => this.removeEventListener('changed', listener)
+    }
+
+    select(selectedConversation: AgentConversation | null) {
+        this.snapshot = { ...this.snapshot, selectedConversation }
+        this.dispatchEvent(new Event('changed'))
     }
 }
 
@@ -129,7 +136,9 @@ class TranscriptTestRunRegistry {
 type TranscriptTestConversation = AgentConversation & { change?: ActionConversationChange }
 
 interface TranscriptTestProps {
+    commands?: ActionConversationCommandOperations
     conversation: TranscriptTestConversation | null
+    selectedConversation?: AgentConversation | null
     status: PopupRunStatus
 }
 
@@ -143,7 +152,9 @@ function transcriptTestRun(conversationValue: TranscriptTestConversation | null,
     } as unknown as ActionRun
 }
 
-function ActionConversationChat({ conversation: value, status }: TranscriptTestProps) {
+function ActionConversationChat(
+    { commands: chatCommands = commands, conversation: value, selectedConversation = null, status }: TranscriptTestProps,
+) {
     const [runtime] = useState(() => {
         const registry = new TranscriptTestRunRegistry(transcriptTestRun(value, status))
         const bindingStore = new TranscriptTestBindingStore('transcript-test-run')
@@ -161,10 +172,13 @@ function ActionConversationChat({ conversation: value, status }: TranscriptTestP
     useLayoutEffect(() => {
         runtime.registry.updateConversation(value, status)
     }, [runtime, status, value])
+    useLayoutEffect(() => {
+        runtime.store.select(selectedConversation)
+    }, [runtime, selectedConversation])
 
     return <ActionConversationTranscript
         bindingStore={runtime.bindingStore as unknown as ActionRunBindingStore}
-        commands={commands}
+        commands={chatCommands}
         searchService={runtime.searchService}
         store={runtime.store as unknown as ActionConversationStore}
         trackerFactory={runtime.trackerFactory}
@@ -174,7 +188,57 @@ function ActionConversationChat({ conversation: value, status }: TranscriptTestP
 describe('ActionConversationChat rendering', () => {
     afterEach(() => {
         cleanup()
+        projectAccessService.setReadOnly(false)
         vi.clearAllMocks()
+    })
+
+    it('enables every mounted Split control when a previously split source starts waiting', async () => {
+        const firstMessage = { content: 'First', id: 'message-1', kind: 'message' as const, role: 'user' as const, timestamp: 'now' }
+        const secondMessage = { content: 'Second', id: 'message-2', kind: 'message' as const, role: 'assistant' as const, timestamp: 'now' }
+        const running = { ...conversation([firstMessage, secondMessage]), title: 'Review (split)' }
+        const waiting = { ...running, status: 'waitingForInput' as const }
+        const split = vi.fn(async () => undefined)
+        const chatCommands = { ...commands, split }
+        const { rerender } = render(
+            <AppThemeProvider><ActionConversationChat commands={chatCommands} conversation={running} status="running" /></AppThemeProvider>,
+        )
+        expect(screen.getAllByRole('button', { name: 'Split conversation here' })).toHaveLength(2)
+        for (const button of screen.getAllByRole('button', { name: 'Split conversation here' })) expect(button).toBeDisabled()
+        renderProbes.markdown.mockClear()
+
+        rerender(
+            <AppThemeProvider><ActionConversationChat commands={chatCommands} conversation={waiting} status="waitingForInput" /></AppThemeProvider>,
+        )
+
+        for (const button of screen.getAllByRole('button', { name: 'Split conversation here' })) expect(button).toBeEnabled()
+        expect(renderProbes.markdown).not.toHaveBeenCalled()
+        await userEvent.click(screen.getAllByRole('button', { name: 'Split conversation here' })[1])
+        expect(split).toHaveBeenCalledWith(waiting, secondMessage)
+    })
+
+    it('uses status of displayed conversation when switching between live and history', () => {
+        const liveMessage = { content: 'Live', id: 'live-message', kind: 'message' as const, role: 'user' as const, timestamp: 'now' }
+        const historyMessage = { content: 'History', id: 'history-message', kind: 'message' as const, role: 'user' as const, timestamp: 'now' }
+        const live = conversation([liveMessage])
+        const historical = { ...conversation([historyMessage]), id: 'historical', status: 'waitingForInput' as const }
+        const { rerender } = render(
+            <AppThemeProvider><ActionConversationChat conversation={live} status="running" /></AppThemeProvider>,
+        )
+        expect(screen.getByRole('button', { name: 'Split conversation here' })).toBeDisabled()
+
+        rerender(
+            <AppThemeProvider>
+                <ActionConversationChat conversation={live} selectedConversation={historical} status="running" />
+            </AppThemeProvider>,
+        )
+        expect(screen.getByText('History')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Split conversation here' })).toBeEnabled()
+
+        rerender(
+            <AppThemeProvider><ActionConversationChat conversation={live} status="running" /></AppThemeProvider>,
+        )
+        expect(screen.getByText('Live')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Split conversation here' })).toBeDisabled()
     })
 
     it('updates a stable entry after terminal rendering without throwing', () => {

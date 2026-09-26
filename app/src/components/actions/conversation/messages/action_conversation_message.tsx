@@ -66,7 +66,7 @@ export const ActionConversationMessage = memo(function ActionConversationMessage
                     </ReactMarkdown>
                 </Box>
             </ActionConversationLinkContext>
-            <ActionConversationMessageCommands commands={commands} conversation={conversation} message={entry} />
+            <ActionConversationMessageCommands commands={commands} message={entry} tracker={tracker} />
         </Box>
     )
 })

@@ -132,6 +132,26 @@ function setup(initialRun: ActionRun) {
 }
 
 describe('ActionConversationChatlogTracker', () => {
+    it('publishes displayed conversation status without replacing unchanged groups', () => {
+        const entries = [message('user-1', 'user')]
+        const running = conversation('conversation-1', entries)
+        const waiting = { ...running, status: 'waitingForInput' as const }
+        const historical = conversation('conversation-2', entries, 'completed')
+        const { conversationStore, registry, tracker } = setup(run('run-1', running))
+        tracker.load()
+        const groups = tracker.getEvolvingGroups()
+        const statuses: Array<AgentConversation['status'] | null> = []
+        tracker.subscribeConversationStatus(() => statuses.push(tracker.getConversationStatus()))
+
+        registry.setRun({ ...run('run-1', waiting, 'waitingForInput'), conversationChange: null })
+        expect(tracker.getEvolvingGroups()).toBe(groups)
+        expect(tracker.getConversationStatus()).toBe('waitingForInput')
+
+        conversationStore.select(historical)
+        expect(tracker.getConversationStatus()).toBe('completed')
+        expect(statuses).toEqual(['waitingForInput', 'completed'])
+    })
+
     it('registers every source listener on load and removes them on unload', () => {
         const value = conversation('conversation-1', [message('user-1', 'user')])
         const { bindingStore, conversationStore, registry, tracker } = setup(run('run-1', value))

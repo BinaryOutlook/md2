@@ -23,6 +23,7 @@ const EVOLVING_GROUPS_CHANGED_EVENT = 'evolvingGroupsChanged'
 const RESERVED_BLOCK_COUNT_CHANGED_EVENT = 'reservedBlockCountChanged'
 const QUEUED_PROMPTS_CHANGED_EVENT = 'queuedPromptsChanged'
 const CONVERSATION_CHANGED_EVENT = 'conversationChanged'
+const CONVERSATION_STATUS_CHANGED_EVENT = 'conversationStatusChanged'
 const EMPTY_GROUPS: ActionConversationRenderGroup[] = []
 const EMPTY_QUEUED_PROMPTS: ActionQueuedPrompt[] = []
 
@@ -188,6 +189,7 @@ function displayedStatus(run: ActionRun | null, selectedConversation: AgentConve
 export class ActionConversationChatlogTracker extends EventTarget {
     private readonly bindingStore: ActionRunBindingStore
     private conversation: AgentConversation | null = null
+    private conversationStatus: AgentConversation['status'] | null = null
     private conversationChange: ActionConversationChange | null = null
     private readonly conversationStore: ActionConversationStore
     private evolvingGroups: ActionConversationRenderGroup[] = EMPTY_GROUPS
@@ -260,6 +262,8 @@ export class ActionConversationChatlogTracker extends EventTarget {
     readonly getQueuedPrompts = () => this.queuedPrompts
     readonly getCardInternalId = () => this.conversation?.cardInternalId ?? null
     readonly getConversation = () => this.conversation
+
+    readonly getConversationStatus = () => this.conversationStatus
     readonly getConversationIdentity = () => this.conversation?.id ?? null
     readonly getRunId = () => this.runId
     readonly groupIsExpanded = (key: string) => this.expandedGroupKeys.has(key)
@@ -271,6 +275,8 @@ export class ActionConversationChatlogTracker extends EventTarget {
     )
     readonly subscribeQueuedPrompts = (listener: () => void) => this.subscribe(QUEUED_PROMPTS_CHANGED_EVENT, listener)
     readonly subscribeConversation = (listener: () => void) => this.subscribe(CONVERSATION_CHANGED_EVENT, listener)
+
+    readonly subscribeConversationStatus = (listener: () => void) => this.subscribe(CONVERSATION_STATUS_CHANGED_EVENT, listener)
 
     readonly subscribeExpansion = (key: string, listener: () => void) => this.subscribe(`expansion:${key}`, listener)
 
@@ -335,10 +341,12 @@ export class ActionConversationChatlogTracker extends EventTarget {
         runId: string | null,
     ) {
         const previousConversation = this.conversation
+        const previousConversationStatus = this.conversationStatus
         const identityChanged = previousConversation?.id !== conversation?.id
         const displayedConversationChanged = previousConversation?.id !== conversation?.id
             || previousConversation?.path !== conversation?.path
             || previousConversation?.cardInternalId !== conversation?.cardInternalId
+        const conversationStatusChanged = previousConversationStatus !== (conversation?.status ?? null)
         if (identityChanged) {
             this.resetConversationState()
             this.expandedGroupKeys.clear()
@@ -346,7 +354,7 @@ export class ActionConversationChatlogTracker extends EventTarget {
 
         const conversationChanged = previousConversation !== conversation || this.conversationChange !== change
         const statusChanged = this.status !== status
-        if (!conversationChanged && !statusChanged) {
+        if (!conversationChanged && !statusChanged && !conversationStatusChanged) {
             this.publishViewChanges(this.stableGroups, this.evolvingGroups, this.reservedBlockCount, queuedPrompts, runId)
             return
         }
@@ -354,6 +362,9 @@ export class ActionConversationChatlogTracker extends EventTarget {
         if (!conversation) {
             this.resetConversationState()
             this.publishViewChanges(EMPTY_GROUPS, EMPTY_GROUPS, 0, queuedPrompts, runId)
+            if (conversationStatusChanged || displayedConversationChanged) {
+                this.dispatchEvent(new Event(CONVERSATION_STATUS_CHANGED_EVENT))
+            }
             if (displayedConversationChanged) this.dispatchEvent(new Event(CONVERSATION_CHANGED_EVENT))
             return
         }
@@ -424,17 +435,22 @@ export class ActionConversationChatlogTracker extends EventTarget {
         const reservedBlockCount = reservedActionConversationBlockCount(this.reservationState)
 
         this.conversation = conversation
+        this.conversationStatus = conversation.status
         this.conversationChange = change
         this.providerSessions = conversation.providerSessions
         this.reservationGroups = nextReservationGroups
         this.stableEntryCount = stableEntryCount
         this.status = status
         this.publishViewChanges(stableGroups, evolvingGroups, reservedBlockCount, queuedPrompts, runId)
+        if (conversationStatusChanged || displayedConversationChanged) {
+            this.dispatchEvent(new Event(CONVERSATION_STATUS_CHANGED_EVENT))
+        }
         if (displayedConversationChanged) this.dispatchEvent(new Event(CONVERSATION_CHANGED_EVENT))
     }
 
     private resetConversationState() {
         this.conversation = null
+        this.conversationStatus = null
         this.conversationChange = null
         this.providerSessions = null
         this.reservationGroups = []
