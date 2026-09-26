@@ -6622,19 +6622,19 @@
           "agent": "codex",
           "conversationId": "01a0dd04-f7c6-7a02-b0a2-970e086bea1b",
           "createdAt": "2026-09-26T09:24:34.377Z",
-          "lastUsedAt": "2026-09-26T09:24:34.377Z",
-          "synchronizedThroughMessageId": "agent-turn-768f706a-50b5-45d7-a415-240a7d3ddb7e-turn-1-assistant-5"
+          "lastUsedAt": "2026-09-26T09:47:32.586Z",
+          "synchronizedThroughMessageId": "agent-turn-768f706a-50b5-45d7-a415-240a7d3ddb7e-turn-2-assistant-4"
         }
       ],
       "startedAt": "2026-09-26T09:21:24.308Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 97588,
           "toolMs": 66072
         },
-        "elapsedMs": 190069,
-        "runningStartedAt": "2026-09-26T09:44:05.595Z"
+        "elapsedMs": 397060,
+        "runningStartedAt": null
       },
       "title": "+",
       "usage": {
