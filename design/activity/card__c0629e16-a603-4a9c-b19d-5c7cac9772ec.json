@@ -7899,7 +7899,7 @@
       "completedAt": null,
       "contextWindowUsage": {
         "capacityTokens": 258400,
-        "usedTokens": 35442
+        "usedTokens": 42885
       },
       "entries": [
         {
@@ -8989,28 +8989,193 @@
           "role": "assistant",
           "sequence": 78,
           "timestamp": "2026-09-26T12:28:41.065Z"
+        },
+        {
+          "content": "I still don't understand why we have a difference between conversations. A historical conversation is exactly the same as a running conversation, it just has a run id assigned, no? how else can we pick up from historical conversations again?",
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-user-78",
+          "kind": "message",
+          "role": "user",
+          "sequence": 79,
+          "timestamp": "2026-09-26T12:32:00.385Z"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-80",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_074b1aa76919ad14016ab7bb43e39087d2a5a646de77e1d437",
+          "sequence": 80,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:32:03.504Z",
+          "type": "reasoning"
+        },
+        {
+          "agent": "codex",
+          "content": "I’ll check how resuming a saved conversation creates a run, so I can separate conversation identity from run identity precisely.\n\n",
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-2-assistant-1",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 81,
+          "timestamp": "2026-09-26T12:32:04.120Z"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg -n \\\"continueFrom|restartRun\\\\(|startRun\\\\(|conversationId|conversation\\\\.id\\\" app/src/services/actions/action_run_registry.ts desktop/src/actions -g \\\"*.js\\\" -g \\\"*.ts\\\"\"",
+          "content": "",
+          "durationMs": 7,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-82",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg -n \\\"continueFrom|restartRun\\\\(|startRun\\\\(|conversationId|conversation\\\\.id\\\" app/src/services/actions/action_run_registry.ts desktop/src/actions -g \\\"*.js\\\" -g \\\"*.ts\\\"\"",
+          "providerItemId": "exec-dcbda3c1-95ed-4aac-bb53-aa7267c51110",
+          "sequence": 82,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:07.545Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'rg -n \"runId|id:|path:\" app/src/data/data_types.ts app/src/data/action_run_types.ts'",
+          "content": "",
+          "durationMs": 16,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-83",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'rg -n \"runId|id:|path:\" app/src/data/data_types.ts app/src/data/action_run_types.ts'",
+          "providerItemId": "exec-bfa8cf27-7942-4fc7-9d4f-1520d1f43a17",
+          "sequence": 83,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:07.652Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content desktop/src/actions/action/action_agent_executor.js; $f[35..75]; $f[100..135]'",
+          "content": "        const config = this.agentConfigProvider();\r\n        const permissionMode = input.runInput.permissionMode ?? input.action.permissionMode;\r\n        const thinkingLevel = input.runInput.thinkingLevel ?? input.action.thinkingLevel;\r\n        const streaming = input.action.streaming;\r\n        const resolvedAgent = resolveAgentCommand(config, {\r\n            ...(input.runInput.agent ? { agent: input.runInput.agent } : (input.action.agent ? { agent: input.action.agent } : {})),\r\n            ...(input.runInput.model ? { model: input.runInput.model } : (input.action.model ? { model: input.action.model } : {})),\r\n            ...(permissionMode ? { permissionMode } : {}),\r\n            ...(thinkingLevel ? { thinkingLevel } : {}),\r\n        }, streaming);\r\n        const sourceConversation = input.runInput.continueFrom\r\n            ? await this.localGitService.loadAgentConversation(\r\n                input.primaryProject,\r\n                continuationReferencePath(input.runInput.continueFrom),\r\n            )\r\n            : null;\r\n        const expectedCardInternalId = input.activityOrigin.kind === 'card' ? input.activityOrigin.cardInternalId : null;\r\n        if (sourceConversation && sourceConversation.cardInternalId !== expectedCardInternalId) {\r\n            throw new Error(`Agent conversation belongs to ${sourceConversation.cardInternalId}, not ${expectedCardInternalId}`);\r\n        }\r\n\r\n        const providerSession = sourceConversation?.providerSessions\r\n            ?.find(({ agent }) => agent === resolvedAgent.agent) ?? null;\r\n        const hasPromptOverride = Object.hasOwn(input.runInput, 'prompt');\r\n        const basePrompt = hasPromptOverride\r\n            ? input.action.output?.kind === 'diagram' && !input.runInput.diagramPath\r\n                ? resolveAgentPrompt(\r\n                    { output: input.action.output, prompt: input.runInput.prompt },\r\n                    input.context,\r\n                    input.project,\r\n                    input.primaryProject,\r\n                    input.projectFolder,\r\n                    input.releasesFolder,\r\n                    input.activeCardsFolder,\r\n                    '',\r\n                    input.diagramFooter,\r\n                    input.diagramFile,\r\n                )\r\n                : resolvePopupPrompt(\r\n                    input.runInput.prompt,\r\n                    input.context,\r\n            input.primaryProject,\r\n            this.localGitService,\r\n        );\r\n        const command = executionCommand(resolvedAgent, providerSession, streaming);\r\n        const contextInput = sourceConversation\r\n            ? normalizeConversationContext(sourceConversation, providerSession?.synchronizedThroughMessageId ?? null)\r\n            : '';\r\n        const reference = input.runInput.continueFrom\r\n            ? continuationReferencePath(input.runInput.continueFrom)\r\n            : input.conversationReservation?.reference;\r\n        const request = {\r\n            actionId: input.action.id,\r\n            agent: resolvedAgent.agent,\r\n            activityOrigin: input.activityOrigin,\r\n            activityProject: input.primaryProject,\r\n            ...(input.context.file ? { cardPath: input.context.file } : {}),\r\n            command,\r\n            ...(sourceConversation ? { conversation: sourceConversation, reference } : {}),\r\n            ...(!sourceConversation && input.conversationReservation\r\n                ? { conversationId: input.conversationReservation.conversationId, reference }\r\n                : {}),\r\n            ...(contextInput ? { contextInput } : {}),\r\n            actionRunId: input.runId,\r\n            prompt,\r\n            projectFolder: input.projectFolder,\r\n            releasesFolder: input.releasesFolder,\r\n            streaming,\r\n            ...(providerSession ? { providerConversationId: providerSession.conversationId } : {}),\r\n            title: input.action.label,\r\n        };\r\n        const fallback = {\r\n            command: resolvedAgent.command,\r\n            contextInput: sourceConversation ? normalizeConversationContext(sourceConversation) : '',\r\n        };\r\n        const result = await this.runAgentTurn(input, request, fallback);\r\n        const executionResult = withoutConversation(result);\r\n",
+          "durationMs": 0,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-84",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content desktop/src/actions/action/action_agent_executor.js; $f[35..75]; $f[100..135]'",
+          "providerItemId": "exec-3523fb62-5fca-4db1-bfbf-fd4119452c9e",
+          "sequence": 84,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:13.499Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content app/src/services/actions/action_run_registry.ts; $f[570..635]'",
+          "content": "\r\n        return () => this.globalActiveListeners.delete(listener)\r\n    }\r\n\r\n    async startRun(\r\n        action: ActionDefinition,\r\n        context: ActionContext,\r\n        runInput: ActionRunInput = {},\r\n        onStarted?: (runId: string) => void,\r\n        interactive = true,\r\n        conversationReservation?: AgentConversationReservation,\r\n    ) {\r\n        projectAccessService.requireWritable()\r\n        const bridge = getElectronActionBridge()\r\n        if (!bridge) throw new Error('Action run requires Electron')\r\n        this.start()\r\n        const start = interactive ? bridge.startAction.bind(bridge) : bridge.startUnattendedAction?.bind(bridge)\r\n        if (!start) throw new Error('Unattended action run requires Electron')\r\n        this.startsInProgress += 1\r\n        let runId: string\r\n        try {\r\n            runId = await start({ actionId: action.id, ...(conversationReservation ? { conversationReservation } : {}), context, runInput })\r\n        } finally {\r\n            this.startsInProgress -= 1\r\n        }\r\n        onStarted?.(runId)\r\n        if (!this.terminalResults.has(runId)) this.runContexts.set(runId, context)\r\n\r\n        return this.waitForRun(runId)\r\n    }\r\n\r\n    async restartRun(\r\n        previousRunId: string,\r\n        action: ActionDefinition,\r\n        context: ActionContext,\r\n        runInput: ActionRunInput,\r\n        onStarted?: (runId: string) => void,\r\n    ) {\r\n        projectAccessService.requireWritable()\r\n        const bridge = getElectronActionBridge()\r\n        if (!bridge?.restartActionRun) throw new Error('Restarting an action run requires Electron')\r\n        this.start()\r\n        this.startsInProgress += 1\r\n        let runId: string\r\n        try {\r\n            runId = await bridge.restartActionRun(previousRunId, { actionId: action.id, context, runInput })\r\n        } finally {\r\n            this.startsInProgress -= 1\r\n            this.terminalResults.delete(previousRunId)\r\n        }\r\n        onStarted?.(runId)\r\n        if (!this.terminalResults.has(runId)) this.runContexts.set(runId, context)\r\n\r\n        return this.waitForRun(runId)\r\n    }\r\n\r\n    private waitForRun(runId: string): Promise<ActionRunResult> {\r\n        const terminalResult = this.terminalResults.get(runId)\r\n        if (terminalResult) {\r\n            this.terminalResults.delete(runId)\r\n            this.releaseTerminalRun(runId)\r\n\r\n            return Promise.resolve(terminalResult)\r\n        }\r\n        const current = this.runs.get(runId)?.getSnapshot()\r\n        if (current && TERMINAL_STATUSES.has(current.status as ActionRunTerminalStatus)) {\r\n",
+          "durationMs": 49,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-85",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content app/src/services/actions/action_run_registry.ts; $f[570..635]'",
+          "providerItemId": "exec-a91f6535-d7a7-46d5-bbc4-efef0743a31a",
+          "sequence": 85,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:13.631Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content app/src/data/data_types.ts; $f[295..345]'",
+          "content": "\r\n/** A background agent/action currently running against a card or file. */\r\nexport interface RunningAgent {\r\n    id: string\r\n    label: string\r\n}\r\n\r\nexport type AgentConversationStatus = 'cancelled' | 'completed' | 'failed' | 'running' | 'waitingForInput'\r\nexport type AgentMessageRole = 'assistant' | 'user'\r\n\r\nexport interface AgentConversationMessage {\r\n    agent?: string\r\n    content: string\r\n    id: string\r\n    role: AgentMessageRole\r\n    sequence?: number\r\n    timestamp: string\r\n}\r\n\r\nexport interface AgentProviderSession {\r\n    agent: string\r\n    conversationId: string\r\n    createdAt: string\r\n    lastUsedAt: string\r\n    synchronizedThroughMessageId: string\r\n}\r\n\r\nexport interface AgentQuestionOption {\r\n    description?: string\r\n    label: string\r\n}\r\n\r\nexport interface AgentQuestion {\r\n    header: string\r\n    id: string\r\n    isSecret?: boolean\r\n    options?: AgentQuestionOption[] | null\r\n    question: string\r\n}\r\n\r\nexport interface AgentConversationEvent {\r\n    command?: string\r\n    content: string\r\n    deletions?: number\r\n    details?: string[]\r\n    durationMs?: number\r\n    exitCode?: number\r\n    id: string\r\n    insertions?: number\r\n    label?: string\r\n    output?: string\r\n",
+          "durationMs": 17,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-86",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content app/src/data/data_types.ts; $f[295..345]'",
+          "providerItemId": "exec-ef4ce842-84ff-4ccc-a29d-28e390501f74",
+          "sequence": 86,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:13.686Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "content": "",
+          "details": [],
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-87",
+          "kind": "event",
+          "label": "Reasoning",
+          "providerItemId": "rs_074b1aa76919ad14016ab7bb5269c887d28f9603109818a110",
+          "sequence": 87,
+          "status": "completed",
+          "summary": [],
+          "timestamp": "2026-09-26T12:32:17.933Z",
+          "type": "reasoning"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'rg -n \"interface AgentConversation|actionRunId|runId:\" app/src/data/data_types.ts desktop/src/actions/agent/agent_conversation.js'",
+          "content": "app/src/data/data_types.ts:306:export interface AgentConversationMessage {\napp/src/data/data_types.ts:336:export interface AgentConversationEvent {\napp/src/data/data_types.ts:361:export interface AgentConversationMessageEntry extends AgentConversationMessage {\napp/src/data/data_types.ts:365:export interface AgentConversationEventEntry extends AgentConversationEvent {\napp/src/data/data_types.ts:387:export interface AgentConversationTimerBreakdown {\napp/src/data/data_types.ts:392:export interface AgentConversationTimer {\napp/src/data/data_types.ts:398:export interface AgentConversation {\napp/src/data/data_types.ts:418:export interface AgentConversationError {\napp/src/data/data_types.ts:429:        runId: string\napp/src/data/data_types.ts:434:        runId: string\napp/src/data/data_types.ts:439:        runId: string\napp/src/data/data_types.ts:446:        runId: string\napp/src/data/data_types.ts:510:    stopAgent?(project: ProjectReference, runId: string): Promise<void>\n",
+          "durationMs": 53,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-88",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'rg -n \"interface AgentConversation|actionRunId|runId:\" app/src/data/data_types.ts desktop/src/actions/agent/agent_conversation.js'",
+          "providerItemId": "exec-378789a2-c044-47ac-bbd0-3299e5c7a891",
+          "sequence": 88,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:19.443Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "command": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content app/src/data/data_types.ts; $f[395..418]'",
+          "content": "}\r\n\r\nexport interface AgentConversation {\r\n    actionId?: string | null\r\n    cardInternalId?: string | null\r\n    cardPath: string | null\r\n    completedAt: string | null\r\n    contextWindowUsage?: AgentContextWindowUsage\r\n    entries: AgentConversationEntry[]\r\n    hasExplicitTitle: boolean\r\n    id: string\r\n    path: string\r\n    providerSessions: AgentProviderSession[]\r\n    startedAt: string\r\n    status: AgentConversationStatus\r\n    timer?: AgentConversationTimer\r\n    title: string\r\n    usage?: AgentTokenUsage\r\n    usageSchemaVersion?: number\r\n    viewed: boolean\r\n}\r\n\r\nexport interface AgentConversationError {\r\n    /** Set when the failure came from an onState action instead of an activity file load. */\r\n",
+          "durationMs": 0,
+          "exitCode": 0,
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-event-89",
+          "kind": "event",
+          "label": "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$f=Get-Content app/src/data/data_types.ts; $f[395..418]'",
+          "providerItemId": "exec-aa7947f9-6715-4d78-8d7b-d9ba88d1710d",
+          "sequence": 89,
+          "status": "completed",
+          "timestamp": "2026-09-26T12:32:24.130Z",
+          "type": "commandExecution",
+          "workingDirectory": "C:\\Users\\janbo\\Documents\\dev\\md2_workers\\dev3"
+        },
+        {
+          "agent": "codex",
+          "content": "You’re right that a historical conversation and a running conversation are the **same kind of conversation**. I described them as if they were different domain objects, which was misleading.\n\nThe distinction is whether a **run is currently attached** to the conversation. A saved `AgentConversation` has an `id`, entries, and a persistence path; it has no `runId` field. The run ID identifies an execution. To pick up a saved conversation, the app passes its path as `continueFrom`, loads that conversation, and starts a run attached to it. [Conversation type](C:/Users/janbo/Documents/dev/md2_workers/dev3/app/src/data/data_types.ts:398) · [Continuation](C:/Users/janbo/Documents/dev/md2_workers/dev3/desktop/src/actions/action/action_agent_executor.js:46)\n\nSo “show live run” is a UI instruction: display the conversation attached to the newly started run instead of the previously selected saved view. The switch waits for the start callback because that is when the new run ID becomes available. The conversation itself has not changed into a different kind of object.\n\n",
+          "id": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-2-assistant-2",
+          "kind": "message",
+          "role": "assistant",
+          "sequence": 90,
+          "timestamp": "2026-09-26T12:32:31.953Z"
         }
       ],
       "hasExplicitTitle": true,
       "id": "6390a61d-2fca-43db-8b11-2a03dec5e957",
-      "providerSessions": [],
+      "providerSessions": [
+        {
+          "agent": "codex",
+          "conversationId": "01a0ddaf-ab6f-7730-9c7b-09e9abbeddeb",
+          "createdAt": "2026-09-26T12:28:41.065Z",
+          "lastUsedAt": "2026-09-26T12:28:41.065Z",
+          "synchronizedThroughMessageId": "agent-turn-5e8cec73-0a79-4eff-9f4f-e42127544510-turn-1-assistant-2"
+        }
+      ],
       "startedAt": "2026-09-26T12:20:04.763Z",
       "status": "running",
       "timer": {
         "breakdown": {
-          "reasoningMs": 5857,
-          "toolMs": 624
+          "reasoningMs": 9142,
+          "toolMs": 935
         },
-        "elapsedMs": 0,
-        "runningStartedAt": "2026-09-26T12:27:51.731Z"
+        "elapsedMs": 49334,
+        "runningStartedAt": "2026-09-26T12:32:00.385Z"
       },
       "title": "review (split)",
       "usage": {
-        "cachedInputTokens": 167296,
-        "inputTokens": 24283,
-        "outputTokens": 1284,
-        "reasoningTokens": 207,
-        "totalTokens": 193070
+        "cachedInputTokens": 362240,
+        "inputTokens": 32741,
+        "outputTokens": 2089,
+        "reasoningTokens": 286,
+        "totalTokens": 397356
       },
       "usageSchemaVersion": 1,
       "viewed": true
