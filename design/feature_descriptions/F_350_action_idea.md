@@ -10,8 +10,6 @@ agents:
   - design/activity/card__eb1707b3-15c4-4a42-b86e-db35fbfd9060.json
 policy:
 after: 96236df6-2c3a-4846-9d52-f29b7ee9041d
-branch: f_350_action_idea
-worktree: 1
 changedFiles:
   - app/src/App.tsx
   - app/src/components/actions/editor/action_definition_fields.grouped.test.tsx
