@@ -3,7 +3,7 @@ author:
 id: F_387
 internalId: c10708f5-7df7-46ad-97f1-9bac7103e683
 title: Improve diagrams 4
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -11,6 +11,27 @@ agents:
 policy:
 branch: f_387_improve_diagrams_4
 worktree: 2
+changedFiles:
+  - app/src/components/diagram_view/editing/diagram_coordinate_conversion.test.ts
+  - app/src/components/diagram_view/editing/diagram_coordinate_conversion.ts
+  - app/src/components/diagram_view/editing/diagram_inline_node_controls.tsx
+  - app/src/components/diagram_view/editing/editable_diagram.tsx
+  - app/src/components/diagram_view/legend/diagram_legend_entry_row.tsx
+  - app/src/components/diagram_view/legend/diagram_session_legend_entries.test.tsx
+  - app/src/components/diagram_view/rendering/diagram.tsx
+  - app/src/components/diagram_view/surface/diagram_current_viewport.test.tsx
+  - app/src/components/diagram_view/surface/diagram_current_viewport.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_viewport.test.tsx
+  - app/src/components/diagram_view/surface/diagram_zoom_viewport.tsx
+  - app/src/services/diagrams/diagram_edge_drawing_service.test.ts
+  - app/src/services/diagrams/diagram_edge_drawing_service.ts
+  - app/src/services/diagrams/diagram_edit_session_service.ts
+  - app/src/services/diagrams/diagram_geometry_service.test.ts
+  - app/src/services/diagrams/diagram_geometry_service.ts
+  - app/src/services/diagrams/diagram_layout.node.test.ts
+  - app/src/services/diagrams/diagram_layout.ts
+  - app/src/services/diagrams/diagram_node_placement_service.test.ts
+  - app/src/services/diagrams/diagram_node_placement_service.ts
 ---
 
 Things we need to improve/fix in diagrams:
