@@ -149,11 +149,13 @@ export function DiagramZoomViewport({
     const pointerDiagramPoint = useCallback((clientX: number, clientY: number) => {
         const zoomSurface = zoomSurfaceRef.current
         if (!zoomSurface) throw new Error('Diagram move viewport is unavailable')
+        const drawingSurface = zoomSurface.querySelector<HTMLElement>('[aria-label="New diagram"]')
+        if (!drawingSurface) throw new Error('Diagram drawing surface is unavailable')
 
         return convertClientToDiagramCoordinates(
             { clientX, clientY },
             {
-                bounds: zoomSurface.getBoundingClientRect(),
+                bounds: drawingSurface.getBoundingClientRect(),
                 scrollLeft: 0,
                 scrollTop: 0,
             },
