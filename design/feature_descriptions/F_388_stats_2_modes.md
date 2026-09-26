@@ -9,6 +9,8 @@ affects:
 agents:
   - design/activity/card__890d7f2c-90e4-4069-b408-1c01db9f7607.json
 policy:
+branch: f_388_stats_2_modes
+worktree: 3
 ---
 The stats view currently already supports 2 view modes: tables and charts. Currently selection between the 2 is made based on screen size.
 
