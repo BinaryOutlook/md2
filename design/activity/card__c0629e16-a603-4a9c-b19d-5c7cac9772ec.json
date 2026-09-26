@@ -5056,19 +5056,19 @@
           "agent": "codex",
           "conversationId": "01a0dd03-27ce-7681-8cb3-2fa35b61993f",
           "createdAt": "2026-09-26T09:21:25.705Z",
-          "lastUsedAt": "2026-09-26T09:56:03.705Z",
-          "synchronizedThroughMessageId": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-turn-3-assistant-2"
+          "lastUsedAt": "2026-09-26T11:56:15.662Z",
+          "synchronizedThroughMessageId": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-turn-4-assistant-1"
         }
       ],
       "startedAt": "2026-09-26T09:19:26.107Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 75135,
           "toolMs": 3742
         },
-        "elapsedMs": 188366,
-        "runningStartedAt": "2026-09-26T11:56:01.405Z"
+        "elapsedMs": 202623,
+        "runningStartedAt": null
       },
       "title": "review",
       "usage": {
