@@ -20,6 +20,9 @@ vi.mock('../../../hooks/use_action_runs', () => ({
 }))
 vi.mock('../../../hooks/use_context_action_agent_state', () => ({ useContextActionAgentState: (actionId: string) => actionStates.persisted[actionId] ?? 'idle' }))
 
+const SCROLLER_WIDTH = 300
+const OVERFLOWING_CONTENT_WIDTH = 800
+
 const context: ActionContext = { file: 'design/F-105.md', kind: 'card', state: 'design', type: 'feature' }
 const actions: ActionDefinition[] = [
     { ...BUILTIN_CUSTOM_PROMPT, id: 'selected', label: 'Selected action' },
@@ -43,11 +46,67 @@ function renderSelector(mode: PaletteMode) {
     return theme
 }
 
+/** Stubs jsdom layout so the scroll area around the action group measures as overflowing. */
+function stubOverflowingScrollArea(actionGroup: HTMLElement) {
+    const content = actionGroup.parentElement
+    const scroller = content?.parentElement
+    if (!content || !scroller) throw new Error('Expected scroll area structure')
+    Object.defineProperties(content, { scrollWidth: { configurable: true, get: () => OVERFLOWING_CONTENT_WIDTH } })
+    Object.defineProperties(scroller, {
+        clientWidth: { configurable: true, get: () => SCROLLER_WIDTH },
+        scrollLeft: { configurable: true, get: () => 0 },
+        scrollWidth: { configurable: true, get: () => OVERFLOWING_CONTENT_WIDTH },
+    })
+    fireEvent.scroll(scroller)
+}
+
 describe('ActionSelector', () => {
     afterEach(() => {
         actionStates.live = {}
         actionStates.persisted = {}
+        vi.restoreAllMocks()
         cleanup()
+    })
+
+    it('renders the action buttons in a scroll area that offers scrolling when they overflow', () => {
+        render(
+            <ThemeProvider theme={createAppTheme('light')}>
+                <ActionSelector actions={actions} context={context} onSelect={vi.fn()} selectedAction={actions[0]} />
+            </ThemeProvider>,
+        )
+        const actionGroup = screen.getByRole('group', { name: 'Actions' })
+
+        expect(screen.queryByRole('button', { name: 'Scroll right' })).not.toBeInTheDocument()
+        stubOverflowingScrollArea(actionGroup)
+
+        expect(screen.getByRole('button', { name: 'Scroll right' })).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Scroll left' })).not.toBeInTheDocument()
+        expect(within(actionGroup).getAllByRole('button')).toHaveLength(actions.length)
+    })
+
+    it('scrolls the selected action into view on first render and when the selection changes', () => {
+        const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {})
+        const theme = createAppTheme('light')
+        const { rerender } = render(
+            <ThemeProvider theme={theme}>
+                <ActionSelector actions={actions} context={context} onSelect={vi.fn()} selectedAction={actions[0]} />
+            </ThemeProvider>,
+        )
+        const scrollOptions = { block: 'nearest', inline: 'nearest' }
+
+        expect(scrollIntoView).toHaveBeenCalledTimes(1)
+        expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByRole('button', { name: 'Selected action' }))
+        expect(scrollIntoView).toHaveBeenLastCalledWith(scrollOptions)
+
+        rerender(
+            <ThemeProvider theme={theme}>
+                <ActionSelector actions={actions} context={context} onSelect={vi.fn()} selectedAction={actions[1]} />
+            </ThemeProvider>,
+        )
+
+        expect(scrollIntoView).toHaveBeenCalledTimes(2)
+        expect(scrollIntoView.mock.contexts[1]).toBe(screen.getByRole('button', { name: 'Unselected action' }))
+        expect(scrollIntoView).toHaveBeenLastCalledWith(scrollOptions)
     })
 
     it.each(['light', 'dark'] as const)('keeps waiting borders visible for selected and unselected actions in %s mode', (mode) => {
