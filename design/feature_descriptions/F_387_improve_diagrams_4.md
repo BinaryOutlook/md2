@@ -9,8 +9,6 @@ affects:
 agents:
   - design/activity/card__c10708f5-7df7-46ad-97f1-9bac7103e683.json
 policy:
-branch: f_387_improve_diagrams_4
-worktree: 2
 changedFiles:
   - app/src/components/diagram_view/editing/diagram_coordinate_conversion.test.ts
   - app/src/components/diagram_view/editing/diagram_coordinate_conversion.ts
