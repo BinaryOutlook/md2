@@ -4604,6 +4604,14 @@
           "role": "assistant",
           "sequence": 58,
           "timestamp": "2026-09-26T09:21:25.705Z"
+        },
+        {
+          "content": "> If two sends use the same editor revision, the first successful response clears the draft. If the second response then fails, its temporary row disappears and the draft remains empty. Send handling. Fix: Track draft ownership per submission and restore a rejected submission only when the editor has not acquired newer text.\n\nThis sounds like the entire process is over engineered, to complex and doing things it should not. your proposed solution is to make it more complex. we need to simplify\n\n* why is the draft not cleared as soon as it is sent?\n* how could it be possible that we do 2 sends?\n* what do you mean with 'editor revision' this sounds over engineered, we should not have revisions\n* why would we have a rejected submission?",
+          "id": "agent-turn-848d3fbe-219b-426e-b53f-9cfae48de881-user-58",
+          "kind": "message",
+          "role": "user",
+          "sequence": 59,
+          "timestamp": "2026-09-26T09:48:30.700Z"
         }
       ],
       "hasExplicitTitle": true,
@@ -4618,14 +4626,14 @@
         }
       ],
       "startedAt": "2026-09-26T09:19:26.107Z",
-      "status": "waitingForInput",
+      "status": "running",
       "timer": {
         "breakdown": {
           "reasoningMs": 51104,
           "toolMs": 2213
         },
         "elapsedMs": 119598,
-        "runningStartedAt": null
+        "runningStartedAt": "2026-09-26T09:48:30.700Z"
       },
       "title": "review",
       "usage": {
