@@ -7,6 +7,7 @@ status: design
 owner: 
 affects:
 agents:
+  - design/activity/card__2b159c84-ea24-4b1c-9969-b0ddb00f3051.json
 policy:
 ---
 need to simplify the cards:
