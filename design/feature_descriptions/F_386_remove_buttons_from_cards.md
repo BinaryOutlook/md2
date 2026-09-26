@@ -3,7 +3,7 @@ author:
 id: F_386
 internalId: 2b159c84-ea24-4b1c-9969-b0ddb00f3051
 title: remove buttons from cards
-status: ready for implementation
+status: ready
 owner: 
 affects:
 agents:
@@ -11,6 +11,16 @@ agents:
 policy:
 branch: f_386_remove_buttons_from_cards
 worktree: 1
+changedFiles:
+  - app/src/components/card_view/card_body_popover.tsx
+  - app/src/components/card_view/card_body_popover_state.test.tsx
+  - app/src/components/card_view/card_view.test.tsx
+  - app/src/components/card_view/card_view.tsx
+  - app/src/components/card_view/mobile_card_view.tsx
+  - app/src/components/card_view/project_card_view.tsx
+  - app/src/components/card_view/use_project_card.ts
+  - app/src/services/attachments/attachment_workflow.service.test.ts
+  - app/src/services/attachments/attachment_workflow.ts
 ---
 need to simplify the cards:
 
