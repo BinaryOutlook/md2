@@ -16738,11 +16738,11 @@
         "f7bab4bf-cb7a-451e-bc55-0517d6fb0237"
       ],
       "details": {
+        "type": "agent",
         "agent": "codex",
         "model": "gpt-6-sol",
         "permissionMode": "approve-for-me",
-        "thinkingLevel": "medium",
-        "type": "agent"
+        "thinkingLevel": "medium"
       },
       "runId": "action-919f909b-0f6b-448d-903a-443a0acbd572",
       "origin": {
@@ -16751,9 +16751,68 @@
       },
       "rootActionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
       "rootActionLabel": "review",
-      "rootConversationId": "f7bab4bf-cb7a-451e-bc55-0517d6fb0237",
       "startedAt": "2026-09-26T13:31:49.200Z",
-      "status": "completed"
+      "status": "completed",
+      "rootConversationId": "f7bab4bf-cb7a-451e-bc55-0517d6fb0237"
+    },
+    {
+      "commits": [
+        {
+          "commit": "ff0b917cea3530c856d99449b315712f7f9b5c3b",
+          "committedAt": "2026-09-26T17:25:22+02:00",
+          "deletions": 331,
+          "filePaths": [
+            "app/src/components/actions/agent/action_agent_preset_name_owner.tsx",
+            "app/src/components/actions/agent/action_prompt_owner.tsx",
+            "app/src/components/actions/conversation/action_conversation_chat.grouped.test.tsx",
+            "app/src/components/actions/conversation/state/action_conversation_store.node.test.ts",
+            "app/src/components/actions/conversation/state/action_conversation_store.ts",
+            "app/src/components/actions/conversation/transcript/action_conversation_chatlog_tracker.node.test.ts",
+            "app/src/components/actions/conversation/transcript/action_conversation_chatlog_tracker.ts",
+            "app/src/components/actions/conversation/transcript/action_conversation_pending_submissions.tsx",
+            "app/src/components/actions/conversation/transcript/action_conversation_queued_prompts.tsx",
+            "app/src/components/actions/conversation/transcript/action_conversation_rendering.test.tsx",
+            "app/src/components/actions/conversation/transcript/action_conversation_transcript.tsx",
+            "app/src/components/actions/conversation/transcript/action_pending_submission_row.tsx",
+            "app/src/components/actions/editor/action_phrase_buttons_owner.tsx",
+            "app/src/components/actions/run/popup/action_popup.test.tsx",
+            "app/src/components/actions/run/popup/action_popup_bottom_row.tsx",
+            "app/src/components/actions/run/popup/action_popup_content.tsx",
+            "app/src/components/actions/run/popup/action_popup_operations.node.test.ts",
+            "app/src/components/actions/run/popup/action_popup_operations.ts",
+            "app/src/data/action_run_types.ts",
+            "app/src/data/electron_action_bridge.ts",
+            "app/src/services/actions/action_prompt_draft_service.node.test.ts",
+            "app/src/services/actions/action_prompt_draft_service.ts",
+            "app/src/services/actions/action_run_registry.node.test.ts",
+            "app/src/services/actions/action_run_registry.ts",
+            "app/src/services/data/remote_control_storage_service.node.test.ts",
+            "app/src/services/data/remote_control_storage_service.ts",
+            "desktop/src/actions/action/action_agent_executor.js",
+            "desktop/src/actions/action/action_agent_executor.test.mjs",
+            "desktop/src/actions/action/action_run.js",
+            "desktop/src/actions/action/action_run.test.mjs",
+            "desktop/src/actions/action/action_run_request.js",
+            "desktop/src/actions/action/action_run_request.test.mjs",
+            "desktop/src/actions/action/action_runner_service.js",
+            "desktop/src/actions/action/action_runner_service.test.mjs",
+            "desktop/src/actions/agent/agent_run_interactions.js",
+            "desktop/src/actions/agent/agent_runner_service.js",
+            "desktop/src/actions/agent/agent_runner_state.test.mjs",
+            "desktop/src/shell/local_bridge_dispatch.js"
+          ],
+          "filesChanged": 38,
+          "insertions": 1091,
+          "branch": "dev_main"
+        }
+      ],
+      "completedAt": "2026-09-26T17:25:22+02:00",
+      "label": "Integrate into project",
+      "origin": {
+        "cardInternalId": "c0629e16-a603-4a9c-b19d-5c7cac9772ec",
+        "kind": "card"
+      },
+      "type": "system"
     }
   ],
   "version": 5
