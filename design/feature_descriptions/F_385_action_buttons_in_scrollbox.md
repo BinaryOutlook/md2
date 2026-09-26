@@ -26,10 +26,11 @@ We should remove the wrap and replace with the new scrollbox we recently added f
 
 * In `ActionSelector`, replace the outer wrapping `Box` with `HorizontalScrollArea` and render the `ToggleButtonGroup` inside it.
 * Keep the action buttons on one row: override `flexWrap` to `nowrap` on the group in `ActionSelector` only, and keep each button at its natural width (no shrinking or label wrapping).
+* Scroll the selected action button into view when the popup opens and whenever `selectedAction.id` changes. In `ActionSelector`, use an effect keyed on `selectedAction.id` that finds the selected button (`aria-pressed="true"`) inside the group and calls `scrollIntoView({ block: 'nearest', inline: 'nearest' })`. `block: 'nearest'` prevents vertical scrolling of the popup or page. `HorizontalScrollArea` already sets `scrollPaddingInline` to the scroll button width, so the selected button does not end up under a scroll button.
 * Do not change `ACTION_SELECTOR_GROUP_SX`; `CardSequenceActionSelector` keeps its current wrapping behavior.
 * Keep button selection, live and persisted state indicators, tooltips, and the `Actions` group label unchanged.
 * The scroll buttons are interactive elements inside the header drag handle, so clicking them scrolls the actions and does not start a popup drag. The fade color already matches the header background (`background.paper`).
-* Tests: in `action_selector.test.tsx`, add a test that stubs overflow measurements (same pattern as `horizontal_scroll_area.test.tsx`) and verifies the action buttons are rendered inside a scroll area that shows `Scroll right`. Run `action_selector.test.tsx` and `action_popup.test.tsx`.
+* Tests: in `action_selector.test.tsx`, add a test that stubs overflow measurements (same pattern as `horizontal_scroll_area.test.tsx`) and verifies the action buttons are rendered inside a scroll area that shows `Scroll right`. Add a test that stubs `scrollIntoView` (jsdom does not implement it) and verifies that it is called on the selected button on first render and again after `selectedAction` changes. Run `action_selector.test.tsx` and `action_popup.test.tsx`.
 
 ## acceptance criteria
 
@@ -37,6 +38,7 @@ We should remove the wrap and replace with the new scrollbox we recently added f
 * When the buttons overflow, a `Scroll right` and/or `Scroll left` button appears on the side that has hidden buttons; clicking it scrolls the row.
 * The mouse wheel over the action row scrolls it horizontally when it overflows.
 * Tabbing to a hidden action button scrolls it into view.
+* When the popup opens, the selected action is fully visible, even if it sits beyond the visible part of the row. When the selected action changes, the new selection is scrolled into view. The popup does not scroll vertically when this happens.
 * When all buttons fit, no scroll buttons are shown.
 * Clicking a scroll button does not select an action and does not drag the popup.
 * Action selection, state indicators, and tooltips behave as before.
