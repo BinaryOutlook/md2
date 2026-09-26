@@ -98,6 +98,8 @@ export interface PositionedDiagramData extends Omit<DiagramData, 'edges' | 'frag
     fragments: PositionedSequenceFragment[]
     groups: PositionedDiagramGroup[]
     height: number
+    originX: number
+    originY: number
     nodes: PositionedDiagramNode[]
     width: number
 }
@@ -1025,6 +1027,26 @@ export function surfaceSize(
     fragments: PositionedSequenceFragment[] = [],
     activations: PositionedSequenceActivation[] = [],
 ) {
+    const leftValues = [
+        ...nodes.map(({ x }) => x),
+        ...edges.flatMap(({ controlPoint, labelPlacement, points }) => [
+            ...points.map(({ x }) => x), ...(controlPoint ? [controlPoint.x] : []),
+            ...(labelPlacement ? [labelPlacement.x] : []),
+        ]),
+        ...groups.map(({ x }) => x),
+        ...fragments.map(({ x }) => x),
+        ...activations.map(({ x }) => x),
+    ]
+    const topValues = [
+        ...nodes.map(({ y }) => y),
+        ...edges.flatMap(({ controlPoint, labelPlacement, points }) => [
+            ...points.map(({ y }) => y), ...(controlPoint ? [controlPoint.y] : []),
+            ...(labelPlacement ? [labelPlacement.y] : []),
+        ]),
+        ...groups.map(({ y }) => y),
+        ...fragments.map(({ y }) => y),
+        ...activations.map(({ y }) => y),
+    ]
     const horizontalValues = [
         ...nodes.map(({ width, x }) => x + width),
         ...edges.flatMap(({ controlPoint, labelPlacement, points }) => [
@@ -1046,9 +1068,14 @@ export function surfaceSize(
         ...activations.map(({ height, y }) => y + height),
     ]
 
+    const originX = Math.max(0, snap(SURFACE_PADDING - Math.min(SURFACE_PADDING, ...leftValues)))
+    const originY = Math.max(0, snap(SURFACE_PADDING - Math.min(SURFACE_PADDING, ...topValues)))
+
     return {
-        height: snap(Math.max(SURFACE_PADDING, ...verticalValues) + SURFACE_PADDING),
-        width: snap(Math.max(SURFACE_PADDING, ...horizontalValues) + SURFACE_PADDING),
+        height: snap(Math.max(SURFACE_PADDING, ...verticalValues) + SURFACE_PADDING + originY),
+        originX,
+        originY,
+        width: snap(Math.max(SURFACE_PADDING, ...horizontalValues) + SURFACE_PADDING + originX),
     }
 }
 
@@ -1060,7 +1087,7 @@ export function layout(data: DiagramData): PositionedDiagramData {
     const edges = layoutEdges(data, nodes)
     const groups = layoutGroups(data, nodes)
     const initialSize = surfaceSize(nodes, edges, groups)
-    const activations = data.meta.type === 'sequence' ? layoutSequenceActivations(edges, nodes, initialSize.height - 24) : []
+    const activations = data.meta.type === 'sequence' ? layoutSequenceActivations(edges, nodes, initialSize.height - initialSize.originY - 24) : []
     const fragments = data.meta.type === 'sequence' ? layoutSequenceFragments(data.fragments ?? [], edges, nodes) : []
     const measured = surfaceSize(nodes, edges, groups, fragments, activations)
     const automaticRoot = data.meta.type === 'mindmap' ? nodes.find((node) => {
@@ -1072,5 +1099,5 @@ export function layout(data: DiagramData): PositionedDiagramData {
     const height = rootCentre ? Math.max(measured.height, snap(rootCentre.y * 2)) : measured.height
     const width = rootCentre ? Math.max(measured.width, snap(rootCentre.x * 2)) : measured.width
 
-    return { ...data, activations, edges, fragments, groups, height, nodes, width }
+    return { ...data, activations, edges, fragments, groups, height, nodes, originX: measured.originX, originY: measured.originY, width }
 }

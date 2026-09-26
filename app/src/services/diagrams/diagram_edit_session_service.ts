@@ -106,6 +106,7 @@ const ACTIVE_TOOL_CHANGED_EVENT = 'activeToolChanged'
 const LAST_SELECTED_CREATION_TOOL_CHANGED_EVENT = 'lastSelectedCreationToolChanged'
 const TRANSIENT_GESTURE_CHANGED_EVENT = 'transientGestureChanged'
 const VIEWPORT_SCALE_CHANGED_EVENT = 'viewportScaleChanged'
+const LEGEND_SELECTION_CHANGED_EVENT = 'legend:selection'
 const EMPTY_IDS: readonly string[] = Object.freeze([])
 const MAX_ID_GENERATION_ATTEMPTS = 100
 
@@ -193,6 +194,7 @@ export class DiagramEditSessionService extends EventTarget {
     private fragmentIds: readonly string[] = EMPTY_IDS
     private groupsById = new Map<string, DiagramGroup>()
     private legendEntryKeys: readonly string[] = EMPTY_IDS
+    private selectedLegendEntryKey: string | null = null
     private lastSelectedCreationTool: DiagramCreationTool | null = null
     private groupIds: readonly string[] = EMPTY_IDS
     private groupNodeIdsById = new Map<string, readonly string[]>()
@@ -275,6 +277,25 @@ export class DiagramEditSessionService extends EventTarget {
 
     /** Ordered legend membership view; entries themselves are read one field at a time. */
     getLegendEntryKeysSnapshot = () => this.legendEntryKeys
+
+    getSelectedLegendEntryKeySnapshot = () => this.selectedLegendEntryKey
+
+    selectLegendEntry(entryKey: string) {
+        const diagram = this.requireEditableDiagram()
+        const availableKeys = diagram.meta.legend
+            ? this.legendEntryKeys
+            : [
+                ...diagram.nodes.map(({ role }) => `node:${role}`),
+                ...diagram.edges.map(({ kind }) => `connection:${kind}`),
+            ]
+        if (!availableKeys.includes(entryKey)) return false
+        if (this.selectedLegendEntryKey === entryKey) return true
+
+        this.selectedLegendEntryKey = entryKey
+        this.dispatchEvent(new Event(LEGEND_SELECTION_CHANGED_EVENT))
+
+        return true
+    }
 
     getHasExplicitLegendSnapshot = () => this.editableDiagram?.meta.legend !== undefined
 
@@ -451,6 +472,8 @@ export class DiagramEditSessionService extends EventTarget {
 
     subscribeLegendMembership = (listener: () => void) => this.subscribe(diagramLegendMembershipChangedEvent(), listener)
 
+    subscribeLegendSelection = (listener: () => void) => this.subscribe(LEGEND_SELECTION_CHANGED_EVENT, listener)
+
     subscribeLegendEntryField = (entryKey: string, field: MutableDiagramLegendEntryField, listener: () => void) => (
         this.subscribe(diagramLegendEntryFieldChangedEvent(entryKey, field), listener)
     )
@@ -540,6 +563,7 @@ export class DiagramEditSessionService extends EventTarget {
             [node.id, DiagramEditSessionService.entityFieldIndexes(node)]
         )))
         this.legendEntryKeys = Object.freeze((editableDiagram.meta.legend ?? []).map(diagramLegendEntryKey))
+        this.clearSelectedLegendEntry()
         this.changeRegistry.setBaseline(savedDiagram ?? source.diagram)
         this.changeRegistry.setCurrentDiagram(editableDiagram)
         this.edgeIds = Object.freeze(editableDiagram.edges.map(({ id }) => id))
@@ -573,6 +597,7 @@ export class DiagramEditSessionService extends EventTarget {
         this.groupIds = EMPTY_IDS
         this.nodeIds = EMPTY_IDS
         this.legendEntryKeys = EMPTY_IDS
+        this.clearSelectedLegendEntry()
         this.groupNodeIdsById.clear()
         this.savedRecord = null
         this.publish({ dirty: false, editableDiagram: null, originalDiagram: null, session: null })
@@ -1666,6 +1691,7 @@ export class DiagramEditSessionService extends EventTarget {
 
     /** Publishes one mutation transaction: dirty, change registry, then mutation membership events. */
     private commitTransaction(events: readonly PendingMembershipEvent[]) {
+        this.reconcileSelectedLegendEntry()
         for (const { detail } of events) {
             if (detail.ownerId !== null || detail.removedIds.length === 0) continue
 
@@ -1683,6 +1709,26 @@ export class DiagramEditSessionService extends EventTarget {
             this.dispatchEvent(new CustomEvent<DiagramMembershipChangeDetail>(eventName, { detail }))
         }
         this.dispatchEvent(new Event(MODEL_MUTATION_EVENT))
+    }
+
+    private clearSelectedLegendEntry() {
+        if (this.selectedLegendEntryKey === null) return
+        this.selectedLegendEntryKey = null
+        this.dispatchEvent(new Event(LEGEND_SELECTION_CHANGED_EVENT))
+    }
+
+    private reconcileSelectedLegendEntry() {
+        const entryKey = this.selectedLegendEntryKey
+        if (entryKey === null) return
+        const diagram = this.requireEditableDiagram()
+        if (diagram.meta.legend) {
+            if (!this.legendEntryKeys.includes(entryKey)) this.clearSelectedLegendEntry()
+
+            return
+        }
+        const present = diagram.nodes.some(({ role }) => entryKey === `node:${role}`)
+            || diagram.edges.some(({ kind }) => entryKey === `connection:${kind}`)
+        if (!present) this.clearSelectedLegendEntry()
     }
 
     private finishFieldChange(

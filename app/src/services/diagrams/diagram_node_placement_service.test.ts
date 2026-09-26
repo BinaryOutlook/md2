@@ -455,4 +455,29 @@ describe('DiagramNodePlacementService', () => {
         expect(placement.isPlacementActive()).toBe(false)
         expect(session.getActiveToolSnapshot()).toBe('select')
     })
+
+    it('uses selected legend role for preview and node while keeping tool defaults', () => {
+        const { placement, session } = createHarness()
+        placement.activate(componentDefinition)
+        expect(session.selectLegendEntry('node:backend')).toBe(true)
+
+        placement.updatePreview({ x: 32, y: 40 })
+        expect(placement.getPreviewSnapshot()?.node).toMatchObject({ kind: 'component', role: 'backend', width: 160 })
+        placement.place({ x: 32, y: 40 })
+
+        expect(session.getNodeSnapshot('placed-node')).toMatchObject({ kind: 'component', role: 'backend', width: 160 })
+        expect(session.getActiveToolSnapshot()).toBe('node:component')
+        expect(session.getSelectedLegendEntryKeySnapshot()).toBe('node:backend')
+    })
+
+    it('keeps node default when selected legend entry is a connection', () => {
+        const { placement, session } = createHarness()
+        placement.activate(componentDefinition)
+        expect(session.selectLegendEntry('connection:connection')).toBe(true)
+
+        placement.updatePreview({ x: 32, y: 40 })
+        expect(placement.getPreviewSnapshot()?.node.role).toBe('focal')
+        placement.place({ x: 32, y: 40 })
+        expect(session.getNodeSnapshot('placed-node')?.role).toBe('focal')
+    })
 })

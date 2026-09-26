@@ -38,7 +38,10 @@ export function DiagramInlineNodeControls({ node, onOpenDetails, session }: {
         event.preventDefault()
         commit()
     }
-    const stopPointer = (event: PointerEvent<HTMLElement>) => event.stopPropagation()
+    const stopPointer = (event: PointerEvent<HTMLElement>) => {
+        if (session.getActiveToolSnapshot().startsWith('edge:')) return
+        event.stopPropagation()
+    }
     const stopClick = (event: MouseEvent<HTMLElement>) => event.stopPropagation()
     const handleDoubleClick = (event: MouseEvent<HTMLElement>) => {
         event.stopPropagation()
@@ -48,6 +51,7 @@ export function DiagramInlineNodeControls({ node, onOpenDetails, session }: {
     return (
         <Box
             className="diagram-node-inline-controls"
+            data-diagram-connection-target={node.id}
             onClick={stopClick}
             onDoubleClick={handleDoubleClick}
             onPointerDown={stopPointer}

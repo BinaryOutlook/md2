@@ -178,6 +178,10 @@ export class DiagramEdgeDrawingService extends EventTarget {
 
     beginSource(nodeId: string, point: DiagramEdgeDrawingPoint) {
         const defaults = this.requireActiveDefaults()
+        const selectedKey = this.session.getSelectedLegendEntryKeySnapshot()
+        const selectedKind = selectedKey?.startsWith('connection:')
+            ? selectedKey.slice('connection:'.length) as DiagramEdgeKind : null
+        const kind = selectedKind && this.isEdgeKindAvailable(selectedKind) ? selectedKind : defaults.kind
         const node = this.requirePositionedNode(nodeId)
         if (this.session.getMetadataFieldSnapshot('type') === 'sequence') {
             const spacingScalePercent = this.session.getFormattingScaleSnapshot('spacingScalePercent')
@@ -187,14 +191,14 @@ export class DiagramEdgeDrawingService extends EventTarget {
             const sourceAttachment = { nodeId, offset: 0.5, side: 'bottom' } as const
             const source = Object.freeze({ x: node.x + node.width / 2, y: sequenceMessageRowY(rowIndex, spacingScalePercent) })
             this.sequenceRowIndex = rowIndex
-            this.setPreview({ kind: defaults.kind, points: Object.freeze([source]), sourceAttachment, targetAttachment: null })
+            this.setPreview({ kind, points: Object.freeze([source]), sourceAttachment, targetAttachment: null })
             this.session.beginTransientGesture('edge')
 
             return true
         }
         const sourceAttachment = diagramConnectionPointAt(node, point)
         const source = absoluteConnectionPoint(sourceAttachment, node)
-        const preview = { kind: defaults.kind, points: Object.freeze([Object.freeze(source)]), sourceAttachment, targetAttachment: null }
+        const preview = { kind, points: Object.freeze([Object.freeze(source)]), sourceAttachment, targetAttachment: null }
         this.setPreview(preview)
         this.session.beginTransientGesture('edge')
 
@@ -242,7 +246,8 @@ export class DiagramEdgeDrawingService extends EventTarget {
         const from = completedPreview.sourceAttachment.nodeId
         const edge: NewDiagramEdge = {
             ...defaults,
-            ...this.requiredLabel(defaults, from),
+            kind: completedPreview.kind,
+            ...this.requiredLabel({ ...defaults, kind: completedPreview.kind }, from),
             from,
             ...(sequenceDiagram || mindmapDiagram ? {} : { sourceAttachment: { ...completedPreview.sourceAttachment } }),
             ...(sequenceDiagram || mindmapDiagram ? {} : { targetAttachment: { ...targetAttachment } }),

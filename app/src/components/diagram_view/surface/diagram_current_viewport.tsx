@@ -1,6 +1,6 @@
 import { Box } from '@mui/material'
 import {
-    memo, useCallback, useEffect, useRef, useSyncExternalStore,
+    memo, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
 } from 'react'
@@ -50,6 +50,16 @@ export function DiagramCurrentViewport(props: DiagramCurrentViewportProps) {
         service.getViewportScaleSnapshot,
         service.getViewportScaleSnapshot,
     )
+    const previousOriginRef = useRef<{ x: number, y: number } | null>(null)
+    useLayoutEffect(() => {
+        const previous = previousOriginRef.current
+        const scroller = scrollerRef.current
+        if (previous && scroller) {
+            scroller.scrollLeft += (data.originX - previous.x) * scale
+            scroller.scrollTop += (data.originY - previous.y) * scale
+        }
+        previousOriginRef.current = { x: data.originX, y: data.originY }
+    }, [data.originX, data.originY, scale])
     useDiagramCtrlWheelZoom(scrollerRef, service)
     const canStartPan = useCallback(
         (event: ReactPointerEvent<HTMLElement>) => isEmptyDiagramBackground(event.target),

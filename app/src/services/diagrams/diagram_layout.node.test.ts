@@ -44,6 +44,20 @@ function layerCrossings(positioned: Positioned) {
 }
 
 describe('diagram layout', () => {
+    it('keeps Current node coordinates while adding left and top margins', () => {
+        const data: DiagramData = {
+            edges: [], groups: [],
+            meta: { description: 'Margins', title: 'Margins', type: 'architecture', version: 1 },
+            nodes: [{ height: 72, id: 'one', label: 'One', role: 'focal', width: 160, x: 20, y: 12 }],
+        }
+        const positioned = layout(data)
+
+        expect(positioned).toMatchObject({ originX: 20, originY: 28 })
+        expect(positioned.nodes[0]).toMatchObject({ x: 20, y: 12 })
+        expect(positioned.nodes[0].x + positioned.originX).toBe(40)
+        expect(positioned.nodes[0].y + positioned.originY).toBe(40)
+    })
+
     it('places mindmap nodes on deterministic distance rings around a centred root', () => {
         const data: DiagramData = {
             edges: [

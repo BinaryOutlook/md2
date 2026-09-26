@@ -38,6 +38,17 @@ function dispatchWheel(scroller: HTMLElement, options: WheelEventInit) {
 afterEach(cleanup)
 
 describe('DiagramCurrentViewport', () => {
+    it('keeps title and subtitle in one sticky header above drawing', () => {
+        renderCurrentViewport()
+        const title = screen.getByText('Current', { selector: 'h6' })
+        const subtitle = screen.getByText('Current diagram')
+        const header = title.parentElement
+
+        expect(header).toContainElement(subtitle)
+        expect(header).toHaveStyle({ position: 'sticky' })
+        expect((header as HTMLElement).compareDocumentPosition(screen.getByLabelText('Current diagram')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
     it('scales Current visually, keeps viewport center, and preserves item activation', () => {
         const service = new DiagramViewService()
         const onSelect = vi.fn()

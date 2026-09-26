@@ -4,6 +4,7 @@ import {
     type DiagramFlowPreset,
     type DiagramNode,
     type DiagramNodeKind,
+    type DiagramRole,
     type DiagramType,
 } from './diagram_data'
 import {
@@ -68,8 +69,8 @@ function cloneDefaults(defaults: DiagramNodePlacementDefaults): DiagramNodePlace
     }
 }
 
-function samePreviewPoint(preview: DiagramNodePlacementPreview | null, x: number, y: number) {
-    return preview?.node.x === x && preview.node.y === y
+function samePreviewPoint(preview: DiagramNodePlacementPreview | null, x: number, y: number, role: DiagramRole) {
+    return preview?.node.x === x && preview.node.y === y && preview.node.role === role
 }
 
 function previewSize(definition: DiagramNodePlacementDefinition) {
@@ -155,9 +156,12 @@ export class DiagramNodePlacementService extends EventTarget {
 
         const x = snapCoordinate(point.x)
         const y = snapCoordinate(point.y)
-        if (samePreviewPoint(this.preview, x, y)) return false
+        const selectedKey = this.session.getSelectedLegendEntryKeySnapshot()
+        const role = selectedKey?.startsWith('node:')
+            ? selectedKey.slice('node:'.length) as DiagramRole : definition.defaults.role
+        if (samePreviewPoint(this.preview, x, y, role)) return false
 
-        const modelNode: DiagramNode = { ...cloneDefaults(definition.defaults), id: PREVIEW_NODE_ID, kind: definition.kind, x, y }
+        const modelNode: DiagramNode = { ...cloneDefaults(definition.defaults), id: PREVIEW_NODE_ID, kind: definition.kind, role, x, y }
         const { height, width } = previewSize(definition)
         const node: PositionedDiagramNode = { ...modelNode, fanIn: 0, height, width, x, y }
         const preview = {
@@ -180,6 +184,7 @@ export class DiagramNodePlacementService extends EventTarget {
         const node: NewDiagramNode = {
             ...cloneDefaults(definition.defaults),
             kind: definition.kind,
+            role: preview.node.role,
             x: preview.node.x,
             y: preview.node.y,
         }

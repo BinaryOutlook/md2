@@ -59,6 +59,30 @@ function startSession(source: DiagramData) {
 afterEach(cleanup)
 
 describe('DiagramSessionLegendEntries', () => {
+    it('selects semantic entries by pointer and keyboard, then clears removed and ended selection', async () => {
+        const session = startSession(legendDiagram)
+        const user = userEvent.setup()
+        render(<ThemeProvider theme={theme}><DiagramSessionLegendEntries session={session} /></ThemeProvider>)
+
+        await user.click(screen.getByRole('button', { name: 'Select Service' }))
+        expect(session.getSelectedLegendEntryKeySnapshot()).toBe('node:focal')
+        expect(screen.getByRole('button', { name: 'Select Service' })).toHaveAttribute('aria-pressed', 'true')
+        act(() => { session.setActiveTool('pan') })
+        expect(session.getSelectedLegendEntryKeySnapshot()).toBe('node:focal')
+
+        const connection = screen.getByRole('button', { name: 'Select Calls' })
+        connection.focus()
+        await user.keyboard('{Enter}')
+        expect(session.getSelectedLegendEntryKeySnapshot()).toBe('connection:connection')
+        expect(connection).toHaveAttribute('aria-pressed', 'true')
+
+        await user.click(screen.getByRole('button', { name: 'Remove Calls' }))
+        expect(session.getSelectedLegendEntryKeySnapshot()).toBeNull()
+        await user.click(screen.getByRole('button', { name: 'Select Service' }))
+        act(() => { session.discard() })
+        expect(session.getSelectedLegendEntryKeySnapshot()).toBeNull()
+    })
+
     it('renames a derived row inline, rejects blank text, and removes it without reappearing', async () => {
         const session = startSession(diagram)
         const user = userEvent.setup()

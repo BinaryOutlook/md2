@@ -1,6 +1,6 @@
 import { Box } from '@mui/material'
 import {
-    memo, useCallback, useEffect, useRef, useSyncExternalStore,
+    memo, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore,
     type KeyboardEvent as ReactKeyboardEvent,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
@@ -41,6 +41,7 @@ import { useDiagramCtrlWheelZoom } from '../editing/use_diagram_ctrl_wheel_zoom'
 import { usePreserveDiagramZoomCenter } from './use_preserve_diagram_zoom_center'
 import { useDiagramSurfacePan } from '../editing/use_diagram_surface_pan'
 import { useActiveDiagramTool } from '../editing/use_diagram_tool'
+import { useDiagramSurfaceField } from '../editing/use_diagram_geometry'
 import { useDiagramPinchZoom } from './use_diagram_pinch_zoom'
 
 interface DiagramZoomViewportProps {
@@ -128,6 +129,18 @@ export function DiagramZoomViewport({
         session.getViewportScaleSnapshot,
         session.getViewportScaleSnapshot,
     )
+    const originX = useDiagramSurfaceField('originX', geometry)
+    const originY = useDiagramSurfaceField('originY', geometry)
+    const previousOriginRef = useRef<{ x: number, y: number } | null>(null)
+    useLayoutEffect(() => {
+        const previous = previousOriginRef.current
+        const scroller = scrollerRef.current
+        if (previous && scroller) {
+            scroller.scrollLeft += (originX - previous.x) * scale
+            scroller.scrollTop += (originY - previous.y) * scale
+        }
+        previousOriginRef.current = { x: originX, y: originY }
+    }, [originX, originY, scale])
     useDiagramCtrlWheelZoom(scrollerRef, session)
     const panToolActive = useActiveDiagramTool(session, 'pan')
     const canStartPan = useCallback(() => session.getActiveToolSnapshot() === 'pan', [session])
@@ -156,12 +169,14 @@ export function DiagramZoomViewport({
             { clientX, clientY },
             {
                 bounds: drawingSurface.getBoundingClientRect(),
+                originX: geometry.getSurfaceFieldSnapshot('originX'),
+                originY: geometry.getSurfaceFieldSnapshot('originY'),
                 scrollLeft: 0,
                 scrollTop: 0,
             },
             session.getViewportScaleSnapshot(),
         ).diagramPoint
-    }, [session])
+    }, [geometry, session])
 
     const releaseActivePointer = useCallback(() => {
         const pointerId = activePointerIdRef.current

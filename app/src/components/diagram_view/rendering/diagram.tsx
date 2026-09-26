@@ -49,7 +49,7 @@ export function Diagram(props: DiagramProps) {
     }
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, minWidth: data.width }}>
-            <Box>
+            <Box sx={{ bgcolor: 'background.default', left: 0, position: 'sticky', top: 0, width: 'fit-content', zIndex: 5 }}>
                 <Typography sx={diagramFontStyle(undefined, fontScalePercent, 'h6')} variant="h6">{data.meta.title}</Typography>
                 <Typography
                     color="text.secondary"
@@ -65,60 +65,62 @@ export function Diagram(props: DiagramProps) {
                 ref={surfaceRef}
                 sx={{ height: data.height, position: 'relative', width: data.width }}
             >
-                {data.groups.map((group) => (
-                    <DiagramGroup
-                        emphasis={emphasis}
-                        formattingStore={service as DiagramViewService}
-                        group={group}
-                        key={group.id}
-                    />
-                ))}
-                {data.fragments.map((fragment) => (
-                    <SequenceFragment
-                        emphasis={emphasis}
-                        formattingStore={service as DiagramViewService}
-                        fragment={fragment}
-                        key={fragment.id}
-                    />
-                ))}
-                {data.meta.type === 'sequence' ? data.nodes.map((node) => (
-                    <SequenceLifeline
-                        emphasis={emphasis}
-                        height={data.height - 24 - node.y - node.height}
-                        key={`sequence-${node.id}`}
-                        nodeId={node.id}
-                        x={node.x + node.width / 2}
-                        y={node.y + node.height}
-                    />
-                )) : null}
-                {data.activations.map((activation) => (
-                    <SequenceActivation activation={activation} emphasis={emphasis} key={activation.id} />
-                ))}
-                <svg aria-label="Diagram connections" height={data.height} style={{ left: 0, overflow: 'visible', position: 'absolute', top: 0, zIndex: 1 }} width={data.width}>
-                    {data.edges.map((edge) => (
-                        <CurrentDiagramEdge
-                            curved={curvedEdges}
-                            edge={edge}
+                <Box sx={{ height: data.height - data.originY, left: data.originX, position: 'absolute', top: data.originY, width: data.width - data.originX }}>
+                    {data.groups.map((group) => (
+                        <DiagramGroup
                             emphasis={emphasis}
-                            key={edge.id}
-                            nodeLabels={nodeLabels}
+                            formattingStore={service as DiagramViewService}
+                            group={group}
+                            key={group.id}
+                        />
+                    ))}
+                    {data.fragments.map((fragment) => (
+                        <SequenceFragment
+                            emphasis={emphasis}
+                            formattingStore={service as DiagramViewService}
+                            fragment={fragment}
+                            key={fragment.id}
+                        />
+                    ))}
+                    {data.meta.type === 'sequence' ? data.nodes.map((node) => (
+                        <SequenceLifeline
+                            emphasis={emphasis}
+                            height={data.height - data.originY - 24 - node.y - node.height}
+                            key={`sequence-${node.id}`}
+                            nodeId={node.id}
+                            x={node.x + node.width / 2}
+                            y={node.y + node.height}
+                        />
+                    )) : null}
+                    {data.activations.map((activation) => (
+                        <SequenceActivation activation={activation} emphasis={emphasis} key={activation.id} />
+                    ))}
+                    <svg aria-label="Diagram connections" height={data.height - data.originY} style={{ left: 0, overflow: 'visible', position: 'absolute', top: 0, zIndex: 1 }} width={data.width - data.originX}>
+                        {data.edges.map((edge) => (
+                            <CurrentDiagramEdge
+                                curved={curvedEdges}
+                                edge={edge}
+                                emphasis={emphasis}
+                                key={edge.id}
+                                nodeLabels={nodeLabels}
+                                onSelect={handleSelect}
+                                service={service}
+                            />
+                        ))}
+                    </svg>
+                    {data.nodes.map((node) => (
+                        <CurrentDiagramNode
+                            circular={circularNodes}
+                            diagramType={data.meta.type}
+                            emphasis={emphasis}
+                            flowPreset={data.meta.preset}
+                            key={node.id}
+                            node={node}
                             onSelect={handleSelect}
                             service={service}
                         />
                     ))}
-                </svg>
-                {data.nodes.map((node) => (
-                    <CurrentDiagramNode
-                        circular={circularNodes}
-                        diagramType={data.meta.type}
-                        emphasis={emphasis}
-                        flowPreset={data.meta.preset}
-                        key={node.id}
-                        node={node}
-                        onSelect={handleSelect}
-                        service={service}
-                    />
-                ))}
+                </Box>
             </Box>
         </Box>
     )

@@ -1,7 +1,7 @@
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined'
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined'
-import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material'
-import { useState, type ChangeEvent, type KeyboardEvent, type MouseEvent } from 'react'
+import { Box, ButtonBase, IconButton, TextField, Tooltip, Typography } from '@mui/material'
+import { useState, useSyncExternalStore, type ChangeEvent, type KeyboardEvent, type MouseEvent } from 'react'
 import type { DiagramEditSessionService } from '../../../services/diagrams/diagram_edit_session_service'
 import type {
     DiagramConnectionKindFormatting,
@@ -24,6 +24,9 @@ export interface DiagramFormattingMutationStore extends DiagramFormattingStore {
     setNodeRoleFormatting(role: DiagramRole, value: DiagramNodeRoleFormatting): void
 }
 
+function noSelection() { return null }
+function noSelectionSubscription() { return () => {} }
+
 /** One legend semantic category with hover/focus formatting action and scoped sample subscription. */
 export function DiagramLegendEntryRow({ entry, session, store }: {
     entry: DiagramLegendEntry, session?: DiagramEditSessionService, store: DiagramFormattingMutationStore,
@@ -33,6 +36,12 @@ export function DiagramLegendEntryRow({ entry, session, store }: {
     const draftLabel = draftState.base === entry.label ? draftState.value : entry.label
     const [labelError, setLabelError] = useState<string | null>(null)
     const entryKey = entry.entryType === 'node' ? `node:${entry.role}` : `connection:${entry.kind}`
+    const selectedKey = useSyncExternalStore(
+        session?.subscribeLegendSelection ?? noSelectionSubscription,
+        session?.getSelectedLegendEntryKeySnapshot ?? noSelection,
+        noSelection,
+    )
+    const handleSelect = () => session?.selectLegendEntry(entryKey)
     const handleLabelChange = (event: ChangeEvent<HTMLInputElement>) => {
         setDraftState({ base: entry.label, value: event.target.value })
         setLabelError(null)
@@ -74,17 +83,21 @@ export function DiagramLegendEntryRow({ entry, session, store }: {
     return (
         <Box
             sx={{
-                alignItems: 'center', display: 'flex', gap: 1,
+                alignItems: 'center', bgcolor: selectedKey === entryKey ? 'custom.primaryBg' : undefined,
+                borderRadius: 1, display: 'flex', gap: 1,
                 '& .diagram-formatting-action': { opacity: 0 },
                 '&:focus-within .diagram-formatting-action, &:hover .diagram-formatting-action': { opacity: 1 },
                 '@media (hover: none)': { '& .diagram-formatting-action': { opacity: 1 } },
             }}
         >
-            {entry.entryType === 'node' ? (
-                <Box
-                    data-role={entry.role}
-                    sx={{ border: '1px solid', borderRadius: 0.5, flexShrink: 0, height: 12, width: 20, ...diagramRoleStyle(entry.role, nodeFormatting) }}
-                />
+            {session ? (
+                <ButtonBase aria-label={`Select ${entry.label}`} aria-pressed={selectedKey === entryKey} onClick={handleSelect} sx={{ borderRadius: 0.5, p: 0.5 }}>
+                    {entry.entryType === 'node' ? (
+                        <Box data-role={entry.role} sx={{ border: '1px solid', borderRadius: 0.5, height: 12, width: 20, ...diagramRoleStyle(entry.role, nodeFormatting) }} />
+                    ) : <DiagramLegendConnectionSample kind={entry.kind} store={store} />}
+                </ButtonBase>
+            ) : entry.entryType === 'node' ? (
+                <Box data-role={entry.role} sx={{ border: '1px solid', borderRadius: 0.5, flexShrink: 0, height: 12, width: 20, ...diagramRoleStyle(entry.role, nodeFormatting) }} />
             ) : <DiagramLegendConnectionSample kind={entry.kind} store={store} />}
             {session ? (
                 <TextField
@@ -92,6 +105,7 @@ export function DiagramLegendEntryRow({ entry, session, store }: {
                     helperText={labelError}
                     onBlur={commitLabel}
                     onChange={handleLabelChange}
+                    onClick={handleSelect}
                     onKeyDown={handleLabelKeyDown}
                     size="small"
                     slotProps={{ htmlInput: { 'aria-label': `Legend label for ${entryKey}` } }}

@@ -7,6 +7,8 @@ import {
 
 const VIEWPORT_METRICS: DiagramViewportMetrics = {
     bounds: { left: 100, top: 50 },
+    originX: 0,
+    originY: 0,
     scrollLeft: 60,
     scrollTop: 30,
 };
@@ -30,7 +32,7 @@ describe('convertClientToDiagramCoordinates', () => {
     it('accounts for viewport bounds and horizontal and vertical scrolling', () => {
         const conversion = convertClientToDiagramCoordinates(
             { clientX: 425, clientY: 275 },
-            { bounds: { left: 300, top: 200 }, scrollLeft: 75, scrollTop: 25 },
+            { bounds: { left: 300, top: 200 }, originX: 0, originY: 0, scrollLeft: 75, scrollTop: 25 },
             2,
         );
 
@@ -42,8 +44,8 @@ describe('convertClientToDiagramCoordinates', () => {
 
     it('uses only the selected comparison pane metrics', () => {
         const clientPoint = { clientX: 720, clientY: 290 };
-        const newPaneMetrics = { bounds: { left: 600, top: 200 }, scrollLeft: 80, scrollTop: 40 };
-        const currentPaneMetrics = { bounds: { left: 20, top: 20 }, scrollLeft: 300, scrollTop: 500 };
+        const newPaneMetrics = { bounds: { left: 600, top: 200 }, originX: 0, originY: 0, scrollLeft: 80, scrollTop: 40 };
+        const currentPaneMetrics = { bounds: { left: 20, top: 20 }, originX: 0, originY: 0, scrollLeft: 300, scrollTop: 500 };
 
         const newPaneConversion = convertClientToDiagramCoordinates(clientPoint, newPaneMetrics, 2);
         const currentPaneConversion = convertClientToDiagramCoordinates(clientPoint, currentPaneMetrics, 2);
@@ -87,13 +89,20 @@ describe('convertClientToDiagramCoordinates', () => {
     it('does not mutate coordinate inputs', () => {
         const clientPoint: DiagramClientPoint = Object.freeze({ clientX: 320, clientY: 180 });
         const bounds = Object.freeze({ left: 100, top: 50 });
-        const viewportMetrics: DiagramViewportMetrics = Object.freeze({ bounds, scrollLeft: 20, scrollTop: 10 });
+        const viewportMetrics: DiagramViewportMetrics = Object.freeze({ bounds, originX: 0, originY: 0, scrollLeft: 20, scrollTop: 10 });
 
         expect(convertClientToDiagramCoordinates(clientPoint, viewportMetrics, 1)).toEqual({
             diagramPoint: { x: 240, y: 140 },
             viewportPoint: { x: 240, y: 140 },
         });
         expect(clientPoint).toEqual({ clientX: 320, clientY: 180 });
-        expect(viewportMetrics).toEqual({ bounds: { left: 100, top: 50 }, scrollLeft: 20, scrollTop: 10 });
+        expect(viewportMetrics).toEqual({ bounds: { left: 100, top: 50 }, originX: 0, originY: 0, scrollLeft: 20, scrollTop: 10 });
+    });
+
+    it('keeps pointer placement aligned with left and top growth at changed zoom', () => {
+        const metrics = { ...VIEWPORT_METRICS, originX: 80, originY: 40 };
+        const conversion = convertClientToDiagramCoordinates({ clientX: 380, clientY: 210 }, metrics, 2);
+
+        expect(conversion.diagramPoint).toEqual({ x: 90, y: 55 });
     });
 });

@@ -53,6 +53,8 @@ export type PositionedFragmentField = 'dividerY' | 'guardPositions' | Positioned
 
 export interface DiagramSurfaceSize {
     height: number
+    originX: number
+    originY: number
     width: number
 }
 
@@ -117,7 +119,7 @@ export class DiagramGeometryService extends EventTarget {
     private readonly groupsById = new Map<string, PositionedDiagramGroup>()
     private readonly nodesById = new Map<string, PositionedDiagramNode>()
     private objectUnsubscribes: (() => void)[] = []
-    private surface: DiagramSurfaceSize = { height: 0, width: 0 }
+    private surface: DiagramSurfaceSize = { height: 0, originX: 0, originY: 0, width: 0 }
 
     constructor(editSession: DiagramEditSessionService = diagramEditSessionService) {
         super()
@@ -222,7 +224,7 @@ export class DiagramGeometryService extends EventTarget {
         const diagram = this.editSession.getEditableDiagram() as DiagramData | null
         this.diagram = diagram
         if (!diagram) {
-            this.surface = { height: 0, width: 0 }
+            this.surface = { height: 0, originX: 0, originY: 0, width: 0 }
             this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('activation')))
             this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('fragment')))
             this.dispatchEvent(new Event(GEOMETRY_SESSION_EVENT))
@@ -239,7 +241,7 @@ export class DiagramGeometryService extends EventTarget {
         this.activationIds = Object.freeze(positioned.activations.map(({ id }) => id))
         this.edgeIds = Object.freeze(positioned.edges.map(({ id }) => id))
         this.fragmentIds = Object.freeze(positioned.fragments.map(({ id }) => id))
-        this.surface = { height: positioned.height, width: positioned.width }
+        this.surface = { height: positioned.height, originX: positioned.originX, originY: positioned.originY, width: positioned.width }
         this.subscribeDiagramObjects()
         this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('activation')))
         this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('fragment')))
@@ -407,7 +409,7 @@ export class DiagramGeometryService extends EventTarget {
     private refreshActivations(participantId: string) {
         const node = this.nodesById.get(participantId)
         const diagram = this.requireDiagram()
-        const bottom = this.surface.height - ACTIVATION_BOTTOM_MARGIN
+        const bottom = this.surface.height - this.surface.originY - ACTIVATION_BOTTOM_MARGIN
         const previousIds = [...this.activationsById.keys()].filter((id) => activationOwnerId(id) === participantId)
         const rows = this.positionedEdgesInModelOrder(diagram)
         const next = node ? nodeActivations(node, rows, bottom) : []
@@ -471,8 +473,26 @@ export class DiagramGeometryService extends EventTarget {
             ? diagram.nodes.find(({ kind }) => kind === 'root') : undefined
         const root = rootModel && rootModel.x === undefined && rootModel.y === undefined
             ? this.nodesById.get(rootModel.id) : undefined
-        const height = root ? Math.max(measured.height, (root.y + root.height / 2) * 2) : measured.height
-        const width = root ? Math.max(measured.width, (root.x + root.width / 2) * 2) : measured.width
+        const originX = Math.max(this.surface.originX, measured.originX)
+        const originY = Math.max(this.surface.originY, measured.originY)
+        const height = Math.max(
+            measured.height + originY - measured.originY,
+            originY > this.surface.originY ? this.surface.height + originY - this.surface.originY : 0,
+            root ? (root.y + root.height / 2) * 2 + originY : 0,
+        )
+        const width = Math.max(
+            measured.width + originX - measured.originX,
+            originX > this.surface.originX ? this.surface.width + originX - this.surface.originX : 0,
+            root ? (root.x + root.width / 2) * 2 + originX : 0,
+        )
+        if (originX !== this.surface.originX) {
+            this.surface.originX = originX
+            this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('surface', SURFACE_ID, 'originX')))
+        }
+        if (originY !== this.surface.originY) {
+            this.surface.originY = originY
+            this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('surface', SURFACE_ID, 'originY')))
+        }
         if (height !== this.surface.height) {
             this.surface.height = height
             this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('surface', SURFACE_ID, 'height')))

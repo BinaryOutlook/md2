@@ -10,6 +10,8 @@ export interface DiagramViewportMetrics {
     };
     scrollLeft: number;
     scrollTop: number;
+    originX: number;
+    originY: number;
 }
 
 export interface DiagramPoint {
@@ -38,6 +40,8 @@ export function convertClientToDiagramCoordinates(
     requireFiniteCoordinate(viewportMetrics.bounds.top, 'Viewport top');
     requireFiniteCoordinate(viewportMetrics.scrollLeft, 'Viewport scroll left');
     requireFiniteCoordinate(viewportMetrics.scrollTop, 'Viewport scroll top');
+    requireFiniteCoordinate(viewportMetrics.originX, 'Diagram origin x');
+    requireFiniteCoordinate(viewportMetrics.originY, 'Diagram origin y');
     if (!Number.isFinite(viewportScale) || viewportScale <= 0) throw new Error('Viewport scale must be positive and finite');
 
     const viewportPoint = {
@@ -45,8 +49,8 @@ export function convertClientToDiagramCoordinates(
         y: clientPoint.clientY - viewportMetrics.bounds.top + viewportMetrics.scrollTop,
     };
     const diagramPoint = {
-        x: viewportPoint.x / viewportScale,
-        y: viewportPoint.y / viewportScale,
+        x: viewportPoint.x / viewportScale - viewportMetrics.originX,
+        y: viewportPoint.y / viewportScale - viewportMetrics.originY,
     };
 
     return { diagramPoint, viewportPoint };

@@ -161,6 +161,51 @@ function createHarness(diagram: DiagramData = architectureDiagram(), createId?: 
     return { geometry, session }
 }
 
+function edgeGrowthDiagram(): DiagramData {
+    return {
+        edges: [],
+        groups: [],
+        meta: { description: 'Growth', title: 'Growth', type: 'architecture', version: 1 },
+        nodes: [{ height: 64, id: 'moving', label: 'Moving', role: 'focal', width: 120, x: 80, y: 80 }],
+    }
+}
+
+describe('DiagramGeometryService surface growth', () => {
+    it.each([
+        { field: 'x' as const, value: 20, expectedOriginX: 20, expectedOriginY: 0 },
+        { field: 'y' as const, value: 20, expectedOriginX: 0, expectedOriginY: 20 },
+    ])('grows $field edge without moving stored node', ({ field, value, expectedOriginX, expectedOriginY }) => {
+        const { geometry, session } = createHarness(edgeGrowthDiagram())
+        const initialWidth = geometry.getSurfaceFieldSnapshot('width')
+        const initialHeight = geometry.getSurfaceFieldSnapshot('height')
+        session.setViewportScale(1.5)
+        session.setNodeField('moving', field, value)
+
+        expect(geometry.getSurfaceFieldSnapshot('originX')).toBe(expectedOriginX)
+        expect(geometry.getSurfaceFieldSnapshot('originY')).toBe(expectedOriginY)
+        expect(geometry.getSurfaceFieldSnapshot('width')).toBe(initialWidth + expectedOriginX)
+        expect(geometry.getSurfaceFieldSnapshot('height')).toBe(initialHeight + expectedOriginY)
+        expect(geometry.getNodeGeometryFieldSnapshot('moving', field)).toBe(value)
+    })
+
+    it('grows right, bottom, and both corner edges only when entered', () => {
+        const { geometry, session } = createHarness(edgeGrowthDiagram())
+        const initialWidth = geometry.getSurfaceFieldSnapshot('width')
+        const initialHeight = geometry.getSurfaceFieldSnapshot('height')
+        session.setNodeField('moving', 'x', 200)
+        expect(geometry.getSurfaceFieldSnapshot('width')).toBeGreaterThan(initialWidth)
+        expect(geometry.getSurfaceFieldSnapshot('height')).toBe(initialHeight)
+        session.setNodeField('moving', 'y', 200)
+        expect(geometry.getSurfaceFieldSnapshot('height')).toBeGreaterThan(initialHeight)
+
+        session.setNodeField('moving', 'x', -20)
+        session.setNodeField('moving', 'y', -20)
+        expect(geometry.getSurfaceFieldSnapshot('originX')).toBe(60)
+        expect(geometry.getSurfaceFieldSnapshot('originY')).toBe(60)
+        expect(session.setNodeField('moving', 'x', -20)).toBe(false)
+    })
+})
+
 /** Records every geometry event the service dispatches, so a test can assert the exact notification set of one edit. */
 function recordGeometryEvents(geometry: DiagramGeometryService) {
     const dispatched: string[] = []

@@ -98,6 +98,8 @@ export function EditableDiagramSurface({
     viewService?: DiagramViewService,
 }) {
     const height = useDiagramSurfaceField('height', geometry)
+    const originX = useDiagramSurfaceField('originX', geometry)
+    const originY = useDiagramSurfaceField('originY', geometry)
     const width = useDiagramSurfaceField('width', geometry)
     const activeTool = useActiveDiagramTool(session)
     const activePointerIdRef = useRef<number | null>(null)
@@ -105,7 +107,7 @@ export function EditableDiagramSurface({
     const suppressNextClickRef = useRef(false)
     const diagramPointFromPointer = (event: PointerEvent<HTMLDivElement>) => {
         const bounds = event.currentTarget.getBoundingClientRect()
-        const viewportMetrics = { bounds: { left: bounds.left, top: bounds.top }, scrollLeft: 0, scrollTop: 0 }
+        const viewportMetrics = { bounds: { left: bounds.left, top: bounds.top }, originX, originY, scrollLeft: 0, scrollTop: 0 }
 
         return convertClientToDiagramCoordinates(event, viewportMetrics, session.getViewportScaleSnapshot()).diagramPoint
     }
@@ -212,7 +214,9 @@ export function EditableDiagramSurface({
             ref={surfaceRef}
             sx={{ height, position: 'relative', touchAction: 'none', width }}
         >
-            {children}
+            <Box sx={{ height: height - originY, left: originX, position: 'absolute', top: originY, width: width - originX }}>
+                {children}
+            </Box>
         </Box>
     )
 }
@@ -243,7 +247,7 @@ export function EditableDiagram({
             sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pb: 2 }}
             tabIndex={-1}
         >
-            <Box>
+            <Box sx={{ bgcolor: 'background.default', left: 0, position: 'sticky', top: 0, width: 'fit-content', zIndex: 5 }}>
                 <EditableDiagramTitle session={session} />
                 <EditableDiagramDescription session={session} />
             </Box>

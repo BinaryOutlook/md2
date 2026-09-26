@@ -164,6 +164,32 @@ describe('diagram edge drawing geometry', () => {
 })
 
 describe('DiagramEdgeDrawingService', () => {
+    it('uses compatible selected connection kind for preview and created edge', () => {
+        const source = architectureDiagram()
+        source.meta.legend = [{ kind: 'data', label: 'Data' }]
+        const { drawing, session } = createHarness(source)
+        drawing.activate({ kind: 'connection' })
+        expect(session.selectLegendEntry('connection:data')).toBe(true)
+
+        drawing.beginSource('source', { x: 120, y: 40 })
+        expect(drawing.getPreviewSnapshot()?.kind).toBe('data')
+        drawing.completeTarget('target', { x: 240, y: 40 })
+
+        expect(session.getEdgeSnapshot('drawn-edge')?.kind).toBe('data')
+        expect(session.getActiveToolSnapshot()).toBe('edge:connection')
+    })
+
+    it('keeps edge default when selected legend entry is a node role', () => {
+        const { drawing, session } = createHarness()
+        drawing.activate({ kind: 'data' })
+        expect(session.selectLegendEntry('node:store')).toBe(true)
+
+        drawing.beginSource('source', { x: 120, y: 40 })
+        expect(drawing.getPreviewSnapshot()?.kind).toBe('data')
+        drawing.completeTarget('target', { x: 240, y: 40 })
+        expect(session.getEdgeSnapshot('drawn-edge')?.kind).toBe('data')
+    })
+
     it('draws two connections without reselecting the edge tool', () => {
         const createId = vi.fn().mockReturnValueOnce('first-edge').mockReturnValueOnce('second-edge')
         const { drawing, session } = createHarness(architectureDiagram(), createId)

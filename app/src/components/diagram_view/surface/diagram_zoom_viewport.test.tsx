@@ -93,6 +93,96 @@ function dispatchWheel(scroller: HTMLElement, options: WheelEventInit) {
 afterEach(cleanup)
 
 describe('DiagramZoomViewport', () => {
+    it('keeps editable title and subtitle in one sticky header above drawing', () => {
+        const { geometry, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} session={session} />)
+        const title = screen.getByRole('textbox', { name: 'Diagram title' })
+        const subtitle = screen.getByRole('textbox', { name: 'Diagram subtitle' })
+        const header = title.closest('.MuiBox-root')
+
+        expect(header).toContainElement(subtitle)
+        expect(window.getComputedStyle(header as Element).position).toBe('sticky')
+        expect((header as HTMLElement).compareDocumentPosition(screen.getByLabelText('New diagram')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('preserves scroller position when a node expands left and top margins at zoom', () => {
+        const { geometry, session } = createHarness()
+        render(<DiagramZoomViewport geometry={geometry} session={session} />)
+        const scroller = screen.getByLabelText('New diagram scroller')
+        act(() => { session.setViewportScale(1.5) })
+        scroller.scrollLeft = 120
+        scroller.scrollTop = 80
+        const oldOriginX = geometry.getSurfaceFieldSnapshot('originX')
+        const oldOriginY = geometry.getSurfaceFieldSnapshot('originY')
+
+        act(() => {
+            session.setNodeField('orders', 'x', 20)
+            session.setNodeField('orders', 'y', 20)
+        })
+
+        expect(geometry.getSurfaceFieldSnapshot('originX')).toBeGreaterThan(oldOriginX)
+        expect(geometry.getSurfaceFieldSnapshot('originY')).toBeGreaterThan(oldOriginY)
+        expect(scroller.scrollLeft).toBe(120 + (geometry.getSurfaceFieldSnapshot('originX') - oldOriginX) * 1.5)
+        expect(scroller.scrollTop).toBe(80 + (geometry.getSurfaceFieldSnapshot('originY') - oldOriginY) * 1.5)
+    })
+
+    it('places at canonical pointer coordinates after left and top growth at zoom', () => {
+        const { geometry, placement, session } = createHarness()
+        session.setNodeField('orders', 'x', 20)
+        session.setNodeField('orders', 'y', 20)
+        render(<DiagramZoomViewport geometry={geometry} placement={placement} session={session} />)
+        const scroller = screen.getByLabelText('New diagram scroller')
+        const drawingSurface = screen.getByLabelText('New diagram')
+        vi.spyOn(drawingSurface, 'getBoundingClientRect').mockReturnValue({bottom: 620, height: 600, left: 10, right: 810, toJSON: () => ({}), top: 20, width: 800, x: 10, y: 20})
+        act(() => {
+            session.setViewportScale(1.5)
+            placement.activate({ defaults: { height: 72, label: 'Placed', role: 'focal', width: 160 }, kind: 'component' })
+        })
+        const clientX = 10 + (100 + geometry.getSurfaceFieldSnapshot('originX')) * 1.5
+        const clientY = 20 + (80 + geometry.getSurfaceFieldSnapshot('originY')) * 1.5
+
+        fireEvent.pointerMove(scroller, { clientX, clientY, isPrimary: true, pointerId: 91 })
+        expect(placement.getPreviewSnapshot()?.node).toMatchObject({ x: 100, y: 80 })
+        fireEvent.pointerDown(scroller, { button: 0, clientX, clientY, isPrimary: true, pointerId: 91 })
+        fireEvent.pointerUp(scroller, { clientX, clientY, pointerId: 91 })
+        const placedId = session.getNodeIdsSnapshot().find((nodeId) => nodeId !== 'orders' && nodeId !== 'store')
+        expect(session.getNodeSnapshot(placedId as string)).toMatchObject({ x: 100, y: 80 })
+    })
+
+    it('starts and finishes a connection over inline label inputs', () => {
+        const { drawing, geometry, session } = createHarness()
+        render(<DiagramZoomViewport drawing={drawing} geometry={geometry} session={session} />)
+        const sourceInput = screen.getByRole('textbox', { name: 'Edit Orders label' })
+        const targetInput = screen.getByRole('textbox', { name: 'Edit Store label' })
+        act(() => { drawing.activate({ kind: 'connection' }) })
+
+        fireEvent.pointerDown(sourceInput, { button: 0, clientX: 320, clientY: 160, isPrimary: true, pointerId: 71 })
+        fireEvent.pointerMove(targetInput, { clientX: 540, clientY: 160, isPrimary: true, pointerId: 72 })
+        expect(drawing.getPreviewSnapshot()?.targetAttachment?.nodeId).toBe('store')
+        fireEvent.pointerDown(targetInput, { button: 0, clientX: 540, clientY: 160, isPrimary: true, pointerId: 72 })
+        expect(session.getEdgeIdsSnapshot()).toHaveLength(2)
+    })
+
+    it('targets entity field text in preview and completion', () => {
+        const source: DiagramData = {
+            edges: [], groups: [],
+            meta: { description: 'Entities', title: 'Entities', type: 'entity', version: 1 },
+            nodes: [
+                { fields: [{ name: 'sourceField' }], id: 'orders', kind: 'entity', label: 'Orders', role: 'focal', x: 40, y: 40 },
+                { fields: [{ name: 'targetField' }], id: 'store', kind: 'entity', label: 'Store', role: 'store', x: 240, y: 40 },
+            ],
+        }
+        const { drawing, geometry, session } = createHarness(source)
+        render(<DiagramZoomViewport drawing={drawing} geometry={geometry} session={session} />)
+        act(() => { drawing.activate({ kind: 'relationship' }) })
+
+        fireEvent.pointerDown(screen.getByText('sourceField'), { button: 0, clientX: 80, clientY: 80, isPrimary: true, pointerId: 81 })
+        fireEvent.pointerMove(screen.getByText('targetField'), { clientX: 280, clientY: 80, isPrimary: true, pointerId: 82 })
+        expect(drawing.getPreviewSnapshot()?.targetAttachment?.nodeId).toBe('store')
+        fireEvent.pointerDown(screen.getByText('targetField'), { button: 0, clientX: 280, clientY: 80, isPrimary: true, pointerId: 82 })
+        expect(session.getEdgeIdsSnapshot()).toHaveLength(1)
+    })
+
     it('draws one attached edge through scrolled, zoomed New coordinates', () => {
         const { drawing, geometry, selection, session } = createHarness()
         render(
