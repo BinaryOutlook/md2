@@ -3,12 +3,21 @@ author:
 id: B_252
 internalId: fe110555-78f8-4085-a566-ec03d047a19d
 title: Adding legends to diagrams removes existing
-status: design
+status: ready
 owner: 
 affects:
 agents:
   - design/activity/card__fe110555-78f8-4085-a566-ec03d047a19d.json
 policy:
+changedFiles:
+  - app/src/components/diagram_view/legend/diagram_legend_details_editor.test.tsx
+  - app/src/components/diagram_view/legend/diagram_legend_details_editor.tsx
+  - app/src/services/diagrams/diagram_data.node.test.ts
+  - app/src/services/diagrams/diagram_edit_session_service.test.ts
+  - app/src/services/diagrams/diagram_edit_session_service.ts
+  - app/src/services/diagrams/diagram_edit_validation.ts
+  - shared/diagram_data.d.mts
+  - shared/diagram_data.mjs
 ---
 
 When adding a legend item to a legend that already has items, all existing items are removed. This is wrong.
