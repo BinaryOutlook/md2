@@ -1,4 +1,5 @@
 {
+  "lastVersion": "",
   "actionsFolder": "actions",
   "archivedFolder": "archived",
   "autoCommitDelayMs": 30000,
@@ -42,11 +43,13 @@
     {
       "alwaysVisible": true,
       "color": "#29a8e0",
+      "defaultActionId": "5b88355d-f964-459a-bc67-6618650866ba",
       "state": "design"
     },
     {
       "alwaysVisible": true,
       "color": "#ed6c02",
+      "defaultActionId": "47dafdc7-0be7-4d56-bb5a-07c813906416",
       "state": "ready for implementation"
     },
     {
@@ -57,6 +60,7 @@
     {
       "alwaysVisible": true,
       "color": "#43a047",
+      "defaultActionId": "32eceaf6-37d1-48b4-9bc1-c3f051eb7d8e",
       "state": "ready"
     }
   ],
