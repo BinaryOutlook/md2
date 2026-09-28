@@ -1,5 +1,5 @@
 import { ThemeProvider } from '@mui/material'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DiagramData } from '../../../services/diagrams/diagram_data'
@@ -76,10 +76,11 @@ describe('DiagramLegendDetailsEditor', () => {
         expect(screen.getByLabelText('Remove focal node')).toBeEnabled()
     })
 
-    it('explains that a diagram without entries keeps its derived legend', () => {
+    it('explains that adding to a derived legend keeps its entries', () => {
         renderEditor(diagram)
 
         expect(screen.getByText(/derived from the node roles/)).toBeInTheDocument()
+        expect(screen.getByText(/Adding an entry keeps those derived entries/)).toBeInTheDocument()
         expect(entryLabelInputs()).toHaveLength(0)
     })
 
@@ -110,25 +111,76 @@ describe('DiagramLegendDetailsEditor', () => {
         const { session } = renderEditor(legendDiagram)
 
         await userEvent.click(screen.getByLabelText('Add entry for'))
-        await userEvent.click(screen.getByRole('option', { name: 'store node' }))
+        await userEvent.click(screen.getByRole('option', { name: 'backend node' }))
+        await userEvent.clear(screen.getByLabelText('Label for the added entry'))
         await userEvent.type(screen.getByLabelText('Label for the added entry'), 'Database')
         await userEvent.click(screen.getByRole('button', { name: 'Add' }))
 
-        expect(session.getLegendEntryKeysSnapshot()).toEqual(['node:focal', 'connection:connection', 'node:store'])
-        expect(session.getLegendEntryFieldSnapshot('node:store', 'label')).toBe('Database')
+        expect(session.getLegendEntryKeysSnapshot()).toEqual(['node:focal', 'connection:connection', 'node:backend'])
+        expect(session.getLegendEntryFieldSnapshot('node:backend', 'label')).toBe('Database')
         await userEvent.click(screen.getByLabelText('Add entry for'))
-        expect(screen.queryByRole('option', { name: 'store node' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: 'backend node' })).not.toBeInTheDocument()
         expect(screen.queryByRole('option', { name: 'focal node' })).not.toBeInTheDocument()
     })
 
-    it('falls back to the canonical name when no label is typed', async () => {
+    it('prefills the type name and allows the label to be edited', async () => {
         const { session } = renderEditor(legendDiagram)
 
         await userEvent.click(screen.getByLabelText('Add entry for'))
-        await userEvent.click(screen.getByRole('option', { name: 'store node' }))
+        await userEvent.click(screen.getByRole('option', { name: 'backend node' }))
+        expect(screen.getByLabelText('Label for the added entry')).toHaveValue('backend')
         await userEvent.click(screen.getByRole('button', { name: 'Add' }))
 
-        expect(session.getLegendEntryFieldSnapshot('node:store', 'label')).toBe('store')
+        expect(session.getLegendEntryFieldSnapshot('node:backend', 'label')).toBe('backend')
+    })
+
+    it('groups diagram-used types behind the checkbox and follows node, edge, and legend changes', async () => {
+        const { session } = renderEditor(legendDiagram)
+
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        expect(screen.getByText('Unused types')).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: 'backend node' })).toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: 'store node' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: 'call connection' })).not.toBeInTheDocument()
+        await userEvent.keyboard('{Escape}')
+
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Include used types' }))
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        const usedGroup = screen.getByText('Used types')
+        const usedOption = screen.getByRole('option', { name: 'store node' })
+        expect(usedGroup.compareDocumentPosition(usedOption) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        await userEvent.keyboard('{Escape}')
+
+        act(() => {
+            session.setNodeField('store', 'role', 'backend')
+            session.setEdgeField('orders-store', 'kind', 'data')
+            session.removeLegendEntry('connection:connection')
+        })
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        expect(screen.getByRole('option', { name: 'store node' })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: 'backend node' })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: 'data connection' })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: 'connection connection' })).toBeInTheDocument()
+        await userEvent.keyboard('{Escape}')
+
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Include used types' }))
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        expect(screen.queryByText('Used types')).not.toBeInTheDocument()
+        expect(screen.queryByRole('option', { name: 'backend node' })).not.toBeInTheDocument()
+    })
+
+    it('moves types between picker groups when nodes and connections are added', async () => {
+        const { session } = renderEditor(legendDiagram)
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Include used types' }))
+
+        act(() => {
+            session.createNode({ label: 'External', role: 'external' })
+            session.createEdge({ from: 'orders', kind: 'data', to: 'store' })
+        })
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        expect(screen.getByRole('option', { name: 'external node' })).toBeInTheDocument()
+        expect(screen.getByRole('option', { name: 'data connection' })).toBeInTheDocument()
+        expect(screen.getByText('Used types').compareDocumentPosition(screen.getByRole('option', { name: 'data connection' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
     it('reports when no semantic has been chosen to add', async () => {
@@ -138,6 +190,27 @@ describe('DiagramLegendDetailsEditor', () => {
 
         expect(screen.getByText('Choose the node role or connection kind to add.')).toBeInTheDocument()
         expect(session.getLegendEntryKeysSnapshot()).toEqual(['node:focal', 'connection:connection'])
+    })
+
+    it('keeps derived entries on add and rejects adding a type already displayed there', async () => {
+        const { session } = renderEditor(diagram)
+
+        await userEvent.click(screen.getByRole('checkbox', { name: 'Include used types' }))
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        await userEvent.click(screen.getByRole('option', { name: 'focal node' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+        expect(screen.getByText('That node role or connection kind already has a legend entry.')).toBeInTheDocument()
+        expect(session.getHasExplicitLegendSnapshot()).toBe(false)
+
+        await userEvent.click(screen.getByLabelText('Add entry for'))
+        await userEvent.click(screen.getByRole('option', { name: 'backend node' }))
+        await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+        expect(session.getEditableDiagram()?.meta.legend).toEqual([
+            { label: 'focal', role: 'focal' },
+            { label: 'store', role: 'store' },
+            { kind: 'connection', label: 'connection' },
+            { label: 'backend', role: 'backend' },
+        ])
     })
 
     it('reorders entries and shows the new order immediately', async () => {

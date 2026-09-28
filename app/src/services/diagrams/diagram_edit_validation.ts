@@ -1,7 +1,6 @@
 import {
     DIAGRAM_CARDINALITIES,
     DIAGRAM_CONNECTION_SIDES,
-    DIAGRAM_EDGE_KINDS,
     DIAGRAM_ROLES,
     optionalDiagramBoolean,
     optionalDiagramEnum,
@@ -75,9 +74,9 @@ export function validateNewGroup(group: NewDiagramGroup) {
     requireOptionalGridNumber(group.y, 'groups.new.y')
 }
 
-export function validateNewLegendEntry(entry: NewDiagramLegendEntry) {
+export function validateNewLegendEntry(entry: NewDiagramLegendEntry, diagramType: DiagramData['meta']['type']) {
     if ('role' in entry) requireDiagramEnum(entry.role, DIAGRAM_ROLES, 'meta.legend.new.role')
-    else requireDiagramEnum(entry.kind, DIAGRAM_EDGE_KINDS, 'meta.legend.new.kind')
+    else requireDiagramEdgeKind(entry.kind, diagramType, 'meta.legend.new.kind')
     if (entry.label !== undefined) requireDiagramString(entry.label, 'meta.legend.new.label')
 }
 

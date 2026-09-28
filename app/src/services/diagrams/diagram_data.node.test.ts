@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDiagramDataPath, parseDiagramData, serializeDiagramData, type DiagramData } from './diagram_data'
+import { diagramEdgeKindsForType, isDiagramDataPath, parseDiagramData, serializeDiagramData, type DiagramData } from './diagram_data'
 
 function validDiagram() {
     return {
@@ -12,6 +12,14 @@ function validDiagram() {
         ],
     }
 }
+
+describe('diagramEdgeKindsForType', () => {
+    it('returns only connection kinds accepted for each diagram type', () => {
+        expect(diagramEdgeKindsForType('architecture')).toEqual(['connection', 'data', 'async'])
+        expect(diagramEdgeKindsForType('sequence')).toEqual(['call', 'return', 'async', 'success'])
+        expect(diagramEdgeKindsForType('entity')).toEqual(['relationship'])
+    })
+})
 
 describe('parseDiagramData', () => {
     it('parses and serializes empty and populated mindmaps', () => {

@@ -1824,12 +1824,32 @@ describe('DiagramEditSessionService', () => {
         expect(membershipChanged).toHaveBeenCalledOnce()
     })
 
-    it('creates an explicit legend on the first added entry of a derived diagram', () => {
+    it('preserves derived entries before the first added entry and saves their order', () => {
         const { service } = createHarness()
         service.start()
 
-        expect(service.addLegendEntry({ kind: 'connection', label: 'Calls' })).toBe('connection:connection')
-        expect(service.getEditableDiagram()?.meta.legend).toEqual([{ kind: 'connection', label: 'Calls' }])
+        expect(service.addLegendEntry({ kind: 'data', label: 'Transfers' })).toBe('connection:data')
+        const expectedLegend = [
+            { label: 'focal', role: 'focal' },
+            { label: 'store', role: 'store' },
+            { kind: 'connection', label: 'connection' },
+            { kind: 'data', label: 'Transfers' },
+        ]
+        expect(service.getEditableDiagram()?.meta.legend).toEqual(expectedLegend)
+        const serialized = serializeDiagramData(service.getEditableDiagram() as DiagramData)
+        expect(parseDiagramData(serialized).meta.legend).toEqual(expectedLegend)
+    })
+
+    it('rejects a derived duplicate and an incompatible connection kind before changing the legend', () => {
+        const reportValidationError = vi.fn()
+        const { service } = createHarness({ reportValidationError })
+        service.start()
+
+        expect(service.addLegendEntry({ kind: 'connection' })).toBeNull()
+        expect(service.addLegendEntry({ kind: 'call' })).toBeNull()
+        expect(service.getEditableDiagram()?.meta.legend).toBeUndefined()
+        expect(reportValidationError).toHaveBeenCalledWith(expect.stringContaining('duplicate entry for connection:connection'))
+        expect(reportValidationError).toHaveBeenCalledWith(expect.stringContaining('unsupported value call for architecture'))
     })
 
     it('removes a legend entry without touching nodes or edges', () => {

@@ -742,12 +742,7 @@ export class DiagramEditSessionService extends EventTarget {
         const diagram = this.requireEditableDiagram()
         if (diagram.meta.legend !== undefined) return false
 
-        const roles = [...new Set(diagram.nodes.map(({ role }) => role))]
-        const kinds = [...new Set(diagram.edges.map(({ kind }) => kind))]
-        const entries: DiagramLegendEntryData[] = [
-            ...roles.map((role) => ({ label: role, role })),
-            ...kinds.map((kind) => ({ kind, label: kind })),
-        ]
+        const entries = DiagramEditSessionService.derivedLegendEntries(diagram)
         diagram.meta.legend = entries
         this.finishLegendMembershipChange(entries.map(diagramLegendEntryKey), [])
 
@@ -757,10 +752,12 @@ export class DiagramEditSessionService extends EventTarget {
     /** Appends one explicit legend entry. */
     addLegendEntry(entry: NewDiagramLegendEntry) {
         const diagram = this.requireEditableDiagram()
+        const wasDerived = diagram.meta.legend === undefined
+        const existingEntries = diagram.meta.legend ?? DiagramEditSessionService.derivedLegendEntries(diagram)
         if (!this.validateOperation('Add legend entry', () => {
-            validateNewLegendEntry(entry)
+            validateNewLegendEntry(entry, diagram.meta.type)
             const entryKey = diagramLegendEntryKey(entry as DiagramLegendEntryData)
-            if (this.legendEntryKeys.includes(entryKey)) {
+            if (existingEntries.some((existingEntry) => diagramLegendEntryKey(existingEntry) === entryKey)) {
                 invalidDiagramField('meta.legend', `duplicate entry for ${entryKey}`)
             }
         })) return null
@@ -768,8 +765,11 @@ export class DiagramEditSessionService extends EventTarget {
         const label = canonicalLegendLabel(entry)
         const added = ('role' in entry ? { label, role: entry.role } : { kind: entry.kind, label }) as DiagramLegendEntryData
         const entryKey = diagramLegendEntryKey(added)
-        diagram.meta.legend = [...diagram.meta.legend ?? [], added]
-        this.finishLegendMembershipChange([entryKey], [])
+        diagram.meta.legend = [...existingEntries, added]
+        const addedKeys = !wasDerived ? [entryKey] : [
+            ...existingEntries.map(diagramLegendEntryKey), entryKey,
+        ]
+        this.finishLegendMembershipChange(addedKeys, [])
 
         return entryKey
     }
@@ -1793,6 +1793,16 @@ export class DiagramEditSessionService extends EventTarget {
             diagramLegendMembershipChangedEvent(),
             { detail },
         ))
+    }
+
+    private static derivedLegendEntries(diagram: DiagramData): DiagramLegendEntryData[] {
+        const roles = [...new Set(diagram.nodes.map(({ role }) => role))]
+        const kinds = [...new Set(diagram.edges.map(({ kind }) => kind))]
+
+        return [
+            ...roles.map((role) => ({ label: role, role })),
+            ...kinds.map((kind) => ({ kind, label: kind })),
+        ]
     }
 
     private finishEntityFieldMembershipChange(

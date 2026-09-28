@@ -422,17 +422,20 @@ function validateSequenceFragments(data) {
             malformed(`fragments.${id}.regions`, 'duplicate edge references');
     }
 }
+const EDGE_KINDS_BY_TYPE = {
+    architecture: ['connection', 'data', 'async'],
+    dependency: ['dependency', 'cycle'],
+    entity: ['relationship'],
+    flow: ['flow', 'transition'],
+    mindmap: ['connection'],
+    sequence: ['call', 'return', 'async', 'success'],
+};
+export function diagramEdgeKindsForType(type) {
+    return EDGE_KINDS_BY_TYPE[type];
+}
 export function requireDiagramEdgeKind(kind, type, field) {
-    const edgeKinds = {
-        architecture: ['connection', 'data', 'async'],
-        dependency: ['dependency', 'cycle'],
-        entity: ['relationship'],
-        flow: ['flow', 'transition'],
-        mindmap: ['connection'],
-        sequence: ['call', 'return', 'async', 'success'],
-    };
     requireDiagramEnum(kind, DIAGRAM_EDGE_KINDS, field);
-    if (!edgeKinds[type].includes(kind))
+    if (!diagramEdgeKindsForType(type).includes(kind))
         malformed(field, `unsupported value ${kind} for ${type}`);
     return kind;
 }

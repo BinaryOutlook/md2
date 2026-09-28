@@ -129,6 +129,7 @@ export function requireDiagramRelativeOffset(value: unknown, field: string): num
 export function requireDiagramEnum<Value extends string>(value: unknown, values: readonly Value[], field: string): Value
 export function optionalDiagramEnum<Value extends string>(value: unknown, values: readonly Value[], field: string): Value | undefined
 export function requireDiagramEdgeKind(kind: unknown, type: DiagramType, field: string): DiagramEdgeKind
+export function diagramEdgeKindsForType(type: DiagramType): readonly DiagramEdgeKind[]
 export function requireDiagramNodeKind(
     kind: unknown,
     type: DiagramType,
