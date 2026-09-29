@@ -146,6 +146,23 @@ md² is still an evolving concept — see [design/architecture/initial descripti
 
 The Diagrams view supports architecture, dependency, sequence, flowchart, state, entity, and mindmap diagrams. Start from an empty diagram or run a diagram action, then select **Edit diagram** to change nodes, connections, groups, and other diagram details. Review changes before saving an edited copy or sending the changes to an agent. [Learn how diagrams work](https://jan-bogaerts.github.io/md2/guide/diagrams/).
 
+## Mobile use
+
+md² runs in your phone's browser while the desktop app stays open and handles files, Git, and agents. No phone app is needed.
+
+1. Open a project in the desktop app and click **Serve**.
+2. Open the menu beside **Serve** and scan its QR code, or open the IP address link on your phone. Both devices must be on the same network. Prefer the IP link if the `.local` hostname does not resolve.
+
+<img width="220" alt="Mobile board with feature cards" src="screenshots/mobile2/Screenshot_20260921_201056_Chrome.jpg" /> <img width="220" alt="Mobile card editor" src="screenshots/mobile2/Screenshot_20260921_201336_Chrome.jpg" /> <img width="220" alt="Mobile agent conversation" src="screenshots/mobile2/Screenshot_20260921_201401_Chrome.jpg" />
+
+To reach md² over the internet temporarily, start **Serve**, install [cloudflared](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/), and run this on the desktop machine (replace `20877` if you changed the remote-control port):
+
+```powershell
+cloudflared tunnel --url http://localhost:20877
+```
+
+Open the temporary `https://*.trycloudflare.com` URL printed by the command on your phone. Keep the command running while connected; stop it to close the tunnel. This is a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/). **Anyone with the public URL can control the desktop app** because md² remote control currently has no authentication.
+
 ## Getting started
 
 1. [Download and install the latest Windows release](https://github.com/jan-bogaerts/md2/releases/latest), or follow the [source setup](https://jan-bogaerts.github.io/md2/contributing/development-setup/) on macOS or Linux.
