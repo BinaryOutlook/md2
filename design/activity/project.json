@@ -408,21 +408,29 @@
           "kind": "message",
           "role": "assistant",
           "sequence": 30,
-          "timestamp": "2026-09-29T08:10:49.278Z"
+          "timestamp": "2026-09-29T08:18:28.973Z"
         }
       ],
       "hasExplicitTitle": true,
       "id": "agent-65854c35-8bf4-494c-910a-09242c148cdc",
-      "providerSessions": [],
+      "providerSessions": [
+        {
+          "agent": "codex",
+          "conversationId": "01a0ec36-0b44-7881-9c43-65928bf16080",
+          "createdAt": "2026-09-29T08:10:49.278Z",
+          "lastUsedAt": "2026-09-29T08:10:49.278Z",
+          "synchronizedThroughMessageId": "agent-turn-e268da5c-5cd6-4205-be7d-15150f69adeb-turn-1-assistant-3"
+        }
+      ],
       "startedAt": "2026-09-29T08:09:19.747Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 34906,
           "toolMs": 2131
         },
-        "elapsedMs": 0,
-        "runningStartedAt": "2026-09-29T08:09:19.747Z"
+        "elapsedMs": 89531,
+        "runningStartedAt": null
       },
       "title": "write release note",
       "usage": {
