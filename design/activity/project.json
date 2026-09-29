@@ -1692,19 +1692,19 @@
           "agent": "codex",
           "conversationId": "01a0ec6c-4758-7163-b435-4fd25bd4b0d1",
           "createdAt": "2026-09-29T09:10:54.958Z",
-          "lastUsedAt": "2026-09-29T09:10:54.958Z",
-          "synchronizedThroughMessageId": "agent-turn-786f2bf3-98e7-4997-b149-a33ebbd8470b-turn-1-assistant-6"
+          "lastUsedAt": "2026-09-29T09:16:22.666Z",
+          "synchronizedThroughMessageId": "agent-turn-786f2bf3-98e7-4997-b149-a33ebbd8470b-turn-2-assistant-4"
         }
       ],
       "startedAt": "2026-09-29T09:08:34.030Z",
-      "status": "running",
+      "status": "waitingForInput",
       "timer": {
         "breakdown": {
           "reasoningMs": 57443,
           "toolMs": 11634
         },
-        "elapsedMs": 140928,
-        "runningStartedAt": "2026-09-29T09:15:09.843Z"
+        "elapsedMs": 213751,
+        "runningStartedAt": null
       },
       "title": "+",
       "usage": {
