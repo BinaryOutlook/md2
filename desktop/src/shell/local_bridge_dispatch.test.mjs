@@ -91,6 +91,7 @@ function createDispatch(options = {}) {
         loadProjectRoot: vi.fn(async () => ({ files: [], workingFolder: 'design' })),
         loadTextFile: vi.fn(async (_project, path) => ({ content: '{"version":2}', path })),
         resolveExistingProjectEntry: vi.fn(async (_project, entryPath) => `C:/repo/${entryPath}`),
+        saveProjectConfig: vi.fn(async () => undefined),
         resolveLocalProject: vi.fn(async () => ({ branch: 'topic', id: 'C:/repo', rootPath: 'C:/repo' })),
         readFileAtCommit: vi.fn(async () => ({ content: '# Card', exists: true })),
         resolveCommitMetadata: vi.fn(async (_rootPath, commit) => ({
@@ -360,21 +361,22 @@ describe('createLocalBridgeDispatch', () => {
         expect(result).toEqual([]);
     });
 
-    it('opens a selected folder as a normalized project and establishes it for project operations', async () => {
-        const openProjectFolder = vi.fn(async () => 'C:/repo/nested');
+    it('selects an unconfigured repository without changing the active project', async () => {
+        const openProjectFolder = vi.fn(async () => '/projects/new repository/nested');
         const { actionSchedulerService, dispatch, localGitService } = createDispatch({ openProjectFolder });
+        const currentProject = { branch: 'main', id: '/projects/current', rootPath: '/projects/current' };
+        await dispatch.dataBridge.loadProject(currentProject, 'design');
+        localGitService.loadProjectConfig.mockResolvedValueOnce(null);
+        const selectedProject = { branch: 'main', id: '/projects/new repository', rootPath: '/projects/new repository' };
+        localGitService.resolveLocalProject.mockResolvedValueOnce(selectedProject);
 
-        const project = await dispatch.dataBridge.openProjectFolder();
-        await dispatch.dataBridge.commit({ branch: 'topic', files: [], message: 'Update' });
+        await expect(dispatch.dataBridge.openProjectFolder()).resolves.toEqual(selectedProject);
+        await dispatch.dataBridge.commit({ branch: 'main', files: [], message: 'Save previous project' });
 
-        expect(localGitService.resolveLocalProject).toHaveBeenCalledWith('C:/repo/nested');
-        expect(project).toEqual({ branch: 'topic', id: 'C:/repo', rootPath: 'C:/repo' });
-        expect(actionSchedulerService.startProject).toHaveBeenCalledWith(
-            project,
-            expect.objectContaining({ actionsFolder: 'design/actions', activeCardsFolder: 'design/active' }),
-            expect.objectContaining({ projectFolder: 'design', states: [{ state: 'ready' }] }),
-        );
-        expect(localGitService.commit).toHaveBeenCalledWith(expect.any(Object), project);
+        expect(localGitService.resolveLocalProject).toHaveBeenCalledWith('/projects/new repository/nested');
+        expect(localGitService.loadProjectConfig).toHaveBeenCalledOnce();
+        expect(actionSchedulerService.startProject).toHaveBeenCalledOnce();
+        expect(localGitService.commit).toHaveBeenCalledWith(expect.any(Object), currentProject);
     });
 
     it('opens the project sub-folder picker at the repository root', async () => {
@@ -422,6 +424,35 @@ describe('createLocalBridgeDispatch', () => {
         expect(localGitService.loadProjectRoot).toHaveBeenCalledOnce();
         expect(actionSchedulerService.startProject).toHaveBeenCalledOnce();
         expect(worktreeService.startProject).toHaveBeenCalledOnce();
+    });
+
+    it('retries service startup after a failed activation of the same project', async () => {
+        const { actionRunnerService, actionSchedulerService, dispatch } = createDispatch();
+        const project = { branch: 'main', id: '/projects/example', rootPath: '/projects/example' };
+        actionRunnerService.startProject.mockRejectedValueOnce(new Error('Startup failed'));
+
+        await expect(dispatch.dataBridge.loadProjectRoot(project, 'design')).rejects.toThrow('Startup failed');
+        await expect(dispatch.dataBridge.loadProjectRoot(project, 'design')).resolves.toMatchObject({ files: [] });
+
+        expect(actionRunnerService.startProject).toHaveBeenCalledTimes(2);
+        expect(actionSchedulerService.startProject).toHaveBeenCalledOnce();
+    });
+
+    it('reloads services with saved configuration on the next project load', async () => {
+        const { actionRunnerService, dispatch, localGitService } = createDispatch();
+        const project = { branch: 'main', id: '/projects/example', rootPath: '/projects/example' };
+        await dispatch.dataBridge.loadProjectRoot(project, 'design');
+        const config = { projectFolder: 'planning', states: [{ state: 'review' }] };
+        localGitService.loadProjectConfig.mockResolvedValueOnce(config);
+
+        await dispatch.dataBridge.saveProjectConfig(project, config);
+        expect(actionRunnerService.startProject).toHaveBeenCalledOnce();
+        await dispatch.dataBridge.loadProjectRoot(project, 'planning');
+
+        expect(localGitService.saveProjectConfig).toHaveBeenCalledWith(project, config);
+        expect(actionRunnerService.startProject).toHaveBeenLastCalledWith(
+            project, expect.objectContaining({ projectFolder: 'planning' }), config.states,
+        );
     });
 
     it('reads the project config once per activation and starts the runner before the scheduler', async () => {
@@ -731,19 +762,17 @@ describe('createLocalBridgeDispatch', () => {
         expect(worktreeService.refreshLocal).toHaveBeenCalledOnce();
     });
 
-    it('revalidates and normalizes a stored local project', async () => {
+    it('normalizes a stored local project without starting services before setup', async () => {
         const { actionSchedulerService, dispatch, localGitService } = createDispatch();
         const storedProject = { branch: 'main', id: 'C:/repo/nested', rootPath: 'C:/repo/nested' };
+        localGitService.loadProjectConfig.mockResolvedValueOnce(null);
 
-        const project = await dispatch.dataBridge.resolveProject(storedProject);
+        await expect(dispatch.dataBridge.resolveProject(storedProject)).resolves.toEqual({ branch: 'topic', id: 'C:/repo', rootPath: 'C:/repo' });
 
         expect(localGitService.resolveLocalProject).toHaveBeenCalledWith(storedProject.rootPath);
-        expect(project).toEqual({ branch: 'topic', id: 'C:/repo', rootPath: 'C:/repo' });
-        expect(actionSchedulerService.startProject).toHaveBeenCalledWith(
-            project,
-            expect.objectContaining({ actionsFolder: 'design/actions', activeCardsFolder: 'design/active' }),
-            expect.objectContaining({ projectFolder: 'design', states: [{ state: 'ready' }] }),
-        );
+        expect(localGitService.loadProjectConfig).not.toHaveBeenCalled();
+        expect(actionSchedulerService.startProject).not.toHaveBeenCalled();
+        expect(dispatch.dataBridge.getActiveProject()).toBeNull();
     });
 
     it('delegates safe action start requests to the shared runner', async () => {
