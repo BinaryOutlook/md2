@@ -651,8 +651,8 @@ export class RemoteControlStorageService implements
         return this.request('editActionQueuedPrompt', [runId, promptId, revision, content])
     }
 
-    async enqueueActionPrompt(runId: string, content: string): Promise<ActionQueuedPrompt> {
-        return this.request('enqueueActionPrompt', [runId, content])
+    async enqueueActionPrompt(runId: string, content: string, submissionId: string): Promise<ActionQueuedPrompt> {
+        return this.request('enqueueActionPrompt', [runId, content, submissionId])
     }
 
     async answerActionQuestion(

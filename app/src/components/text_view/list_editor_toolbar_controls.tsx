@@ -7,10 +7,10 @@ import { cardPopupService, subscribeCardPopups } from '../../services/card_popup
 import { dialogService } from '../../services/dialog_service'
 import { CardCommitMenu } from '../card_view/card_commit_menu'
 import { listCardCommitDiffDataSource } from '../card_view/list_card_commit_diff_data_source'
-import { cardMarkdownDataSource } from '../editor/card_markdown_data_source'
-import type { MarkdownDocumentHistoryStore } from '../editor/markdown_document_history_store'
-import { MarkdownDocumentUndoRedo } from '../editor/markdown_document_undo_redo'
-import { MarkdownFormatToolbarControls } from '../editor/markdown_format_toolbar_controls'
+import { cardMarkdownDataSource } from '../editor/data_sources/card_markdown_data_source'
+import type { MarkdownDocumentHistoryStore } from '../editor/history/markdown_document_history_store'
+import { MarkdownDocumentUndoRedo } from '../editor/history/markdown_document_undo_redo'
+import { MarkdownFormatToolbarControls } from '../editor/toolbar/markdown_format_toolbar_controls'
 import { useActiveCard } from '../hooks/use_active_card'
 import { useCardCommits } from '../hooks/use_card_commits'
 import { useProjectState } from '../hooks/use_project_state'
@@ -23,13 +23,14 @@ function ignoreUnavailableWorktreeSelection() {
 interface ListEditorToolbarControlsProps {
     cardTypes: CardTypeConfig[]
     historyStore: MarkdownDocumentHistoryStore
+    onAttachFiles?: (files: File[]) => void
     readOnly: boolean
     statusColors: Map<string, string>
 }
 
 /** Formatting controls and card-specific controls for the active list-card document. */
 export function ListEditorToolbarControls(props: ListEditorToolbarControlsProps) {
-    const { cardTypes, historyStore, readOnly, statusColors } = props
+    const { cardTypes, historyStore, onAttachFiles, readOnly, statusColors } = props
     const card = useActiveCard('list-card')
     const cardInternalId = card?.header.internalId ?? null
     const historyKey = cardInternalId ?? card?.path ?? null
@@ -87,6 +88,11 @@ export function ListEditorToolbarControls(props: ListEditorToolbarControlsProps)
     const undoRedoControls = <MarkdownDocumentUndoRedo historyKey={historyKey} historyStore={historyStore} />
 
     return (
-        <MarkdownFormatToolbarControls endControls={endControls} readOnly={readOnly} undoRedoControls={undoRedoControls} />
+        <MarkdownFormatToolbarControls
+            endControls={endControls}
+            onAttachFiles={onAttachFiles}
+            readOnly={readOnly}
+            undoRedoControls={undoRedoControls}
+        />
     )
 }

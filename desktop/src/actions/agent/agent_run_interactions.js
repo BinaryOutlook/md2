@@ -13,7 +13,7 @@ function queueInteractionWrite(run, operation) {
     return write;
 }
 
-async function sendStreamingMessage(service, run, content) {
+async function sendStreamingMessage(service, run, content, submissionId) {
     const message = requireString(content, 'message');
     try {
         await run.streamingAdapter.sendMessage(message);
@@ -23,7 +23,7 @@ async function sendStreamingMessage(service, run, content) {
     }
     const timestamp = new Date().toISOString();
     if (run.conversation.status === 'waitingForInput') run.turnIndex += 1;
-    const messageId = `${run.id}-user-${run.conversation.entries.length}`;
+    const messageId = submissionId ?? `${run.id}-user-${run.conversation.entries.length}`;
     run.conversation.entries.push(createMessageEntry(messageId, 'user', message, timestamp, undefined, nextRunSequence(run)));
     const userMessage = lastMessageEntry(run.conversation);
     const state = hasPendingInteraction(run) ? 'waitingForInput' : 'running';
@@ -34,11 +34,11 @@ async function sendStreamingMessage(service, run, content) {
     emitRunEvent(run, { state, type: 'state' });
 }
 
-function sendMessage(service, run, content) {
+function sendMessage(service, run, content, submissionId) {
     if (typeof content !== 'string' || content.trim().length === 0) throw new Error('Agent message is required');
 
     return queueInteractionWrite(run, async () => {
-        await sendStreamingMessage(service, run, content);
+        await sendStreamingMessage(service, run, content, submissionId);
     });
 }
 

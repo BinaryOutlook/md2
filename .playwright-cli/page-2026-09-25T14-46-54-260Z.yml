@@ -1,0 +1,67 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - button [ref=f1e80] [cursor=pointer]
+        - tablist [ref=f1e82]:
+          - tab [selected] [ref=f1e83] [cursor=pointer]: Home
+          - tab [ref=f1e84] [cursor=pointer]: Run
+        - button [ref=f1e85] [cursor=pointer]
+        - button [ref=f1e86] [cursor=pointer]
+      - tabpanel [ref=f1e28]:
+        - generic [ref=f1e29]:
+          - generic [ref=f1e32]:
+            - group [ref=f1e87]:
+              - group [ref=f1e34]:
+                - button [pressed] [ref=f1e88] [cursor=pointer]:
+                  - generic [ref=f1e38]: Board
+                - button [ref=f1e89] [cursor=pointer]:
+                  - generic [ref=f1e42]: List
+                - button [ref=f1e90] [cursor=pointer]:
+                  - generic [ref=f1e46]: Diagrams
+                - button [ref=f1e91] [cursor=pointer]:
+                  - generic [ref=f1e50]: Stats
+            - separator [ref=f1e51]
+            - group [ref=f1e92]:
+              - button [ref=f1e94] [cursor=pointer]
+              - generic [ref=f1e58]:
+                - combobox [disabled] [ref=f1e96]
+                - textbox [disabled]
+                - group
+              - generic [ref=f1e97]:
+                - button [disabled]
+              - generic [ref=f1e98]:
+                - button [disabled]
+              - generic [ref=f1e99]:
+                - button [disabled]
+            - separator [ref=f1e63]
+            - group [ref=f1e100]:
+              - button [ref=f1e102] [cursor=pointer]
+              - generic [ref=f1e103]:
+                - button [disabled]: Connecting
+          - button [ref=f1e104] [cursor=pointer]
+    - region [ref=f1e105]:
+      - generic [ref=f1e76]:
+        - heading [level=2] [ref=f1e106]: No project open
+        - paragraph [ref=f1e78]: Open a GitHub repository or local folder to work with project cards.
+        - button [ref=f1e107] [cursor=pointer]: Open project...
+  - dialog [ref=f1e110]:
+    - heading "Open project" [level=2] [ref=f1e111]
+    - generic [ref=f1e113]:
+      - group "Project kind" [ref=f1e114]:
+        - button "Repository" [ref=f1e115] [cursor=pointer]
+        - button "Folder" [active] [pressed] [ref=f1e118] [cursor=pointer]
+      - generic [ref=f1e149]:
+        - generic [ref=f1e150]: Endpoint
+        - textbox "Endpoint" [ref=f1e152]
+      - generic [ref=f1e153]:
+        - generic [ref=f1e154]: Project root path
+        - textbox "Project root path" [ref=f1e156]
+      - generic [ref=f1e157]:
+        - generic [ref=f1e158]: Branch
+        - textbox "Branch" [ref=f1e160]:
+          - /placeholder: main
+      - button "Load remote branches" [disabled]
+    - generic [ref=f1e147]:
+      - button "Cancel" [ref=f1e148] [cursor=pointer]
+      - button "Open" [disabled]

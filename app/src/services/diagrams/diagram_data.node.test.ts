@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isDiagramDataPath, parseDiagramData, serializeDiagramData, type DiagramData } from './diagram_data'
+import { diagramEdgeKindsForType, isDiagramDataPath, parseDiagramData, serializeDiagramData, type DiagramData } from './diagram_data'
 
 function validDiagram() {
     return {
@@ -13,7 +13,58 @@ function validDiagram() {
     }
 }
 
+describe('diagramEdgeKindsForType', () => {
+    it('returns only connection kinds accepted for each diagram type', () => {
+        expect(diagramEdgeKindsForType('architecture')).toEqual(['connection', 'data', 'async'])
+        expect(diagramEdgeKindsForType('sequence')).toEqual(['call', 'return', 'async', 'success'])
+        expect(diagramEdgeKindsForType('entity')).toEqual(['relationship'])
+    })
+})
+
 describe('parseDiagramData', () => {
+    it('parses and serializes empty and populated mindmaps', () => {
+        const empty: DiagramData = {edges: [], groups: [], meta: { description: 'Ideas', title: 'Ideas', type: 'mindmap', version: 1 }, nodes: []}
+        expect(parseDiagramData(serializeDiagramData(empty))).toEqual(empty)
+
+        const populated: DiagramData = {
+            ...empty,
+            edges: [{ from: 'root', id: 'root-topic', kind: 'connection', label: 'contains', to: 'topic' }],
+            nodes: [
+                { height: 120, id: 'root', kind: 'root', label: 'Root', role: 'focal', width: 160 },
+                { id: 'topic', kind: 'topic', label: 'Topic', role: 'backend' },
+            ],
+        }
+        expect(parseDiagramData(serializeDiagramData(populated))).toEqual(populated)
+    })
+
+    it('enforces mindmap root, kinds, dimensions, and forbidden fields', () => {
+        const mindmap = {
+            edges: [], groups: [], meta: { description: 'Ideas', title: 'Ideas', type: 'mindmap', version: 1 },
+            nodes: [{ id: 'root', kind: 'root', label: 'Root', role: 'focal' }],
+        }
+        expect(() => parseDiagramData(JSON.stringify({ ...mindmap, nodes: [{ ...mindmap.nodes[0], kind: 'topic' }] })))
+            .toThrow('nodes has expected exactly one root, found 0')
+        expect(() => parseDiagramData(JSON.stringify({ ...mindmap, nodes: [...mindmap.nodes, { ...mindmap.nodes[0], id: 'second' }] })))
+            .toThrow('nodes has expected exactly one root, found 2')
+        expect(() => parseDiagramData(JSON.stringify({
+            ...mindmap,
+            nodes: [...mindmap.nodes, { id: 'invalid', kind: 'component', label: 'Invalid', role: 'backend' }],
+        })))
+            .toThrow('required mindmap node kind')
+        expect(() => parseDiagramData(JSON.stringify({ ...mindmap, nodes: [{ ...mindmap.nodes[0], width: 120 }] })))
+            .toThrow('nodes.root.dimensions has width and height must be supplied together')
+
+        const edge = { from: 'root', id: 'self', kind: 'connection', to: 'root' }
+        for (const forbidden of [
+            { waypoints: [{ x: 0, y: 0 }, { x: 0, y: 4 }] },
+            { sourceAttachment: { nodeId: 'root', offset: 0.5, side: 'right' } },
+            { targetAttachment: { nodeId: 'root', offset: 0.5, side: 'left' } },
+        ]) {
+            expect(() => parseDiagramData(JSON.stringify({ ...mindmap, edges: [{ ...edge, ...forbidden }] })))
+                .toThrow('value forbidden for mindmap diagrams')
+        }
+    })
+
     it('round-trips valid diagram formatting unchanged', () => {
         const formatting = {
             boxScalePercent: 120,
@@ -186,8 +237,8 @@ describe('parseDiagramData', () => {
             .toThrow('nodes[0].width has invalid number')
         expect(() => parseDiagramData(JSON.stringify({ ...validDiagram(), edges: [{ ...validDiagram().edges[0], id: 'api' }] })))
             .toThrow('nodes and edges has duplicate id api')
-        expect(() => parseDiagramData(JSON.stringify({ ...validDiagram(), edges: [], groups: [], nodes: [] })))
-            .toThrow('nodes has empty array')
+        expect(parseDiagramData(JSON.stringify({ ...validDiagram(), edges: [], groups: [], nodes: [] })))
+            .toMatchObject({ edges: [], groups: [], nodes: [] })
     })
 
     it('rejects type-specific fields outside their diagram type', () => {

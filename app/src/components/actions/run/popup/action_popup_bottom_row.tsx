@@ -3,7 +3,7 @@ import StopOutlined from '@mui/icons-material/StopOutlined'
 import { Box, Button, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material'
 import CalendarOutline from 'mdi-material-ui/CalendarOutline'
 import Play from 'mdi-material-ui/Play'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
 import type { ActionContext } from '../../../../data/action_context'
 import type { ActionDefinition } from '../../../../data/action_types'
 import type { ActionRunSettingsStore } from '../../../../services/actions/action_run_settings_service'
@@ -11,7 +11,7 @@ import { useBoundRunId, useRunSelector } from '../../../hooks/use_action_runs'
 import {
     isBrowsingHistoricalConversation,
     type ActionConversationStore,
-} from '../../conversation/action_conversation_store'
+} from '../../conversation/state/action_conversation_store'
 import type { ActionHistoryStore } from '../state/action_history_store'
 import {
     cancelPopupAction,
@@ -26,7 +26,7 @@ import type { ActionScheduleStore } from '../schedule/action_schedule_store'
 import { useActionRunSettings } from '../../shared/use_action_run_settings'
 import { ActionPopupFinishButton } from './action_popup_finish_button'
 import { ActionAgentSelectors } from '../../agent/action_agent_selectors'
-import { MarkdownAttachmentControl } from '../../../editor/markdown_attachment_control'
+import { MarkdownAttachmentControl } from '../../../editor/attachments/markdown_attachment_control'
 import {
     attachFilesToCardMarkdown,
     attachFilesToOriginalMarkdown,
@@ -67,7 +67,9 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
     })
     const interactionReady = useRunSelector(boundRunId, (run) => !!run?.interactionReady)
     const liveConversationId = useRunSelector(boundRunId, (run) => run?.conversation?.id ?? null)
-    const promptDraft = currentActionPromptDraft(action, assignmentContext, bindingStore, false, agentActive ? '' : undefined)
+    const promptDraft = currentActionPromptDraft(
+        action, assignmentContext, bindingStore, conversationStore, false, agentActive ? '' : undefined,
+    )
     const prompt = useSyncExternalStore(promptDraft.subscribe, promptDraft.getSnapshot, promptDraft.getSnapshot)
     const editorSnapshot = useSyncExternalStore(
         promptDraft.subscribeEditor,
@@ -78,6 +80,11 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
         conversationStore.subscribe,
         conversationStore.getSnapshot,
         conversationStore.getSnapshot,
+    )
+    const scheduleOpen = useSyncExternalStore(
+        scheduleStore.subscribe,
+        scheduleStore.getOpenSnapshot,
+        scheduleStore.getOpenSnapshot,
     )
     const sessionActive = runStatus === 'queued' || runStatus === 'running' || runStatus === 'waitingForInput'
     const browsingHistory = isBrowsingHistoricalConversation(
@@ -93,6 +100,7 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
     const showStop = running || (runStatus === 'waitingForInput' && !agentActive)
     const showFinish = waitingForAgentInput
     const showSchedule = (!sessionActive && !orphanWaiting) || (waitingForAgentInput && promptHasText)
+    const scheduleAvailable = showSchedule && settings.backendAvailable
     const showAgentSend = (!sessionActive && !orphanWaiting && action.type === 'agent')
         || (waitingForAgentInput && promptHasText)
         || (agentActive && interactionReady && promptHasText)
@@ -141,14 +149,20 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
     const handleCancel = () => {
         if (browsingHistory) return
 
-        void cancelPopupAction(action, bindingStore, assignmentContext, conversationStore)
+        void cancelPopupAction(bindingStore, conversationStore)
     }
     const handleFinish = () => {
         if (browsingHistory) return
 
-        void finishPopupAction(action, bindingStore, assignmentContext, conversationStore)
+        void finishPopupAction(bindingStore, conversationStore)
     }
-    const handleToggleSchedule = () => scheduleStore.toggle()
+    const handleToggleSchedule = (event: MouseEvent<HTMLButtonElement>) => scheduleStore.toggle(event.currentTarget)
+
+    useEffect(() => {
+        if (!scheduleAvailable) scheduleStore.close()
+
+        return () => scheduleStore.close()
+    }, [scheduleAvailable, scheduleStore])
 
     return (
         <Box
@@ -193,6 +207,8 @@ export function ActionPopupBottomRow(props: ActionPopupBottomRowProps) {
                         <Tooltip title="Schedule">
                             <span>
                                 <IconButton
+                                    aria-expanded={scheduleOpen}
+                                    aria-haspopup="dialog"
                                     aria-label="Schedule"
                                     disabled={!settings.backendAvailable}
                                     onClick={handleToggleSchedule}

@@ -1,12 +1,15 @@
-import { Box, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, Paper, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { dialogService } from '../../services/dialog_service';
 import { projectStatsService } from '../../services/stats/project_stats_service';
 import type { StatsExclusionReason } from '../../services/stats/project_stats_types';
 import { isStackedDurationPerformance } from '../../services/stats/stats_performance_dataset';
-import { StatsBarChart, type StatsBarMode } from './stats_bar_chart';
-import { StatsControls } from './stats_controls';
+import { StatsBarChart } from './stats_bar_chart';
+import type { StatsBarMode } from './stats_bar_groups';
+import { StatsTable } from './stats_table';
 import { StatsUsageComparisonCharts } from './stats_usage_comparison_charts';
+import { StatsUsageComparisonTables } from './stats_usage_comparison_tables';
+import { statsValueLabel } from './stats_value_label';
 
 const EXCLUSION_LABELS: Record<StatsExclusionReason, string> = {
     missingAttribution: 'missing agent/model attribution',
@@ -20,8 +23,14 @@ const EXCLUSION_LABELS: Record<StatsExclusionReason, string> = {
 /** Smallest stats-data subscriber; renders chart states and reports new load failures. */
 export function StatsContent() {
     const snapshot = useSyncExternalStore(projectStatsService.subscribe, projectStatsService.getSnapshot, projectStatsService.getSnapshot);
+    const modeChoice = useSyncExternalStore(
+        projectStatsService.subscribeViewMode, projectStatsService.getViewModeChoice, projectStatsService.getViewModeChoice,
+    );
     const reportedErrorRef = useRef<Error | null>(null);
     const reportedWarningRef = useRef('');
+    const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+    const viewMode = modeChoice ?? (isSmallScreen ? 'tables' : 'charts');
 
     useEffect(() => {
         if (!snapshot.error || reportedErrorRef.current === snapshot.error) return;
@@ -62,7 +71,6 @@ export function StatsContent() {
     return (
         <Stack sx={{ flex: 1, minHeight: 0, p: 2.5, width: '100%' }} spacing={2}>
             <Typography component="h2" variant="h6">Project stats</Typography>
-            <StatsControls snapshot={snapshot} />
             {snapshot.warnings.map((warning) => <Typography color="warning.main" key={warning} variant="body2">{warning}</Typography>)}
             {snapshot.omittedTimerCount > 0 && controls.dataset === 'totals' && controls.totalsMetric === 'duration' ? (
                 <Typography color="text.secondary" variant="body2">
@@ -104,8 +112,17 @@ export function StatsContent() {
                 ) : (
                     <Box data-testid="stats-chart-viewport" sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                         {controls.dataset === 'usageComparison'
-                            ? <StatsUsageComparisonCharts rows={snapshot.rows} shortTokenCounts={snapshot.controls.shortTokenCounts} />
-                            : <StatsBarChart mode={chartMode} rows={snapshot.rows} shortTokenCounts={snapshot.controls.shortTokenCounts} />}
+                            ? viewMode === 'tables'
+                                ? <StatsUsageComparisonTables rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
+                                : <StatsUsageComparisonCharts rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />
+                            : viewMode === 'tables'
+                                ? <StatsTable
+                                    mode={chartMode}
+                                    rows={snapshot.rows}
+                                    shortTokenCounts={controls.shortTokenCounts}
+                                    valueLabel={statsValueLabel(controls.dataset, controls)}
+                                />
+                                : <StatsBarChart mode={chartMode} rows={snapshot.rows} shortTokenCounts={controls.shortTokenCounts} />}
                     </Box>
                 )}
             </Paper>

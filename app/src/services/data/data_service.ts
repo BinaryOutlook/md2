@@ -15,6 +15,7 @@ import { type DataServiceDependencies, getProjectConfigOrNull, reportCommitFlush
 import { actionRunRegistry } from '../actions/action_run_registry'
 import { actionService } from '../actions/action_service'
 import { AgentIntegration, type AgentIntegrationDeps } from '../agents/agent_integration'
+import { ConversationPinService } from '../agents/conversation_pin_service'
 import { ProjectLoading, type ProjectLoadingDeps } from '../project/project_loading'
 import { ProjectState } from '../project/project_state'
 import { ReleaseOperations, type ReleaseOperationsDeps } from '../release_operations'
@@ -136,6 +137,7 @@ async function flushAggregatePendingChanges() {
 export class DataService extends EventTarget {
     readonly agents: AgentIntegration
     readonly cards: CardOperations
+    readonly conversationPins: ConversationPinService
     readonly projectLoading: ProjectLoading
     readonly releases: ReleaseOperations
 
@@ -157,6 +159,17 @@ export class DataService extends EventTarget {
             (previousCards, nextCards) => this.dispatchCardChanges(previousCards, nextCards),
             reportCardParseErrors,
         )
+        this.conversationPins = new ConversationPinService({
+            getPinnedConversations: () => configService.isInitialized()
+                ? configService.getProjectConfig().pinnedConversations
+                : [],
+            saveConversationPinned: (locator, pinned) => configService.setConversationPinned(locator, pinned),
+            subscribeConfig: (listener) => {
+                configService.addEventListener('changed', listener)
+
+                return () => configService.removeEventListener('changed', listener)
+            },
+        })
         this.cards = new CardOperations(
             this.createCardOperationsDependencies(),
             (cardPath, state) => this.agents.triggerStateActions(cardPath, state),
@@ -186,10 +199,13 @@ export class DataService extends EventTarget {
     init(dependencies: DataServiceDependencies) {
         this.projectLoading.reset()
         this.agents.reset()
+        this.conversationPins.stop()
+        this.conversationPins.reset()
         this.projectState.resetLoadedProject()
         this.fullProjectLoaded = false
         this.remarkableBridge = dependencies.remarkableBridge ?? null
         this.storage = this.trackStorage(dependencies.storage)
+        configService.connectProjectConfigPersistence({ saveProjectConfig: (config) => this.projectLoading.saveProjectConfig(config) })
         this.initializeStorageServices()
         worktreeService.init({
             assignCardWorktree: (path, worktree, branch) => this.cards.assignCardWorktree(path, worktree, branch),
@@ -203,8 +219,8 @@ export class DataService extends EventTarget {
             unassignCardWorktree: (path) => this.cards.updateCardWorktree(path, null),
         })
         this.agents.startScheduledRunWatch()
-        const delayMs = configService.get('react.autoCommitDelayMs')
-        this.commitBatcher = new CommitBatcher(this.cards, delayMs)
+        this.conversationPins.start()
+        this.commitBatcher = new CommitBatcher(this.cards, () => configService.get('project.autoCommitDelayMs'))
         this.commitBatcher.addEventListener(
             COMMIT_BATCHER_FLUSH_FAILED_EVENT,
             (event) => this.reportCommitFlushFailure((event as CustomEvent<unknown>).detail),
@@ -249,6 +265,7 @@ export class DataService extends EventTarget {
     }
 
     async drainPendingStorageWrites() {
+        await configService.drainProjectConfigSaves()
         await this.saveStateService.drain()
     }
 
@@ -304,6 +321,22 @@ export class DataService extends EventTarget {
         commitBatcher.schedule(currentProject.branch, [{ ...file, kind: 'file' as const, saveReference }], message)
     }
 
+    /** Queues diagram content under stable record identity, including a file move when its title changes. */
+    scheduleDiagramCommit(
+        diagramId: string,
+        sourcePath: string,
+        file: MarkdownFile,
+        message: string,
+        onPersisted: () => void,
+    ) {
+        const { commitBatcher } = this.requireDependencies()
+        const currentProject = this.projectState.project
+        if (!currentProject) throw new Error('Cannot save a diagram before a project is open')
+
+        const change = { ...file, diagramId, kind: 'diagram' as const, onPersisted, sourcePath }
+        commitBatcher.schedule(currentProject.branch, [change], message)
+    }
+
     discardPendingFile(path: string) {
         const { commitBatcher } = this.requireDependencies()
         commitBatcher.discardPendingFile(path)
@@ -339,6 +372,11 @@ export class DataService extends EventTarget {
     }
     private createCardOperationsDependencies(): CardOperationsDeps {
         return {
+            addCreatedCardFile: (file, workingFolder) => {
+                const card = this.projectState.addCreatedCardFile(file, workingFolder)
+                this.dispatchCardAdded(card)
+            },
+            acknowledgeCreatedCardFiles: (files) => this.projectState.acknowledgeCreatedCardFiles(files),
             addRepositoryFile: (path) => this.projectState.addRepositoryFile(path),
             applyMoves: (moves, workingFolder) => this.projectState.applyMoves(moves, workingFolder),
             cardPathChanged: (fromPath, toPath) => this.dispatchCardPathChanged(fromPath, toPath),
@@ -377,7 +415,9 @@ export class DataService extends EventTarget {
             },
             findCardByInternalId: (cardInternalId) => this.projectState.findCardByInternalId(cardInternalId),
             isCurrentLoad: (project, projectLoadToken) => this.projectState.isCurrentLoad(project, projectLoadToken),
+            pins: this.conversationPins,
             project: () => this.projectState.project,
+            refreshWorktrees: () => worktreeService.refresh(),
             requireDependencies: () => this.requireDependencies(),
             snapshot: () => this.projectState.snapshot,
         }
@@ -429,7 +469,10 @@ export class DataService extends EventTarget {
             ),
             updateRepositoryFile: (event) => this.projectState.updateRepositoryFile(event),
             requireDependencies: () => this.requireDependencies(),
-            resetAgentConversations: () => this.agents.resetLoadedConversations(),
+            resetAgentConversations: () => {
+                this.agents.resetLoadedConversations()
+                this.conversationPins.reset()
+            },
             snapshot: () => this.projectState.snapshot,
             storage: () => this.storage,
         }
@@ -541,7 +584,7 @@ export class DataService extends EventTarget {
         for (const card of nextCards) {
             const previousCard = previousByPath.get(card.path)
             if (!previousCard) {
-                this.dispatchEvent(new CustomEvent<CardAddedEventDetail>(CARD_ADDED_EVENT, { detail: { card: eventCard(card) } }))
+                this.dispatchCardAdded(card)
             } else if (previousCard !== card) {
                 const detail = { card: eventCard(card), previousCard: eventCard(previousCard) }
                 this.dispatchEvent(new CustomEvent<CardChangedEventDetail>(CARD_CHANGED_EVENT, { detail }))
@@ -552,6 +595,10 @@ export class DataService extends EventTarget {
                 }
             }
         }
+    }
+
+    private dispatchCardAdded(card: ProjectSnapshot['activeCards'][number]) {
+        this.dispatchEvent(new CustomEvent<CardAddedEventDetail>(CARD_ADDED_EVENT, { detail: { card: eventCard(card) } }))
     }
     private dispatchPersistenceChanged() {
         const nextSnapshot = this.getPersistenceSnapshot()

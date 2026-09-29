@@ -4,10 +4,12 @@ import type {
     DiagramType,
 } from './diagram_data'
 import { parseDiagramData } from './diagram_data'
-import type {
+import {
     DiagramEditSessionService,
-    ReadonlyDiagramData,
 } from './diagram_edit_session_service'
+import type {
+    ReadonlyDiagramData,
+} from './diagram_edit_types'
 import type { DiagramSelectionIdentity } from './diagram_selection_service'
 
 export const DIAGRAM_FRAGMENT_CLIPBOARD_FORMAT = 'md2-diagram-fragment'
@@ -50,6 +52,7 @@ const VALIDATION_CANDIDATES: readonly DiagramValidationCandidate[] = [
     { preset: 'flowchart', type: 'flow' },
     { preset: 'state', type: 'flow' },
     { type: 'entity' },
+    { type: 'mindmap' },
 ]
 
 function requireClipboardRoot(value: unknown) {
@@ -75,13 +78,26 @@ function parseClipboardObjects(root: Record<string, unknown>) {
             version: 1 as const,
         }
         try {
-            return parseDiagramData(JSON.stringify({
+            const nodes = root.nodes as Record<string, unknown>[]
+            const needsValidationRoot = type === 'mindmap' && !nodes.some(({ kind }) => kind === 'root')
+            const validationRootId = needsValidationRoot
+                ? Array.from({ length: nodes.length + 1 }, (_unused, index) => `mindmap-validation-root-${index}`)
+                    .find((id) => !nodes.some((node) => node.id === id))
+                : undefined
+            const validationNodes = validationRootId ? [
+                ...nodes,
+                { id: validationRootId, kind: 'root', label: 'Validation root', role: 'focal' },
+            ] : nodes
+            const parsed = parseDiagramData(JSON.stringify({
                 edges: root.edges,
                 fragments: root.fragments,
                 groups: root.groups,
                 meta,
-                nodes: root.nodes,
+                nodes: validationNodes,
             }))
+            if (validationRootId) parsed.nodes = parsed.nodes.filter(({ id }) => id !== validationRootId)
+
+            return parsed
         } catch {
             // Try every supported diagram type because clipboard data intentionally omits source metadata.
         }

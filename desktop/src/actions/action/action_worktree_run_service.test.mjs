@@ -139,7 +139,7 @@ describe('ActionWorktreeRunService', () => {
         expect(runner).not.toHaveBeenCalled();
     });
 
-    it('releases the card lock when the runner fails', async () => {
+    it('releases the card claim when the runner fails', async () => {
         const runService = service();
         const cardContext = { cardInternalId: 'card-1', file: 'design/F-1.md', kind: 'card' };
         await expect(runWithCardLock(runService, cardContext, async () => {
@@ -151,18 +151,18 @@ describe('ActionWorktreeRunService', () => {
         expect(runner).toHaveBeenCalledTimes(1);
     });
 
-    it('runs actions without a card concurrently', async () => {
+    it.each(['project', 'diagram'])('runs %s actions without a card concurrently', async (kind) => {
         const runService = service();
         const firstCompletion = Promise.withResolvers();
         const secondCompletion = Promise.withResolvers();
         const order = [];
-        const first = runWithCardLock(runService, { kind: 'project' }, async () => {
+        const first = runWithCardLock(runService, { kind }, async () => {
             order.push('first-start');
             await firstCompletion.promise;
             order.push('first-end');
             return result();
         });
-        const second = runWithCardLock(runService, { kind: 'project' }, async () => {
+        const second = runWithCardLock(runService, { kind }, async () => {
             order.push('second-start');
             await secondCompletion.promise;
             order.push('second-end');
@@ -201,7 +201,7 @@ describe('ActionWorktreeRunService', () => {
         expect(order).toEqual(['first-start', 'second-start', 'first-end', 'second-end']);
     });
 
-    it('serializes actions for the same card across worktrees and reports the wait as queued', async () => {
+    it('runs actions for the same card across worktrees without queuing', async () => {
         const runService = service();
         const firstCompletion = Promise.withResolvers();
         const order = [];
@@ -218,43 +218,44 @@ describe('ActionWorktreeRunService', () => {
             return result();
         }, { onQueued: queued });
 
-        await vi.waitFor(() => expect(order).toEqual(['first-start']));
-        expect(queued).toHaveBeenCalledTimes(1);
+        await vi.waitFor(() => expect(order).toEqual(['first-start', 'second-start', 'second-end']));
+        expect(queued).not.toHaveBeenCalled();
         firstCompletion.resolve();
         await Promise.all([first, second]);
-        expect(order).toEqual(['first-start', 'first-end', 'second-start', 'second-end']);
+        expect(order).toEqual(['first-start', 'second-start', 'second-end', 'first-end']);
     });
 
-    it('cancels an action waiting for a card lock', async () => {
+    it('keeps the card busy until every concurrent run completes', async () => {
         const runService = service();
         const firstCompletion = Promise.withResolvers();
+        const secondCompletion = Promise.withResolvers();
         const cardContext = { cardInternalId: 'card-1', file: 'design/F-1.md', kind: 'card' };
-        const firstRunner = vi.fn(async () => {
+        const first = runWithCardLock(runService, cardContext, async () => {
             await firstCompletion.promise;
             return result();
         });
-        const first = runWithCardLock(runService, cardContext, firstRunner);
-        await vi.waitFor(() => expect(firstRunner).toHaveBeenCalledTimes(1));
-
-        const controller = new AbortController();
-        const queued = vi.fn();
-        const secondRunner = vi.fn(async () => result());
-        const second = runWithCardLock(runService, cardContext, secondRunner, {
-            onQueued: queued,
-            signal: controller.signal,
+        const second = runWithCardLock(runService, cardContext, async () => {
+            await secondCompletion.promise;
+            return result();
         });
-        const cancelled = expect(second).rejects.toThrow('Action cancelled');
-        await vi.waitFor(() => expect(queued).toHaveBeenCalledTimes(1));
-        controller.abort();
-        await cancelled;
-        expect(secondRunner).not.toHaveBeenCalled();
-
+        expect(() => runService.acquireReleaseCardLocks(primaryProject, ['card-1']))
+            .toThrow('Cannot complete release while a target card has a running action');
         firstCompletion.resolve();
         await first;
+        expect(() => runService.acquireReleaseCardLocks(primaryProject, ['card-1']))
+            .toThrow('Cannot complete release while a target card has a running action');
+        secondCompletion.resolve();
+        await second;
+        const leaseId = runService.acquireReleaseCardLocks(primaryProject, ['card-1']);
+        runService.releaseReleaseCardLocks(leaseId);
+    });
 
-        const laterRunner = vi.fn(async () => result());
-        await runWithCardLock(runService, cardContext, laterRunner);
-        expect(laterRunner).toHaveBeenCalledTimes(1);
+    it('rejects a cancelled run before acquiring its card claim', async () => {
+        const controller = new AbortController();
+        controller.abort();
+        const runner = vi.fn(async () => result());
+        await expect(runWithCardLock(service(), { cardInternalId: 'card-1', kind: 'card' }, runner, {signal: controller.signal})).rejects.toThrow('Action cancelled');
+        expect(runner).not.toHaveBeenCalled();
     });
 
     it('rejects release locking while a target card action is running', async () => {

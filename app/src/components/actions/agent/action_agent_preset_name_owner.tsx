@@ -2,7 +2,7 @@ import { useSyncExternalStore, type ChangeEvent } from 'react'
 import type { ActionContext } from '../../../data/action_context'
 import type { ActionDefinition } from '../../../data/action_types'
 import type { ActionRunSettingsStore } from '../../../services/actions/action_run_settings_service'
-import type { ActionConversationStore } from '../conversation/action_conversation_store'
+import type { ActionConversationStore } from '../conversation/state/action_conversation_store'
 import type { ActionHistoryStore } from '../run/state/action_history_store'
 import { currentActionPromptDraft, currentActionRun, saveAndRunPopupAction } from '../run/popup/action_popup_operations'
 import { actionPopupRunDisabled } from '../run/popup/action_popup_run_disabled'
@@ -37,7 +37,7 @@ export function ActionAgentPresetNameOwner(props: ActionAgentPresetNameOwnerProp
         const run = currentActionRun(bindingStore)
         const runStatus = run?.status ?? 'idle'
         const sessionActive = runStatus === 'queued' || runStatus === 'running' || runStatus === 'waitingForInput'
-        const promptDraft = currentActionPromptDraft(action, context, bindingStore, false)
+        const promptDraft = currentActionPromptDraft(action, context, bindingStore, conversationStore, false)
         const runState = {
             agentActive: sessionActive && run?.activeActionType === 'agent',
             hasApprovals: !!run?.approvals.length,

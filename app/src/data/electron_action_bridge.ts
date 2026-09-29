@@ -6,6 +6,7 @@ import type { AgentAvailability } from './electron_data_bridge'
 import type { PermissionMode, ThinkingLevel } from './agent_profiles'
 import type {
     ActionRunEvent,
+    ActionUserInputResponse,
     ActionRunTerminalStatus,
     ActionQueuedPrompt,
     ActionPromptRequest,
@@ -166,6 +167,7 @@ export interface ActionConversationViewedEvent {
 }
 
 export interface ElectronActionBridge {
+    answerActionInput?(runId: string, response: ActionUserInputResponse): Promise<void>
     acquireReleaseCardLocks?(cardInternalIds: string[]): Promise<string>
     answerActionApproval?(runId: string, requestId: AgentApprovalRequestId, decision: AgentApprovalDecision): Promise<void>
     answerActionQuestion?(runId: string, requestId: number | string | null, answers: Record<string, string[]>): Promise<void>
@@ -176,7 +178,7 @@ export interface ElectronActionBridge {
     deleteSchedule?(scheduleId: string): Promise<AnySchedule[]>
     dismissActionQuestions?(runId: string, requestId: number | string | null): Promise<void>
     editActionQueuedPrompt?(runId: string, promptId: string, revision: number, content: string): Promise<ActionQueuedPrompt>
-    enqueueActionPrompt?(runId: string, content: string): Promise<ActionQueuedPrompt>
+    enqueueActionPrompt?(runId: string, content: string, submissionId: string): Promise<ActionQueuedPrompt>
     finishActionRun?(runId: string): Promise<void>
     generateDiff(request: DiffRequest): Promise<DiffResult>
     generateWorktreeDiff(request: WorktreeDiffRequest): Promise<WorktreeDiffResult>

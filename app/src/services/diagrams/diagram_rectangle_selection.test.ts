@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     diagramRectangleBetween,
     diagramRectangleIntersectsBox,
+    diagramRectangleIntersectsQuadraticCurve,
     diagramRectangleIntersectsRoute,
 } from './diagram_rectangle_selection';
 
@@ -32,5 +33,15 @@ describe('diagram rectangle selection geometry', () => {
         expect(diagramRectangleIntersectsRoute(rectangle, [{ x: 0, y: 10 }, { x: 10, y: 10 }])).toBe(false);
         expect(diagramRectangleIntersectsRoute(rectangle, [{ x: 0, y: 0 }, { x: 10, y: 5 }])).toBe(false);
         expect(diagramRectangleIntersectsRoute(rectangle, [])).toBe(false);
+    });
+
+    it('tests visible quadratic curve rather than endpoint chord', () => {
+        const start = { x: 0, y: 0 };
+        const control = { x: 40, y: 100 };
+        const end = { x: 80, y: 0 };
+
+        expect(diagramRectangleIntersectsQuadraticCurve({ x: 35, y: 45, width: 10, height: 10 }, start, control, end)).toBe(true);
+        expect(diagramRectangleIntersectsQuadraticCurve({ x: 35, y: 60, width: 10, height: 10 }, start, control, end)).toBe(false);
+        expect(diagramRectangleIntersectsQuadraticCurve({ x: 35, y: -5, width: 10, height: 10 }, start, control, end)).toBe(false);
     });
 });

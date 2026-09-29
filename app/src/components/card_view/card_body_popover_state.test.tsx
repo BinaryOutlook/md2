@@ -47,7 +47,6 @@ function renderPopover(isMobile = false) {
                 isMobile={isMobile}
                 onDeleteCard={vi.fn(async () => undefined)}
                 onOpenAffects={vi.fn()}
-                onOpenInFileMode={vi.fn()}
                 states={states}
                 statusColors={statusColors}
                 visible
@@ -139,7 +138,7 @@ describe('CardBodyPopover state selector', () => {
             expect(selector?.nextElementSibling).toBeNull()
             expect(within(footer as HTMLElement).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
             expect(within(footer as HTMLElement).getByRole('button', { name: 'Affects' })).toBeInTheDocument()
-            expect(within(footer as HTMLElement).getByRole('button', { name: 'Open in file mode' })).toBeInTheDocument()
+            expect(within(footer as HTMLElement).queryByRole('button', { name: 'Open in file mode' })).not.toBeInTheDocument()
         }
     })
 })

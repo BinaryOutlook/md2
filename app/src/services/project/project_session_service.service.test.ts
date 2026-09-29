@@ -428,10 +428,26 @@ describe('ProjectSessionService storage activation', () => {
 
         const push = service.push()
 
-        expect(service.getSnapshot()).toMatchObject({ isLoading: true, isPushing: true })
+        expect(service.getSnapshot()).toMatchObject({ isLoading: true, isProjectLoading: false, isPushing: true })
         resolvePush()
         await push
         expect(service.getSnapshot()).toMatchObject({ isLoading: false, isPushing: false })
+    })
+
+    it('reports project loading separately while opening a project', async () => {
+        const bridge = createDataBridge()
+        const projectConfig = createDeferred<Partial<typeof DEFAULT_PROJECT_CONFIG> | null>()
+        vi.mocked(bridge.loadProjectConfig).mockReturnValue(projectConfig.promise)
+        window.md2Data = bridge
+        mockProjectOpen()
+        const service = new ProjectSessionService()
+
+        const openingProject = service.openProject('local', { branch: 'main', id: 'local', rootPath: 'C:/repo' }, null)
+
+        expect(service.getSnapshot()).toMatchObject({ isLoading: true, isProjectLoading: true })
+        projectConfig.resolve(DEFAULT_PROJECT_CONFIG)
+        await openingProject
+        expect(service.getSnapshot()).toMatchObject({ isLoading: false, isProjectLoading: false })
     })
 
     it('flushes pending changes for a manual commit', async () => {
@@ -468,6 +484,19 @@ describe('ProjectSessionService storage activation', () => {
         await creation
         expect(service.getCardCreationSnapshot().isCreatingCard).toBe(false)
         expect(cardCreationChanged).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not notify project session subscribers when clearing an already clear error', () => {
+        const service = new ProjectSessionService()
+        const changed = vi.fn()
+        service.addEventListener('changed', changed)
+
+        service.setError(null)
+
+        expect(changed).not.toHaveBeenCalled()
+        service.setError('Failed')
+        service.setError(null)
+        expect(changed).toHaveBeenCalledTimes(2)
     })
 
     it('reports pull progress while the primary worktree pull runs', async () => {

@@ -820,7 +820,7 @@ describe('RemoteControlStorageService', () => {
         await flushPromises()
         const operations = [
             firstOperation,
-            service.enqueueActionPrompt('action-1', 'next'),
+            service.enqueueActionPrompt('action-1', 'next', 'submission-1'),
             service.editActionQueuedPrompt('action-1', 'prompt-1', 0, 'edited'),
             service.deleteActionQueuedPrompt('action-1', 'prompt-1', 1),
             service.answerActionApproval('action-1', 41, 'accept'),
@@ -837,7 +837,7 @@ describe('RemoteControlStorageService', () => {
         const requests = socket.sent.map((entry) => JSON.parse(entry) as { id: string, method: string, params: unknown[] })
         expect(requests.map(({ method, params }) => ({ method, params }))).toEqual([
             { method: 'sendActionMessage', params: ['action-1', 'approved'] },
-            { method: 'enqueueActionPrompt', params: ['action-1', 'next'] },
+            { method: 'enqueueActionPrompt', params: ['action-1', 'next', 'submission-1'] },
             { method: 'editActionQueuedPrompt', params: ['action-1', 'prompt-1', 0, 'edited'] },
             { method: 'deleteActionQueuedPrompt', params: ['action-1', 'prompt-1', 1] },
             { method: 'answerActionApproval', params: ['action-1', 41, 'accept'] },

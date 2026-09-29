@@ -68,6 +68,7 @@ function createLocalBridgeDispatch(dependencies) {
         projectStatsWorkerService,
         readDesktopConfig,
         saveDesktopConfig,
+        showItemInFolder,
         updateCodexCli,
         worktreeService,
     } = dependencies;
@@ -366,6 +367,9 @@ function createLocalBridgeDispatch(dependencies) {
 
             return openWorktreeFolder();
         },
+        showInFileExplorer: async (request) => showItemInFolder(
+            await localGitService.resolveExistingProjectEntry(currentLocalProject, request.path),
+        ),
         removeWorktree: (project, folderPath, mode) => {
             if (!WORKTREE_REMOVAL_MODES.has(mode)) throw new Error(`Unknown worktree removal mode: ${String(mode)}`);
 
@@ -474,10 +478,12 @@ function createLocalBridgeDispatch(dependencies) {
 
             return actionRunnerService.editQueuedAgentPrompt(runId, promptId, revision, content);
         },
-        enqueueActionPrompt: (runId, content) => {
+        enqueueActionPrompt: (runId, content, submissionId) => {
             if (!actionRunnerService) throw new Error('Action runner is not available');
 
-            return actionRunnerService.enqueueAgentPrompt(runId, content);
+            return submissionId
+                ? actionRunnerService.enqueueAgentPrompt(runId, content, submissionId)
+                : actionRunnerService.enqueueAgentPrompt(runId, content);
         },
         generateDiff: async (request) => {
             const result = await diffService.generateDiff(currentLocalProject, request);
@@ -531,6 +537,11 @@ function createLocalBridgeDispatch(dependencies) {
             if (!actionRunnerService) throw new Error('Action runner is not available');
 
             return actionRunnerService.cancel(runId);
+        },
+        answerActionInput: (runId, response) => {
+            if (!actionRunnerService) throw new Error('Action runner is not available');
+
+            return actionRunnerService.answerInput(runId, response);
         },
         closeWaitingActionConversation: (reference, status) => (
             localGitService.closeWaitingActivityConversation(currentLocalProject, reference, status)

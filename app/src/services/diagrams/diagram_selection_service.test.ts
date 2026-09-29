@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { DiagramData } from './diagram_data'
 import { DiagramEditSessionService } from './diagram_edit_session_service'
+import { DiagramGeometryService } from './diagram_geometry_service'
 import type { DiagramRecord } from './diagram_index'
 import { DiagramSelectionService, type DiagramSelectionIdentity } from './diagram_selection_service'
 import type { DiagramViewSourceSnapshot } from './diagram_view_service'
@@ -22,7 +23,12 @@ const edge: DiagramSelectionIdentity = { objectId: 'orders-store', objectKind: '
 const group: DiagramSelectionIdentity = { objectId: 'backend', objectKind: 'group' }
 
 class DiagramSourceStub extends EventTarget {
-    private source: DiagramViewSourceSnapshot | null = { diagram, record }
+    private source: DiagramViewSourceSnapshot | null
+
+    constructor(sourceDiagram: DiagramData = diagram) {
+        super()
+        this.source = { diagram: sourceDiagram, record }
+    }
 
     getSourceSnapshot = () => this.source
 
@@ -50,6 +56,11 @@ function createRectangleHarness() {
     }
     const groupBoxes = { backend: { height: 20, width: 20, x: 50, y: 50 } }
     const geometry = {
+        subscribeEdgeGeometryField: () => () => {},
+        subscribeGroupGeometryField: () => () => {},
+        subscribeNodeGeometryField: () => () => {},
+        subscribeGeometrySession: () => () => {},
+        getEdgeControlPointSnapshot: () => null,
         getEdgeRouteSnapshot: (edgeId: string) => (
             edgeId === 'orders-store' ? [{ x: 0, y: 40 }, { x: 80, y: 40 }] : []
         ),
@@ -68,7 +79,54 @@ function createRectangleHarness() {
     return { selection, session }
 }
 
+function createCurvedRectangleHarness() {
+    const source = new DiagramSourceStub({ ...diagram, meta: { ...diagram.meta, type: 'mindmap' } })
+    const session = new DiagramEditSessionService(source)
+    session.bindProject(project)
+    session.start()
+    const geometry = {
+        subscribeEdgeGeometryField: () => () => {},
+        subscribeGroupGeometryField: () => () => {},
+        subscribeNodeGeometryField: () => () => {},
+        subscribeGeometrySession: () => () => {},
+        getEdgeControlPointSnapshot: () => ({ x: 40, y: 100 }),
+        getEdgeRouteSnapshot: () => [{ x: 0, y: 0 }, { x: 80, y: 0 }],
+        getGroupGeometryFieldSnapshot: () => null,
+        getNodeGeometryFieldSnapshot: () => null,
+    }
+    const selection = new DiagramSelectionService(session, geometry)
+    return { selection, session }
+}
+
 describe('DiagramSelectionService', () => {
+    it('tracks one boundary across selected nodes, groups, and routed edges as geometry changes', () => {
+        const sourceDiagram: DiagramData = {
+            ...diagram,
+            groups: [{ height: 40, id: 'backend', label: 'Backend', nodeIds: ['orders'], width: 80, x: 300, y: 200 }],
+            nodes: [
+                { id: 'orders', label: 'Orders', role: 'focal', width: 80, height: 40, x: 40, y: 40 },
+                { id: 'store', label: 'Store', role: 'store', width: 80, height: 40, x: 200, y: 40 },
+            ],
+        }
+        const session = new DiagramEditSessionService(new DiagramSourceStub(sourceDiagram))
+        session.bindProject(project)
+        session.start()
+        const geometry = new DiagramGeometryService(session)
+        const selection = new DiagramSelectionService(session, geometry)
+        const changed = vi.fn()
+        selection.subscribeBoundary(changed)
+
+        selection.replace([orders, edge, group])
+        expect(selection.getBoundarySnapshot()).toEqual({ height: 200, width: 340, x: 40, y: 40 })
+
+        session.setGroupField('backend', 'x', 400)
+        expect(selection.getBoundarySnapshot()).toEqual({ height: 200, width: 440, x: 40, y: 40 })
+        expect(changed).toHaveBeenCalledTimes(2)
+
+        selection.replace([orders])
+        expect(selection.getBoundarySnapshot()).toBeNull()
+    })
+
     it('replaces, adds, removes, toggles, clears, and queries mixed object identities', () => {
         const { selection, session } = createHarness()
         const editableDiagram = session.getEditableDiagram()
@@ -199,12 +257,12 @@ describe('DiagramSelectionService', () => {
             selectionDuringGroupPublication.push([...selection.getSelectionSnapshot()])
         })
 
-        expect(session.removeNode('orders')).toBe(true)
+        expect(session.removeObjects([{ objectId: 'orders', objectKind: 'node' }])).toBe(true)
         expect(selectionDuringNodePublication).toEqual([[group]])
         expect(selectionDuringEdgePublication).toEqual([[group]])
         expect(selection.getSelectionSnapshot()).toEqual([group])
 
-        expect(session.removeGroup('backend')).toBe(true)
+        expect(session.removeObjects([{ objectId: 'backend', objectKind: 'group' }])).toBe(true)
         expect(selectionDuringGroupPublication).toEqual([[]])
         expect(selection.getSelectionSnapshot()).toEqual([])
     })
@@ -276,6 +334,19 @@ describe('DiagramSelectionService', () => {
         session.setActiveTool('node:component')
         expect(selection.getRectangleSnapshot()).toBeNull()
         expect(selection.getSelectionSnapshot()).toBe(selectionSnapshot)
+    })
+
+    it('selects visible mindmap curve when its straight chord misses the rectangle', () => {
+        const { selection, session } = createCurvedRectangleHarness()
+        selection.beginRectangleSelection({ x: 35, y: 45 })
+        selection.completeRectangleSelection({ x: 45, y: 55 })
+
+        expect(selection.getSelectionSnapshot()).toEqual([edge])
+        expect(session.getDirtySnapshot()).toBe(false)
+
+        selection.beginRectangleSelection({ x: 45, y: 55 })
+        selection.completeRectangleSelection({ x: 35, y: 45 })
+        expect(selection.getSelectionSnapshot()).toEqual([edge])
     })
 
     it('rejects non-finite rectangle coordinates and ignores completion without a start', () => {

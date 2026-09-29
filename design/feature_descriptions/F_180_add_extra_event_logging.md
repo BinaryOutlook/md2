@@ -3,19 +3,19 @@ author:
 id: F_180
 internalId: 96236df6-2c3a-4846-9d52-f29b7ee9041d
 title: add extra event logging
-status: ready for implementation
+status: new
 owner: 
 affects:
 agents:
   - design/activity/card__96236df6-2c3a-4846-9d52-f29b7ee9041d.json
 policy:
+after: 567ff5d6-ed2a-4bad-85bc-902c21642604
 ---
 we currently only appear to log start and end of app. other things we can log:
 
 * create card
 * create action
 * add worktree
-* run action
 * Release
 
 ## Current state

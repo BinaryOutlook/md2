@@ -77,6 +77,7 @@ const DATA_METHODS = [
     'saveProjectConfig',
     'selectProjectSubFolder',
     'selectWorktreeFolder',
+    'showInFileExplorer',
     'stopAgent',
 ];
 const ACTION_METHODS = [
@@ -84,6 +85,7 @@ const ACTION_METHODS = [
     'answerActionApproval',
     'answerActionQuestion',
     'cancelActionRun',
+    'answerActionInput',
     'closeWaitingActionConversation',
     'deleteActionQueuedPrompt',
     'deleteSchedule',

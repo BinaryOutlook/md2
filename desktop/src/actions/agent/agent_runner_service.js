@@ -107,7 +107,7 @@ class AgentRunnerService {
         return completion;
     }
 
-    async start(project, requestValue, onEvent, onComplete, onCompletionError) {
+    async start(project, requestValue, onEvent, onComplete, onCompletionError, onConversationSaved) {
         const request = {
             activityOrigin: { kind: 'project' },
             activityProject: project,
@@ -136,16 +136,17 @@ class AgentRunnerService {
         if (request.reuseLastUserMessage) {
             if (lastMessage?.role !== 'user' || lastMessage.content !== prompt) throw new Error('Missing failed-turn user message for agent retry');
         } else {
-            conversation.entries.push(createMessageEntry(`${id}-user`, 'user', prompt, startedAt, undefined, nextSequence));
+            conversation.entries.push(createMessageEntry(request.submissionId ?? `${id}-user`, 'user', prompt, startedAt, undefined, nextSequence));
             nextSequence += 1;
         }
+        const initialConversation = snapshotConversation(conversation);
+        await this.persistConversationCheckpoint({ conversation: initialConversation, request });
+        onConversationSaved?.();
         const [configuredExecutable, ...configuredArguments] = command;
         const environment = createAgentEnvironment(process.env, agent);
         const executable = await this.executableResolver.find(configuredExecutable, { cwd: rootPath, env: environment });
         if (!executable) throw new Error(`Executable not found for ${agent}: ${configuredExecutable}`);
         const argumentsList = streaming ? configuredArguments : [...configuredArguments, prompt];
-        const initialConversation = snapshotConversation(conversation);
-        await this.persistConversationCheckpoint({ conversation: initialConversation, request });
         this.requestUsagePoll({ agent, environment, executable, rootPath });
         const child = this.spawn(executable, argumentsList, {
             cwd: rootPath,
@@ -250,9 +251,9 @@ class AgentRunnerService {
         return !!run && hasPendingInteraction(run);
     }
 
-    sendMessage(runId, content) {
+    sendMessage(runId, content, submissionId) {
         console.log('[agent prompt]', content);
-        return agentInteractions.sendMessage(this, this.requireStreamingRun(runId), content);
+        return agentInteractions.sendMessage(this, this.requireStreamingRun(runId), content, submissionId);
     }
 
     sendStreamingMessage(run, content) {

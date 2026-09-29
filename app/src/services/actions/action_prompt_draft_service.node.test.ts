@@ -156,16 +156,6 @@ describe('ActionPromptDraftService', () => {
         expect(draft.bindRun).toBeUndefined()
     })
 
-    it('tracks a revision that only advances when the value is set', () => {
-        const service = new ActionPromptDraftService()
-        const draft = service.getDraft('review', context, null, { prepare: false })
-        const initialRevision = draft.getRevision()
-
-        draft.edit('Typed')
-
-        expect(draft.getRevision()).toBe(initialRevision + 1)
-    })
-
     it('retains prepared diagram path through local prompt edits and clears it with draft', async () => {
         const service = new ActionPromptDraftService()
         const draft = service.getDraft('diagram', { kind: 'diagram', type: 'root' }, null, { prepare: true })
@@ -183,53 +173,37 @@ describe('ActionPromptDraftService', () => {
         const draft = service.getDraft('review', context, null, { prepare: false })
         draft.edit('Sent request')
 
-        service.clearDraft('review', context, null)
+        draft.clearForSend()
 
         expect(draft.getSnapshot()).toBe('')
         expect(service.getDraft('review', context, null, { prepare: false })).toBe(draft)
     })
 
-    it('deletes only unedited drafts during terminal cleanup', () => {
+    it('keeps the draft across a new run and separates it from other conversations', () => {
         const service = new ActionPromptDraftService()
-        const unedited = service.getDraft('review', context, 'run-1', { prepare: false })
-        const edited = service.getDraft('review', context, 'run-2', { prepare: false })
-        edited.edit('Keep this text')
+        const newConversationDraft = service.getDraft('review', context, null, { prepare: false })
+        newConversationDraft.edit('First message')
+        newConversationDraft.clearForSend()
+        newConversationDraft.edit('Next message')
 
-        service.deleteUneditedDraft('review', context, 'run-1')
-        service.deleteUneditedDraft('review', context, 'run-2')
+        service.attachNewConversation('review', context, 'conversation-1')
 
-        expect(service.getDraft('review', context, 'run-1', { prepare: false })).not.toBe(unedited)
-        expect(service.getDraft('review', context, 'run-2', { prepare: false })).toBe(edited)
+        expect(service.getDraft('review', context, 'conversation-1', { prepare: false })).toBe(newConversationDraft)
+        expect(newConversationDraft.getSnapshot()).toBe('Next message')
+        expect(service.getDraft('review', context, null, { prepare: false })).not.toBe(newConversationDraft)
+        expect(service.getDraft('review', context, 'conversation-2', { prepare: false })).not.toBe(newConversationDraft)
     })
 
-    it('discards an unedited prepared default and keeps user-edited text', async () => {
+    it('uses card identity across card and file entry points', () => {
         const service = new ActionPromptDraftService()
-        const prepared = service.getDraft('review', context, null, { prepare: true })
-        await prepared.prepare(async () => ({ prompt: 'Prepared prompt' }))
+        const cardContext = { cardInternalId: 'card-1', file: 'old.md', kind: 'card' as const }
+        const fileContext = { cardInternalId: 'card-1', file: 'renamed.md', kind: 'file' as const }
+        const draft = service.getDraft('review', cardContext, 'conversation-1', { prepare: false })
 
-        service.discardUneditedDraft('review', context, null)
-        expect(prepared.getSnapshot()).toBe('')
-
-        prepared.edit('Typed while the agent was finishing')
-        service.discardUneditedDraft('review', context, null)
-
-        expect(prepared.getSnapshot()).toBe('Typed while the agent was finishing')
-        expect(service.getDraft('review', context, null, { prepare: false })).toBe(prepared)
+        expect(service.getDraft('review', fileContext, 'conversation-1', { prepare: false })).toBe(draft)
     })
 
-    it('prepares again after an unedited prompt is cleared', async () => {
-        const service = new ActionPromptDraftService()
-        const draft = service.getDraft('review', context, null, { prepare: true })
-        await draft.prepare(async () => ({ prompt: 'First prepared prompt' }))
-        service.discardUneditedDraft('review', context, null)
-
-        await draft.prepare(async () => ({ prompt: 'Prepared again' }))
-
-        expect(draft.getSnapshot()).toBe('Prepared again')
-        expect(draft.hasLocalEdits()).toBe(false)
-    })
-
-    it('treats exact-empty local input as unedited and prepares it again', async () => {
+    it('keeps an intentionally emptied prepared prompt empty', async () => {
         const service = new ActionPromptDraftService()
         const draft = service.getDraft('review', context, null, { prepare: true })
         await draft.prepare(async () => ({ prompt: 'Prepared prompt' }))
@@ -237,8 +211,8 @@ describe('ActionPromptDraftService', () => {
 
         await draft.prepare(async () => ({ prompt: 'Restored prompt' }))
 
-        expect(draft.getSnapshot()).toBe('Restored prompt')
-        expect(draft.hasLocalEdits()).toBe(false)
+        expect(draft.getSnapshot()).toBe('')
+        expect(draft.hasLocalEdits()).toBe(true)
     })
 
     it('deletes exact-empty drafts while preserving non-empty user drafts', () => {
@@ -254,12 +228,23 @@ describe('ActionPromptDraftService', () => {
         expect(service.getDraft('review', preservedContext, null, { prepare: false })).toBe(preserved)
     })
 
-    it('flushes the mounted editor before judging a draft as unedited', () => {
+    it('keeps an intentionally emptied draft when popup housekeeping runs', () => {
+        const service = new ActionPromptDraftService()
+        const draft = service.getDraft('review', context, null, { prepare: false })
+        draft.edit('Typed')
+        draft.edit('')
+
+        service.deleteEmptyDrafts()
+
+        expect(service.getDraft('review', context, null, { prepare: false })).toBe(draft)
+    })
+
+    it('flushes mounted editors without clearing their drafts', () => {
         const service = new ActionPromptDraftService()
         const draft = service.getDraft('review', context, null, { prepare: false })
         draft.markdownDraft.addEventListener('flushRequested', () => draft.edit('Buffered keystrokes'))
 
-        service.discardUneditedDraft('review', context, null)
+        service.flushContextDrafts('review', context)
 
         expect(draft.getSnapshot()).toBe('Buffered keystrokes')
     })

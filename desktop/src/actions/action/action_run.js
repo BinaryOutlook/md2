@@ -6,6 +6,7 @@ const { runWithGitOperationContext } = require('../../git/git_operation_context'
 const { resolveDiagramFile } = require('./action_diagram_output');
 const { ActionDiagramOutputWatcher } = require('./action_diagram_output_watcher');
 const { resolvePopupPrompt } = require('./action_text');
+const { validateVersion } = require('./action_run_request');
 const {
     captureCommitReferences,
     combineOutput,
@@ -33,6 +34,8 @@ class ActionRun {
         this.releasesFolder = snapshot.releasesFolder;
         this.rootAction = snapshot.rootAction;
         this.runInput = snapshot.runInput;
+        this.requestedInput = snapshot.requestedInput;
+        this.version = snapshot.runInput.version;
         this.startedAt = snapshot.startedAt;
         this.actionWorktreeRunService = dependencies.actionWorktreeRunService;
         this.agentExecutor = dependencies.agentExecutor;
@@ -57,6 +60,7 @@ class ActionRun {
         this.changedPaths = new Set();
         this.conversationIds = [];
         this.completion = null;
+        this.initialConversationSaved = Promise.withResolvers();
         this.controller = new AbortController();
         this.rootDetails = null;
         this.rootConversationId = null;
@@ -64,6 +68,7 @@ class ActionRun {
         this.promptQueue = [];
         this.promptQueueClosed = false;
         this.promptQueueOperations = Promise.resolve();
+        this.pendingInput = null;
     }
 
     start(finalize) {
@@ -71,15 +76,30 @@ class ActionRun {
         this.completion = finalize(runCompletion);
     }
 
+    async waitForInitialConversationSave() {
+        const completedBeforeSave = this.completion.then((result) => {
+            throw new Error(result.failure ?? 'Agent run ended before its conversation was saved');
+        });
+        await Promise.race([this.initialConversationSaved.promise, completedBeforeSave]);
+    }
+
+    markInitialConversationSaved() {
+        this.initialConversationSaved.resolve();
+    }
+
     cancel() {
         this.discardQueuedPrompts();
         this.controller.abort();
+        this.pendingInput?.reject(new ActionCancellationError('Action cancelled'));
+        this.pendingInput = null;
         if (this.activeAgentRunId) this.agentRunnerService.stop(this.activeAgentRunId);
     }
 
     suspend() {
         this.discardQueuedPrompts();
         this.controller.abort();
+        this.pendingInput?.reject(new ActionCancellationError('Action cancelled'));
+        this.pendingInput = null;
         if (this.activeAgentRunId) this.agentRunnerService.suspend(this.activeAgentRunId);
     }
 
@@ -93,7 +113,7 @@ class ActionRun {
         return this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);
     }
 
-    enqueueAgentPrompt(content) {
+    enqueueAgentPrompt(content, submissionId) {
         if (typeof content !== 'string' || content.trim().length === 0) throw new Error('Queued agent prompt is empty');
 
         const operation = this.queuePromptOperation(() => {
@@ -102,7 +122,7 @@ class ActionRun {
             const entry = {
                 content,
                 dispatchState: 'queued',
-                id: `prompt-${crypto.randomUUID()}`,
+                id: submissionId ?? `prompt-${crypto.randomUUID()}`,
                 revision: 0,
             };
             this.promptQueue.push(entry);
@@ -135,7 +155,7 @@ class ActionRun {
             this.requirePromptQueueOpen();
             const entry = this.requireQueuedPrompt(id, revision);
             this.promptQueue = this.promptQueue.filter(({ id: entryId }) => entryId !== id);
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDeleted', { promptId: entry.id, revision: entry.revision });
 
             return { deleted: true };
         });
@@ -209,7 +229,7 @@ class ActionRun {
         const entries = this.promptQueue.filter(({ dispatchState }) => dispatchState === 'queued');
         this.promptQueue = [];
         for (const entry of entries) {
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDiscarded', { promptId: entry.id, revision: entry.revision });
         }
     }
 
@@ -225,9 +245,9 @@ class ActionRun {
 
             entry.dispatchState = 'dispatching';
             this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDispatched', { promptId: entry.id, revision: entry.revision });
             const prompt = this.resolveActiveAgentPrompt(entry.content);
-            await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt);
+            await this.agentRunnerService.sendMessage(this.activeAgentRunId, prompt, entry.id);
 
             return !!this.activeAgentRunId
                 && !!this.activeAction?.streaming
@@ -252,9 +272,9 @@ class ActionRun {
 
             entry.dispatchState = 'dispatching';
             this.promptQueue = this.promptQueue.filter(({ id }) => id !== entry.id);
-            this.publishPromptQueueUpdate('agentPromptRemoved', { promptId: entry.id, revision: entry.revision });
+            this.publishPromptQueueUpdate('agentPromptDispatched', { promptId: entry.id, revision: entry.revision });
 
-            return entry.content;
+            return entry;
         });
     }
 
@@ -284,23 +304,75 @@ class ActionRun {
 
     async runWithContext() {
         this.publish(this.rootAction, 'main', 'running', { type: 'run' });
-        let status = 'completed';
-        let failure = null;
+        let result;
         try {
-            const onQueued = () => this.publish(this.rootAction, 'main', 'queued', { type: 'action' });
-            const lockOptions = { onQueued, signal: this.controller.signal };
-            await this.actionWorktreeRunService.runWithCardLock(
+            if (this.requestedInput && this.runInput[this.requestedInput.type] === undefined) {
+                const value = await this.waitForInput();
+                if (this.requestedInput.type === 'version') this.version = value;
+                else throw new Error(`Unsupported action input type: ${this.requestedInput.type}`);
+            }
+            const lockOptions = { signal: this.controller.signal };
+            result = await this.actionWorktreeRunService.runWithCardLock(
                 this.project,
                 this.context,
-                () => this.runAction(this.rootAction, 'main', true),
+                () => this.executeRunWithActivity(),
                 lockOptions,
             );
         } catch (error) {
-            failure = error;
-            if (error instanceof ActionCancellationError || this.controller.signal.aborted) status = 'cancelled';
-            else status = error instanceof ActionPhaseError && error.rootPhase === 'after' ? 'okButNotAfter' : 'failed';
+            result = await this.finishRunWithActivity(error);
         }
 
+        this.publish(this.rootAction, 'main', result.status, {
+            changedPaths: result.changedPaths,
+            ...(this.rootAction.output?.kind === 'diagram' && this.diagramPath ? { diagramPath: this.diagramPath } : {}),
+            message: result.failure,
+            type: 'run',
+        });
+
+        return result;
+    }
+
+    async waitForInput() {
+        this.throwIfCancelled();
+        const value = await new Promise((resolve, reject) => {
+            this.pendingInput = { reject, resolve, type: this.requestedInput.type };
+            this.publish(this.rootAction, 'main', 'waitingForInput', {
+                inputType: this.requestedInput.type,
+                prompt: this.requestedInput.prompt ?? 'Version',
+                type: 'inputRequest',
+            });
+        });
+        this.throwIfCancelled();
+
+        return value;
+    }
+
+    answerInput(response) {
+        if (!this.pendingInput || this.controller.signal.aborted) throw new Error(`No pending input request for run ${this.runId}`);
+        if (!response || typeof response !== 'object' || Array.isArray(response)) throw new Error('Invalid action input response');
+        if (response.type !== this.pendingInput.type) throw new Error(`Unexpected action input type: ${response.type}`);
+        if (response.type !== 'version') throw new Error(`Unsupported action input type: ${response.type}`);
+        const value = validateVersion(response.value);
+        const pending = this.pendingInput;
+        this.pendingInput = null;
+        pending.resolve(value);
+    }
+
+    async executeRunWithActivity() {
+        let failure = null;
+        try {
+            await this.runAction(this.rootAction, 'main', true);
+        } catch (error) {
+            failure = error;
+        }
+
+        return this.finishRunWithActivity(failure);
+    }
+
+    async finishRunWithActivity(failure) {
+        let status = 'completed';
+        if (failure instanceof ActionCancellationError || this.controller.signal.aborted) status = 'cancelled';
+        else if (failure) status = failure instanceof ActionPhaseError && failure.rootPhase === 'after' ? 'okButNotAfter' : 'failed';
         this.discardQueuedPrompts();
 
         let changedPaths = [];
@@ -321,13 +393,6 @@ class ActionRun {
             failure: failure ? errorMessage(failure, 'Action failed') : null,
             status,
         };
-        this.publish(this.rootAction, 'main', status, {
-            changedPaths: result.changedPaths,
-            ...(this.rootAction.output?.kind === 'diagram' && this.diagramPath ? { diagramPath: this.diagramPath } : {}),
-            message: result.failure,
-            type: 'run',
-        });
-
         return result;
     }
 
@@ -554,6 +619,7 @@ class ActionRun {
             projectFolder: this.projectFolder,
             releasesFolder: this.releasesFolder,
             signal: this.controller.signal,
+            version: this.version,
         });
     }
 
@@ -708,6 +774,7 @@ class ActionRun {
             diagramFooter: this.diagramFooter,
             runId: this.runId,
             onActiveRunChange,
+            ...(isRoot ? { onConversationSaved: this.markInitialConversationSaved.bind(this) } : {}),
             onEvent,
             project,
             projectFolder: this.projectFolder,
@@ -715,6 +782,7 @@ class ActionRun {
             releasesFolder: this.releasesFolder,
             runInput,
             signal: this.controller.signal,
+            version: this.version,
         };
         const watcher = action.autoFinish?.when === 'diagram-created'
             ? this.diagramOutputWatcherFactory({
@@ -741,7 +809,8 @@ class ActionRun {
                     runInput: {
                         ...runInput,
                         continueFrom: result.reference,
-                        prompt: queuedPrompt,
+                        prompt: queuedPrompt.content,
+                        submissionId: queuedPrompt.id,
                     },
                 });
                 this.throwDiagramWatcherFailure();
@@ -778,6 +847,7 @@ class ActionRun {
             this.releasesFolder,
             this.activeCardsFolder,
             this.diagramPath ? resolveDiagramFile(this.activeAgentProject, this.diagramsFolder, this.diagramPath) : null,
+            this.version,
         );
     }
 

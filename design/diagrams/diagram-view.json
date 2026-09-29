@@ -1,6 +1,6 @@
 {
   "activePath": [
-    "15cbc9ca-d130-42b3-8c03-ff19e895d665"
+    "f01987bb-9920-44f1-88e2-ec1dce7f6473"
   ],
   "children": {
     "15cbc9ca-d130-42b3-8c03-ff19e895d665": {
@@ -37,6 +37,36 @@
       "id": "a1ff5b28-244b-4455-a5cd-20eb92556cc1",
       "label": "dependency",
       "path": "design/diagrams/dependency-20260905T171245503Z.json"
+    },
+    "ade041f8-5ae0-498b-9c33-df4b25a87b72": {
+      "actionId": "d24e878f-5914-4cf0-a8d5-f496927942a6",
+      "createdAt": "2026-09-19T13:14:25.317Z",
+      "id": "ade041f8-5ae0-498b-9c33-df4b25a87b72",
+      "label": "sequence",
+      "path": "design/diagrams/sequence-20260919T130727375Z.json"
+    },
+    "7d312d42-dce2-4322-a915-3163f9b6702d": {
+      "actionId": "user-created",
+      "createdAt": "2026-09-23T16:35:43.184Z",
+      "id": "7d312d42-dce2-4322-a915-3163f9b6702d",
+      "label": "New mindmap",
+      "path": "design/diagrams/mindmap-7d312d42-dce2-4322-a915-3163f9b6702d.json"
+    },
+    "f01987bb-9920-44f1-88e2-ec1dce7f6473": {
+      "actionId": "user-created",
+      "createdAt": "2026-09-26T18:01:07.549Z",
+      "id": "f01987bb-9920-44f1-88e2-ec1dce7f6473",
+      "label": "New mindmap",
+      "pendingImplementation": true,
+      "path": "design/diagrams/mindmap-f01987bb-9920-44f1-88e2-ec1dce7f6473.json"
+    },
+    "4962c85c-9383-4fa5-86cc-34cc2ea15407": {
+      "actionId": "user-created",
+      "createdAt": "2026-09-26T18:01:20.784Z",
+      "id": "4962c85c-9383-4fa5-86cc-34cc2ea15407",
+      "label": "Test",
+      "path": "design/diagrams/test-4962c85c-9383-4fa5-86cc-34cc2ea15407.json",
+      "sourceDiagramId": "f01987bb-9920-44f1-88e2-ec1dce7f6473"
     }
   },
   "roots": {
@@ -45,6 +75,14 @@
     ],
     "a7e1e1cd-c2d5-4b5e-8ea8-bb34cc058ad9": [
       "a1ff5b28-244b-4455-a5cd-20eb92556cc1"
+    ],
+    "d24e878f-5914-4cf0-a8d5-f496927942a6": [
+      "ade041f8-5ae0-498b-9c33-df4b25a87b72"
+    ],
+    "user-created": [
+      "7d312d42-dce2-4322-a915-3163f9b6702d",
+      "f01987bb-9920-44f1-88e2-ec1dce7f6473",
+      "4962c85c-9383-4fa5-86cc-34cc2ea15407"
     ]
   },
   "version": 1

@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import { actionContextIdentity, type ActionContext } from '../../data/action_context'
-import { actionRunRegistry, type ActionRun, type ActionRunStore } from '../../services/actions/action_run_registry'
+import { actionRunRegistry, type ActionRun } from '../../services/actions/action_run_registry'
+import type { ActionRunStore } from '../../services/actions/action_run_store'
 import type { ActionRunBindingStore } from '../actions/run/state/action_run_binding_store'
 
 const EMPTY_ACTIVE_RUNS: ReturnType<typeof actionRunRegistry.getGlobalActiveSnapshot> = []

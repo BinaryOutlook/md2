@@ -1,7 +1,7 @@
 export const DIAGRAM_DATA_VERSION = 1;
-export const DIAGRAM_TYPES = ['architecture', 'dependency', 'sequence', 'flow', 'entity'];
+export const DIAGRAM_TYPES = ['architecture', 'dependency', 'sequence', 'flow', 'entity', 'mindmap'];
 export const DIAGRAM_ROLES = ['focal', 'backend', 'store', 'external', 'input', 'optional', 'boundary'];
-export const DIAGRAM_NODE_KINDS = ['component', 'participant', 'step', 'decision', 'start', 'end', 'state', 'entity'];
+export const DIAGRAM_NODE_KINDS = ['component', 'participant', 'step', 'decision', 'start', 'end', 'state', 'entity', 'root', 'topic'];
 export const DIAGRAM_EDGE_KINDS = [
     'connection', 'data', 'dependency', 'cycle', 'call', 'return', 'async', 'success', 'flow', 'transition', 'relationship',
 ];
@@ -380,8 +380,6 @@ function requireUniqueIds(items, field) {
 }
 function validateReferences(data) {
     const nodeIds = requireUniqueIds(data.nodes, 'nodes');
-    if (nodeIds.size === 0)
-        malformed('nodes', 'empty array');
     const edgeIds = requireUniqueIds(data.edges, 'edges');
     const duplicateSelectableId = [...edgeIds].find((id) => nodeIds.has(id));
     if (duplicateSelectableId)
@@ -424,16 +422,20 @@ function validateSequenceFragments(data) {
             malformed(`fragments.${id}.regions`, 'duplicate edge references');
     }
 }
+const EDGE_KINDS_BY_TYPE = {
+    architecture: ['connection', 'data', 'async'],
+    dependency: ['dependency', 'cycle'],
+    entity: ['relationship'],
+    flow: ['flow', 'transition'],
+    mindmap: ['connection'],
+    sequence: ['call', 'return', 'async', 'success'],
+};
+export function diagramEdgeKindsForType(type) {
+    return EDGE_KINDS_BY_TYPE[type];
+}
 export function requireDiagramEdgeKind(kind, type, field) {
-    const edgeKinds = {
-        architecture: ['connection', 'data', 'async'],
-        dependency: ['dependency', 'cycle'],
-        entity: ['relationship'],
-        flow: ['flow', 'transition'],
-        sequence: ['call', 'return', 'async', 'success'],
-    };
     requireDiagramEnum(kind, DIAGRAM_EDGE_KINDS, field);
-    if (!edgeKinds[type].includes(kind))
+    if (!diagramEdgeKindsForType(type).includes(kind))
         malformed(field, `unsupported value ${kind} for ${type}`);
     return kind;
 }
@@ -447,6 +449,8 @@ export function requireDiagramNodeKind(kind, type, preset, field) {
         if (!kind || !allowedKinds.includes(kind))
             malformed(field, `required ${preset} node kind`);
     }
+    if (type === 'mindmap' && (!kind || !['root', 'topic'].includes(kind)))
+        malformed(field, 'required mindmap node kind');
     if (kind !== undefined) requireDiagramEnum(kind, DIAGRAM_NODE_KINDS, field);
     return kind;
 }
@@ -470,6 +474,23 @@ function validateTypeSpecificData(data) {
     }
     if (data.meta.type !== 'entity' && data.edges.some(({ fromCardinality, toCardinality }) => fromCardinality || toCardinality)) {
         malformed('edges.cardinality', 'value only allowed for entity diagrams');
+    }
+    if (data.meta.type === 'mindmap') {
+        const rootCount = data.nodes.filter(({ kind }) => kind === 'root').length;
+        if (data.nodes.length > 0 && rootCount !== 1)
+            malformed('nodes', `expected exactly one root, found ${rootCount}`);
+        for (const node of data.nodes) {
+            if ((node.width === undefined) !== (node.height === undefined))
+                malformed(`nodes.${node.id}.dimensions`, 'width and height must be supplied together');
+        }
+        for (const edge of data.edges) {
+            if (edge.waypoints !== undefined)
+                malformed(`edges.${edge.id}.waypoints`, 'value forbidden for mindmap diagrams');
+            if (edge.sourceAttachment !== undefined)
+                malformed(`edges.${edge.id}.sourceAttachment`, 'value forbidden for mindmap diagrams');
+            if (edge.targetAttachment !== undefined)
+                malformed(`edges.${edge.id}.targetAttachment`, 'value forbidden for mindmap diagrams');
+        }
     }
     for (const edge of data.edges) {
         const sourceKind = data.nodes.find(({ id }) => id === edge.from)?.kind;

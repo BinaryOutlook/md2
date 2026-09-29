@@ -9,9 +9,11 @@ import type {
 } from './diagram_data'
 import {
     diagramEditSessionService,
-    type DiagramConnectionEndpoint,
     type DiagramEditSessionService,
 } from './diagram_edit_session_service'
+import type {
+    DiagramConnectionEndpoint,
+} from './diagram_edit_types'
 import {
     edgeGeometry,
     groupBox,
@@ -46,11 +48,13 @@ const CONNECTION_ENDPOINTS: readonly DiagramConnectionEndpoint[] = ['sourceAttac
 export type DiagramGeometryObjectKind = 'activation' | 'edge' | 'fragment' | 'group' | 'node' | 'surface'
 export type PositionedNodeField = typeof NODE_GEOMETRY_FIELDS[number]
 export type PositionedBoxField = typeof BOX_FIELDS[number]
-export type PositionedEdgeField = 'labelPlacement' | 'points'
+export type PositionedEdgeField = 'controlPoint' | 'labelPlacement' | 'points'
 export type PositionedFragmentField = 'dividerY' | 'guardPositions' | PositionedBoxField
 
 export interface DiagramSurfaceSize {
     height: number
+    originX: number
+    originY: number
     width: number
 }
 
@@ -72,6 +76,12 @@ export function diagramGeometryMembershipChangedEvent(objectKind: DiagramGeometr
 
 function sameRoute(left: readonly DiagramWaypoint[], right: readonly DiagramWaypoint[]) {
     return left.length === right.length && left.every((point, index) => point.x === right[index].x && point.y === right[index].y)
+}
+
+function samePoint(left: DiagramWaypoint | undefined, right: DiagramWaypoint | undefined) {
+    if (!left || !right) return left === right
+
+    return left.x === right.x && left.y === right.y
 }
 
 function sameLabelPlacement(left: PositionedDiagramLabel | undefined, right: PositionedDiagramLabel | undefined) {
@@ -109,7 +119,7 @@ export class DiagramGeometryService extends EventTarget {
     private readonly groupsById = new Map<string, PositionedDiagramGroup>()
     private readonly nodesById = new Map<string, PositionedDiagramNode>()
     private objectUnsubscribes: (() => void)[] = []
-    private surface: DiagramSurfaceSize = { height: 0, width: 0 }
+    private surface: DiagramSurfaceSize = { height: 0, originX: 0, originY: 0, width: 0 }
 
     constructor(editSession: DiagramEditSessionService = diagramEditSessionService) {
         super()
@@ -130,6 +140,10 @@ export class DiagramGeometryService extends EventTarget {
 
     getEdgeRouteSnapshot = (edgeId: string): readonly DiagramWaypoint[] => (
         this.edgesById.get(edgeId)?.points ?? EMPTY_ROUTE
+    )
+
+    getEdgeControlPointSnapshot = (edgeId: string): DiagramWaypoint | null => (
+        this.edgesById.get(edgeId)?.controlPoint ?? null
     )
 
     getEdgeLabelPlacementSnapshot = (edgeId: string): PositionedDiagramLabel | null => (
@@ -210,7 +224,7 @@ export class DiagramGeometryService extends EventTarget {
         const diagram = this.editSession.getEditableDiagram() as DiagramData | null
         this.diagram = diagram
         if (!diagram) {
-            this.surface = { height: 0, width: 0 }
+            this.surface = { height: 0, originX: 0, originY: 0, width: 0 }
             this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('activation')))
             this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('fragment')))
             this.dispatchEvent(new Event(GEOMETRY_SESSION_EVENT))
@@ -227,7 +241,7 @@ export class DiagramGeometryService extends EventTarget {
         this.activationIds = Object.freeze(positioned.activations.map(({ id }) => id))
         this.edgeIds = Object.freeze(positioned.edges.map(({ id }) => id))
         this.fragmentIds = Object.freeze(positioned.fragments.map(({ id }) => id))
-        this.surface = { height: positioned.height, width: positioned.width }
+        this.surface = { height: positioned.height, originX: positioned.originX, originY: positioned.originY, width: positioned.width }
         this.subscribeDiagramObjects()
         this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('activation')))
         this.dispatchEvent(new Event(diagramGeometryMembershipChangedEvent('fragment')))
@@ -348,9 +362,10 @@ export class DiagramGeometryService extends EventTarget {
         if (!positioned) return { changed: false, endpointIds: [] }
 
         const priorEdges = this.positionedEdgesInModelOrder(diagram).filter(({ id }) => id !== model.id)
-        const { labelPlacement, points } = edgeGeometry(diagram, model, this.nodesById, priorEdges)
+        const { controlPoint, labelPlacement, points } = edgeGeometry(diagram, model, this.nodesById, priorEdges)
         const previousEndpoints = [positioned.from, positioned.to]
         const routeChanged = !sameRoute(positioned.points, points)
+        const controlPointChanged = !samePoint(positioned.controlPoint, controlPoint)
         const labelChanged = !sameLabelPlacement(positioned.labelPlacement, labelPlacement)
         positioned.from = model.from
         positioned.to = model.to
@@ -360,13 +375,17 @@ export class DiagramGeometryService extends EventTarget {
             positioned.points = points
             this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('edge', model.id, 'points')))
         }
+        if (controlPointChanged) {
+            positioned.controlPoint = controlPoint
+            this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('edge', model.id, 'controlPoint')))
+        }
         if (labelChanged) {
             positioned.labelPlacement = labelPlacement
             this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('edge', model.id, 'labelPlacement')))
         }
 
         return {
-            changed: routeChanged || labelChanged,
+            changed: routeChanged || controlPointChanged || labelChanged,
             endpointIds: [...new Set([...previousEndpoints, model.from, model.to])],
         }
     }
@@ -390,7 +409,7 @@ export class DiagramGeometryService extends EventTarget {
     private refreshActivations(participantId: string) {
         const node = this.nodesById.get(participantId)
         const diagram = this.requireDiagram()
-        const bottom = this.surface.height - ACTIVATION_BOTTOM_MARGIN
+        const bottom = this.surface.height - this.surface.originY - ACTIVATION_BOTTOM_MARGIN
         const previousIds = [...this.activationsById.keys()].filter((id) => activationOwnerId(id) === participantId)
         const rows = this.positionedEdgesInModelOrder(diagram)
         const next = node ? nodeActivations(node, rows, bottom) : []
@@ -442,13 +461,38 @@ export class DiagramGeometryService extends EventTarget {
      * only when they actually change, so an edit inside the current bounds notifies nothing.
      */
     private refreshSurface() {
-        const { height, width } = surfaceSize(
+        const measured = surfaceSize(
             [...this.nodesById.values()],
             [...this.edgesById.values()],
             [...this.groupsById.values()],
             [...this.fragmentsById.values()],
             [...this.activationsById.values()],
         )
+        const diagram = this.requireDiagram()
+        const rootModel = diagram.meta.type === 'mindmap'
+            ? diagram.nodes.find(({ kind }) => kind === 'root') : undefined
+        const root = rootModel && rootModel.x === undefined && rootModel.y === undefined
+            ? this.nodesById.get(rootModel.id) : undefined
+        const originX = Math.max(this.surface.originX, measured.originX)
+        const originY = Math.max(this.surface.originY, measured.originY)
+        const height = Math.max(
+            measured.height + originY - measured.originY,
+            originY > this.surface.originY ? this.surface.height + originY - this.surface.originY : 0,
+            root ? (root.y + root.height / 2) * 2 + originY : 0,
+        )
+        const width = Math.max(
+            measured.width + originX - measured.originX,
+            originX > this.surface.originX ? this.surface.width + originX - this.surface.originX : 0,
+            root ? (root.x + root.width / 2) * 2 + originX : 0,
+        )
+        if (originX !== this.surface.originX) {
+            this.surface.originX = originX
+            this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('surface', SURFACE_ID, 'originX')))
+        }
+        if (originY !== this.surface.originY) {
+            this.surface.originY = originY
+            this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('surface', SURFACE_ID, 'originY')))
+        }
         if (height !== this.surface.height) {
             this.surface.height = height
             this.dispatchEvent(new Event(diagramGeometryFieldChangedEvent('surface', SURFACE_ID, 'height')))
@@ -497,6 +541,19 @@ export class DiagramGeometryService extends EventTarget {
         const addedEdges = diagram.edges.filter(({ id }) => !this.edgesById.has(id))
         for (const edge of addedEdges) this.addEdgeGeometry(edge)
         this.edgeIds = Object.freeze(nextEdgeIds)
+        if (diagram.meta.type === 'mindmap') {
+            const changedNodeIds = this.refreshMindmapNodeLayout()
+            const addedEdgeIds = new Set(addedEdges.map(({ id }) => id))
+            for (const edge of diagram.edges) {
+                if (addedEdgeIds.has(edge.id) || changedNodeIds.has(edge.from) || changedNodeIds.has(edge.to)) {
+                    this.rerouteEdge(edge)
+                }
+            }
+            for (const node of diagram.nodes) this.refreshFanIn(node.id)
+            this.refreshSurface()
+
+            return
+        }
         this.refreshSequenceRows(firstChangedRow)
         for (const node of diagram.nodes) this.refreshFanIn(node.id)
         this.refreshSequenceDependents(diagram.nodes.map(({ id }) => id))
@@ -506,9 +563,30 @@ export class DiagramGeometryService extends EventTarget {
     private addEdgeGeometry(edge: DiagramEdge) {
         const diagram = this.requireDiagram()
         const priorEdges = [...this.edgesById.values()]
-        const { labelPlacement, points } = edgeGeometry(diagram, edge, this.nodesById, priorEdges)
-        this.edgesById.set(edge.id, { ...edge, ...(labelPlacement ? { labelPlacement } : {}), points })
+        const { controlPoint, labelPlacement, points } = edgeGeometry(diagram, edge, this.nodesById, priorEdges)
+        this.edgesById.set(edge.id, {
+            ...edge,
+            ...(controlPoint ? { controlPoint } : {}),
+            ...(labelPlacement ? { labelPlacement } : {}),
+            points,
+        })
         this.subscribeEdge(edge)
+    }
+
+    private refreshMindmapNodeLayout() {
+        const positioned = layout(this.requireDiagram())
+        const changedNodeIds = new Set<string>()
+        for (const next of positioned.nodes) {
+            const current = this.nodesById.get(next.id)
+            if (!current) continue
+            let geometryChanged = false
+            for (const field of NODE_GEOMETRY_FIELDS) {
+                geometryChanged = this.assignField('node', next.id, current, field, next[field]) || geometryChanged
+            }
+            if (geometryChanged) changedNodeIds.add(next.id)
+        }
+
+        return changedNodeIds
     }
 
     /** A sequence row is its message index, so adding or removing a message moves only the rows below it. */

@@ -5,7 +5,8 @@ import type { ActionOpenDocument } from '../../../services/open_files_service'
 import { useDialogError } from '../../hooks/use_dialog_error'
 import { ActionEditorContent } from './action_editor_content'
 import { ActionEditorNavigation } from './action_editor_navigation'
-import type { MarkdownDocumentTarget } from '../../editor/markdown_data_source'
+import type { MarkdownDocumentTarget } from '../../editor/data_sources/markdown_data_source'
+import type { MarkdownToolbarContext } from '../../editor/toolbar/markdown_toolbar_context'
 
 export interface ActionEditorProps {
     actionDocument: ActionOpenDocument
@@ -18,7 +19,7 @@ export interface ActionEditorProps {
 
 export interface ActionMarkdownPresentation {
     placeholders?: typeof ACTION_PROMPT_PLACEHOLDERS
-    toolbarContents?: () => ReactNode
+    toolbarContents?: (toolbarContext: MarkdownToolbarContext) => ReactNode
 }
 
 /** Stable layout composed from service-owned editor regions. */

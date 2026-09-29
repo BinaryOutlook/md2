@@ -5,7 +5,7 @@ const FOLDER_PLACEHOLDER_NAMES = 'active-cards-folder|worktree-folder|repository
 const CARD_PLACEHOLDER_NAMES = 'card-file|card-title|card-prompt'
 const CONFLICT_PLACEHOLDER_NAMES = 'conflict-file|conflict-files'
 const DIAGRAM_PLACEHOLDER_NAMES = 'diagram-changes|diagram-file|parent-node'
-const PLACEHOLDER_PATTERN = new RegExp(`\\{\\{\\s*(${FOLDER_PLACEHOLDER_NAMES}|${CARD_PLACEHOLDER_NAMES}|${CONFLICT_PLACEHOLDER_NAMES}|${DIAGRAM_PLACEHOLDER_NAMES})\\s*\\}\\}`, 'gu')
+const PLACEHOLDER_PATTERN = new RegExp(`\\{\\{\\s*(${FOLDER_PLACEHOLDER_NAMES}|${CARD_PLACEHOLDER_NAMES}|${CONFLICT_PLACEHOLDER_NAMES}|${DIAGRAM_PLACEHOLDER_NAMES}|version)\\s*\\}\\}`, 'gu')
 const CARD_PROMPT_PLACEHOLDER_PATTERN = /\{\{\s*card-prompt\s*\}\}/u
 
 export interface ActionFolderPlaceholderValues {
@@ -22,8 +22,14 @@ export function resolvePlaceholders(
     context: ActionContext,
     folders: ActionFolderPlaceholderValues,
     extraPrompt: string,
+    version?: string,
 ): string {
     return text.replace(PLACEHOLDER_PATTERN, (_match, name: string) => {
+        if (name === 'version') {
+            if (typeof version !== 'string' || version.trim().length === 0) throw new Error('Cannot resolve version placeholder without a version')
+
+            return version
+        }
         if (name === 'active-cards-folder') {
             if (!folders.activeCardsFolder) throw new Error('Cannot resolve active-cards-folder without a configured working folder')
 
@@ -102,9 +108,10 @@ export function resolveAgentPrompt(
     context: ActionContext,
     folders: ActionFolderPlaceholderValues,
     extraPrompt: string,
+    version?: string,
 ): string {
     if (!action.prompt) throw new Error(`Missing prompt for agent action "${action.label}"`)
-    const resolvedText = resolvePlaceholders(action.prompt, context, folders, extraPrompt)
+    const resolvedText = resolvePlaceholders(action.prompt, context, folders, extraPrompt, version)
     if (CARD_PROMPT_PLACEHOLDER_PATTERN.test(action.prompt)) return resolvedText
     if (extraPrompt.trim().length === 0) return resolvedText
 

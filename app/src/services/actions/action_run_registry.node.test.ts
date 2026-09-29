@@ -5,6 +5,7 @@ import type { AgentConversation, AgentConversationEntry } from '../../data/data_
 import { setActionBridgeOverride, type ElectronActionBridge } from '../../data/electron_action_bridge'
 import { actionPromptDraftService } from './action_prompt_draft_service'
 import { ActionRunRegistry } from './action_run_registry'
+import { actionVersionRequestService } from './action_version_request_service'
 
 const context = { file: 'design/F-1.md', kind: 'card' as const }
 
@@ -62,6 +63,42 @@ function agentConversation(entries: AgentConversationEntry[], overrides: Partial
 
 describe('ActionRunRegistry', () => {
     afterEach(() => setActionBridgeOverride(null))
+
+    it('keeps version request scoped to its run until terminal event', () => {
+        const { bridge, emit } = bridgeWithEvents()
+        setActionBridgeOverride(bridge)
+        const service = new ActionRunRegistry()
+        service.start()
+
+        emit({
+            actionId: 'build', context, inputType: 'version', phase: 'main', prompt: 'Which version?', rootActionId: 'build',
+            runId: 'run-1', status: 'waitingForInput', type: 'inputRequest',
+        })
+        expect(actionVersionRequestService.getSnapshot()).toMatchObject([{ runId: 'run-1', prompt: 'Which version?' }])
+        expect(getRun(service).status).toBe('waitingForInput')
+        emit(runEvent('cancelled'))
+        expect(actionVersionRequestService.getSnapshot()).toEqual([])
+        service.stop()
+    })
+
+    it('clears a replayed version request when execution advances or the registry stops', () => {
+        const { bridge, emit } = bridgeWithEvents()
+        setActionBridgeOverride(bridge)
+        const service = new ActionRunRegistry()
+        service.start()
+        const inputRequest: ActionRunEvent = {
+            actionId: 'build', context, inputType: 'version', phase: 'main', prompt: 'Which version?', rootActionId: 'build',
+            runId: 'run-1', status: 'waitingForInput', type: 'inputRequest',
+        }
+
+        emit(inputRequest)
+        emit({ actionId: 'build', context, phase: 'main', rootActionId: 'build', runId: 'run-1', status: 'running', type: 'action' })
+        expect(actionVersionRequestService.getSnapshot()).toEqual([])
+
+        emit(inputRequest)
+        service.stop()
+        expect(actionVersionRequestService.getSnapshot()).toEqual([])
+    })
 
     it('tracks context and accumulates output deltas until the action finishes', () => {
         const { bridge, emit } = bridgeWithEvents()
@@ -235,17 +272,17 @@ describe('ActionRunRegistry', () => {
         service.stop()
     })
 
-    it('deletes a run draft when its terminal store is released', () => {
+    it('keeps a conversation draft when its terminal store is released', () => {
         const { bridge, emit } = bridgeWithEvents()
         setActionBridgeOverride(bridge)
         const service = new ActionRunRegistry()
-        const draft = actionPromptDraftService.getDraft('build', context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft('build', context, null, { prepare: false })
         service.start()
 
         emit(runEvent('running'))
         emit(runEvent('completed'))
 
-        expect(actionPromptDraftService.getDraft('build', context, 'run-1', { prepare: false })).not.toBe(draft)
+        expect(actionPromptDraftService.getDraft('build', context, null, { prepare: false })).toBe(draft)
         actionPromptDraftService.clearAll()
         service.stop()
     })
@@ -1088,6 +1125,50 @@ describe('ActionRunRegistry', () => {
         service.stop()
     })
 
+    it('updates action-button snapshots from authoritative statuses on ordinary backend updates', () => {
+        const { bridge, emit } = bridgeWithEvents()
+        setActionBridgeOverride(bridge)
+        const service = new ActionRunRegistry()
+        const activeChanged = vi.fn()
+        service.subscribeContextActive(context, activeChanged)
+        service.start()
+
+        emit({
+            actionId: 'build', context, runId: 'run-1', phase: 'main', rootActionId: 'build', status: 'running', type: 'update',
+            update: { conversation: agentConversation([]), kind: 'agentStarted' },
+        })
+        emit({
+            actionId: 'build', context, runId: 'run-1', phase: 'main', rootActionId: 'build',
+            status: 'waitingForInput', type: 'update',
+            update: {
+                contextWindowUsage: { capacityTokens: 258_400, usedTokens: 42_000 },
+                kind: 'agentUsage',
+                usage: { cachedInputTokens: 1, inputTokens: 2, outputTokens: 3, reasoningTokens: 4, totalTokens: 10 },
+            },
+        })
+
+        expect(service.getContextActiveSnapshot(context)).toEqual([{
+            context,
+            rootActionId: 'build',
+            runId: 'run-1',
+            status: 'waitingForInput',
+        }])
+
+        emit({
+            actionId: 'build', context, runId: 'run-1', phase: 'main', rootActionId: 'build', status: 'running', type: 'update',
+            update: { content: 'resumed', entryIndex: 0, kind: 'agentOutput', messageId: 'assistant-1', sequence: 1 },
+        })
+
+        expect(service.getContextActiveSnapshot(context)).toEqual([{
+            context,
+            rootActionId: 'build',
+            runId: 'run-1',
+            status: 'running',
+        }])
+        expect(activeChanged).toHaveBeenCalledTimes(3)
+        service.stop()
+    })
+
     it('replaces live conversation timer from authoritative agent state', () => {
         const { bridge, emit } = bridgeWithEvents()
         setActionBridgeOverride(bridge)
@@ -1138,7 +1219,11 @@ describe('ActionRunRegistry', () => {
             actionId: 'build', context, runId: 'run-1', phase: 'main', rootActionId: 'build',
             status: 'waitingForInput', type: 'agentState',
         })
-        emit({ ...event, update: { kind: 'agentPromptRemoved', promptId: first.id, revision: first.revision } })
+        emit({
+            ...event,
+            status: 'waitingForInput',
+            update: { kind: 'agentPromptDeleted', promptId: first.id, revision: first.revision },
+        })
 
         expect(getRun(service)).toMatchObject({
             queuedPrompts: [{ content: 'Edited second', id: 'prompt-2', revision: 1 }],
@@ -1188,28 +1273,28 @@ describe('ActionRunRegistry prompt drafts', () => {
 
     it.each(endings)('keeps user-edited prompt text after %s', (_name, endingEvent) => {
         const { emit } = startAgentRun()
-        const draft = actionPromptDraftService.getDraft('build', context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft('build', context, null, { prepare: false })
         draft.edit('Typed while the agent was finishing')
 
         emit(endingEvent)
 
         expect(draft.getSnapshot()).toBe('Typed while the agent was finishing')
-        expect(actionPromptDraftService.getDraft('build', context, 'run-1', { prepare: false })).toBe(draft)
+        expect(actionPromptDraftService.getDraft('build', context, null, { prepare: false })).toBe(draft)
     })
 
-    it.each(endings)('drops an untouched prepared default after %s', async (_name, endingEvent) => {
+    it.each(endings)('keeps an untouched prepared default after %s', async (_name, endingEvent) => {
         const { emit } = startAgentRun()
-        const draft = actionPromptDraftService.getDraft('build', context, 'run-1', { prepare: true })
+        const draft = actionPromptDraftService.getDraft('build', context, null, { prepare: true })
         await draft.prepare(async () => ({ prompt: 'Prepared default' }))
 
         emit(endingEvent)
 
-        expect(draft.getSnapshot()).toBe('')
+        expect(draft.getSnapshot()).toBe('Prepared default')
     })
 
     it('keeps text still buffered by the editor when a run ends', () => {
         const { emit } = startAgentRun()
-        const draft = actionPromptDraftService.getDraft('build', context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft('build', context, null, { prepare: false })
         draft.markdownDraft.addEventListener('flushRequested', () => draft.edit('Buffered keystrokes'))
 
         emit(runEvent('completed'))

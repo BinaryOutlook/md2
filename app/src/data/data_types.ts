@@ -1,4 +1,5 @@
 import type { ActionFile } from './action_types'
+import type { ActionContextKind } from './action_context'
 import type { AnySchedule } from './action_schedule_types'
 import { DEFAULT_COLOR_SCHEME } from '../theme/theme_config'
 import type { ProjectBackgroundShade } from '../theme/project_background_shade'
@@ -52,19 +53,31 @@ export interface StateConfig {
 }
 
 export interface ProjectConfig {
+    lastVersion?: string
     actionsFolder: string
     archivedFolder: string
+    autoCommitDelayMs: number
     backgroundShade: ProjectBackgroundShade
     cardSeparator: CardSeparator
     cardTypes: CardTypeConfig[]
+    deleteBranchAfterIntegration: boolean
+    deleteBranchesAfterRelease: boolean
     diffCommand: string
     diagramFooter: string
     diagramsFolder: string
+    pinnedConversations: PinnedConversationLocator[]
     projectFolder: string
     pushMode: PushMode
     releasesFolder: string
     states: StateConfig[]
     workingFolder: string
+}
+
+/** Stable identity and activity ownership needed to resolve one pinned conversation without storing a path. */
+export interface PinnedConversationLocator {
+    cardInternalId?: string
+    contextKind: ActionContextKind
+    conversationId: string
 }
 
 /** How a file's `content` is encoded for the storage write path. Binary assets use base64. */
@@ -541,14 +554,19 @@ export function resolveProjectConfigPaths(config: ProjectConfig): ProjectConfig 
 }
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
+    lastVersion: '',
     actionsFolder: DEFAULT_ACTIONS_FOLDER,
     archivedFolder: DEFAULT_ARCHIVED_FOLDER,
+    autoCommitDelayMs: AUTO_COMMIT_DELAY_MS,
     backgroundShade: 'neutral',
     cardSeparator: DEFAULT_CARD_SEPARATOR,
     cardTypes: DEFAULT_CARD_TYPES,
+    deleteBranchAfterIntegration: false,
+    deleteBranchesAfterRelease: false,
     diffCommand: DEFAULT_DIFF_COMMAND,
     diagramFooter: DEFAULT_DIAGRAM_FOOTER,
     diagramsFolder: DEFAULT_DIAGRAMS_FOLDER,
+    pinnedConversations: [],
     projectFolder: DEFAULT_PROJECT_FOLDER,
     pushMode: 'manual',
     releasesFolder: DEFAULT_RELEASES_FOLDER,

@@ -89,6 +89,7 @@ function executeCommandAction(input) {
         input.activeCardsFolder,
         '',
         input.diagramFile,
+        input.version,
     );
     const onOutput = ({ stderr, stdout }) => input.onOutput({ command, stderr, stdout });
 

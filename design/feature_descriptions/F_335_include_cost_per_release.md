@@ -8,7 +8,7 @@ owner:
 affects:
 agents:
 policy:
-after: a796a8b9-1d2c-426a-89ad-926cc55a98da
+after: 96236df6-2c3a-4846-9d52-f29b7ee9041d
 ---
 
 we show the total token count usage in the status bar. when the user clicks on this, we show a popup with the token count divided over release versions and the current.

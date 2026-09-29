@@ -2,8 +2,8 @@ import { Box, IconButton, Tooltip } from '@mui/material'
 import Fullscreen from 'mdi-material-ui/Fullscreen'
 import FullscreenExit from 'mdi-material-ui/FullscreenExit'
 import type { CardTypeConfig } from '../../data/data_types'
-import type { CardMarkdownDataSource } from '../editor/card_markdown_data_source'
-import { MarkdownFormatToolbarControls } from '../editor/markdown_format_toolbar_controls'
+import type { CardMarkdownDataSource } from '../editor/data_sources/card_markdown_data_source'
+import { MarkdownFormatToolbarControls } from '../editor/toolbar/markdown_format_toolbar_controls'
 import { CardPropertiesControl } from '../text_view/card_properties_control'
 
 interface CardPopupToolbarControlsProps {
@@ -11,6 +11,7 @@ interface CardPopupToolbarControlsProps {
     dataSource: CardMarkdownDataSource
     isFullscreen: boolean
     isMobile: boolean
+    onAttachFiles?: (files: File[]) => void
     onToggleFullscreen: () => void
     readOnly: boolean
     statusColors: Map<string, string>
@@ -18,7 +19,7 @@ interface CardPopupToolbarControlsProps {
 
 /** Formatting controls arranged for the card details popup. */
 export function CardPopupToolbarControls(props: CardPopupToolbarControlsProps) {
-    const { cardTypes, dataSource, isFullscreen, isMobile, onToggleFullscreen, readOnly, statusColors } = props
+    const { cardTypes, dataSource, isFullscreen, isMobile, onAttachFiles, onToggleFullscreen, readOnly, statusColors } = props
     const label = isFullscreen ? 'Exit fullscreen' : 'Fullscreen'
 
     return (
@@ -34,6 +35,6 @@ export function CardPopupToolbarControls(props: CardPopupToolbarControlsProps) {
                     </Tooltip>
                 ) : null}
             </>
-        )} readOnly={readOnly} />
+        )} onAttachFiles={onAttachFiles} readOnly={readOnly} />
     )
 }

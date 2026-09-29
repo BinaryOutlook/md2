@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCallback } from 'react'
+import type { ElectronDataBridge } from '../../data/electron_data_bridge'
 import { TextView } from './text_view'
 import {
     DEFAULT_CARD_TYPES, DEFAULT_STATES, defaultColumnAccent, type Card, type ProjectReference,
@@ -12,11 +13,11 @@ import { configService } from '../../services/config/config_service'
 import { dataService } from '../../services/data/data_service'
 import { AppThemeProvider } from '../../theme/theme_provider'
 import { workspaceViewService } from '../../services/project/workspace_view_service'
-import { actionMarkdownDataSource } from '../editor/action_markdown_data_source'
-import { cardMarkdownDataSource } from '../editor/card_markdown_data_source'
+import { actionMarkdownDataSource } from '../editor/data_sources/action_markdown_data_source'
+import { cardMarkdownDataSource } from '../editor/data_sources/card_markdown_data_source'
 import { FileTreeView } from './file_tree_view'
 import { agentInstructionsService } from '../../services/agent_instructions/agent_instructions_service'
-import { instructionMarkdownDataSource } from '../editor/instruction_markdown_data_source'
+import { instructionMarkdownDataSource } from '../editor/data_sources/instruction_markdown_data_source'
 
 function card(path: string, overrides: Partial<Card['header']> = {}, content = ''): Card {
     return {
@@ -148,6 +149,16 @@ function openAllTreeBranches() {
 /** Click a file leaf inside the tree region (avoids matching the same label in an open tab). */
 function clickTreeFile(label: string) {
     fireEvent.click(within(screen.getByLabelText('File tree')).getByRole('button', { name: label }))
+}
+
+/** Opens a tree row's context menu, reports whether it offers Open in file explorer, and closes it again. */
+async function rowOffersFileExplorer(rowName: string) {
+    fireEvent.contextMenu(within(screen.getByLabelText('File tree')).getByRole('button', { name: rowName }))
+    const offered = !!screen.queryByRole('menuitem', { name: 'Open in file explorer' })
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+
+    return offered
 }
 
 function loadReviewAction() {
@@ -417,6 +428,38 @@ describe('TextView', () => {
         fireEvent.contextMenu(tree.getByRole('button', { name: 'notes 1' }))
         expect(screen.queryByRole('menuitem', { name: 'Copy path' })).not.toBeInTheDocument()
         expect(screen.queryByRole('menuitem', { name: 'Copy relative path' })).not.toBeInTheDocument()
+    })
+
+    it('offers Open in file explorer for files and real folders but not status groups', async () => {
+        const regularMarkdown = card(
+            'design/notes/readme.md',
+            { id: 'F-0', internalId: null, title: 'Readme' },
+            '# Readme',
+        )
+        const showInFileExplorer = vi.fn().mockResolvedValue(undefined)
+        window.md2Data = { showInFileExplorer } as Partial<ElectronDataBridge> as ElectronDataBridge
+        try {
+            loadReviewAction()
+            renderTextView({}, activeCards, [...backgroundCards, regularMarkdown])
+
+            expect(await rowOffersFileExplorer('F-1 Alpha')).toBe(true)
+            expect(await rowOffersFileExplorer('Readme')).toBe(true)
+            expect(await rowOffersFileExplorer('Review')).toBe(true)
+            expect(await rowOffersFileExplorer('notes 1')).toBe(true)
+            expect(await rowOffersFileExplorer('history 1')).toBe(true)
+            expect(await rowOffersFileExplorer('todo 1')).toBe(false)
+
+            fireEvent.contextMenu(screen.getByRole('button', { name: 'F-1 Alpha' }))
+            fireEvent.click(screen.getByRole('menuitem', { name: 'Open in file explorer' }))
+            fireEvent.contextMenu(screen.getByRole('button', { name: 'notes 1' }))
+            fireEvent.click(screen.getByRole('menuitem', { name: 'Open in file explorer' }))
+
+            await waitFor(() => expect(showInFileExplorer).toHaveBeenCalledTimes(2))
+            expect(showInFileExplorer).toHaveBeenNthCalledWith(1, { path: 'design/active/F-1-a.md' })
+            expect(showInFileExplorer).toHaveBeenNthCalledWith(2, { path: 'design/notes' })
+        } finally {
+            delete window.md2Data
+        }
     })
 
     it('opens a file in a tab when its tree node is clicked', () => {

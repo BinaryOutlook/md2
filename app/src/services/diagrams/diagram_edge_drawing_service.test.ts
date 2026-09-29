@@ -90,6 +90,18 @@ function entityDiagram(): DiagramData {
     }
 }
 
+function mindmapDiagram(): DiagramData {
+    return {
+        edges: [],
+        groups: [],
+        meta: { description: 'Ideas', title: 'Ideas', type: 'mindmap', version: 1 },
+        nodes: [
+            { height: 128, id: 'source', kind: 'root', label: 'Source', role: 'focal', width: 128, x: 0, y: 0 },
+            { height: 96, id: 'target', kind: 'topic', label: 'Target', role: 'backend', width: 96, x: 280, y: 20 },
+        ],
+    }
+}
+
 class DiagramSourceStub extends EventTarget {
     private readonly source: DiagramViewSourceSnapshot
 
@@ -107,8 +119,8 @@ class DiagramSourceStub extends EventTarget {
     }
 }
 
-function createHarness(source: DiagramData = architectureDiagram()) {
-    const session = new DiagramEditSessionService(new DiagramSourceStub({ diagram: source, record }), () => 'drawn-edge')
+function createHarness(source: DiagramData = architectureDiagram(), createId: () => string = () => 'drawn-edge') {
+    const session = new DiagramEditSessionService(new DiagramSourceStub({ diagram: source, record }), createId)
     session.bindProject(project)
     session.start()
     const geometry = new DiagramGeometryService(session)
@@ -119,6 +131,18 @@ function createHarness(source: DiagramData = architectureDiagram()) {
 }
 
 describe('diagram edge drawing geometry', () => {
+    it('previews a mindmap curve and stores no route or connection points', () => {
+        const { drawing, session } = createHarness(mindmapDiagram())
+
+        expect(drawing.activate({ kind: 'connection' })).toBe(true)
+        expect(drawing.beginSource('source', { x: 128, y: 64 })).toBe(true)
+        expect(drawing.updatePreview({ x: 280, y: 68 }, 'target')).toBe(true)
+        expect(drawing.getPreviewSnapshot()).toMatchObject({ curved: true, targetAttachment: { nodeId: 'target' } })
+        expect(drawing.getPreviewSnapshot()?.controlPoint).toBeDefined()
+        expect(drawing.completeTarget('target', { x: 280, y: 68 })).toBe('drawn-edge')
+        expect(session.getEdgeSnapshot('drawn-edge')).toEqual({from: 'source', id: 'drawn-edge', kind: 'connection', to: 'target'})
+    })
+
     it('resolves the nearest node boundary and relative offset', () => {
         const node = { height: 80, id: 'source', width: 120, x: 20, y: 40 }
 
@@ -140,6 +164,46 @@ describe('diagram edge drawing geometry', () => {
 })
 
 describe('DiagramEdgeDrawingService', () => {
+    it('uses compatible selected connection kind for preview and created edge', () => {
+        const source = architectureDiagram()
+        source.meta.legend = [{ kind: 'data', label: 'Data' }]
+        const { drawing, session } = createHarness(source)
+        drawing.activate({ kind: 'connection' })
+        expect(session.selectLegendEntry('connection:data')).toBe(true)
+
+        drawing.beginSource('source', { x: 120, y: 40 })
+        expect(drawing.getPreviewSnapshot()?.kind).toBe('data')
+        drawing.completeTarget('target', { x: 240, y: 40 })
+
+        expect(session.getEdgeSnapshot('drawn-edge')?.kind).toBe('data')
+        expect(session.getActiveToolSnapshot()).toBe('edge:connection')
+    })
+
+    it('keeps edge default when selected legend entry is a node role', () => {
+        const { drawing, session } = createHarness()
+        drawing.activate({ kind: 'data' })
+        expect(session.selectLegendEntry('node:store')).toBe(true)
+
+        drawing.beginSource('source', { x: 120, y: 40 })
+        expect(drawing.getPreviewSnapshot()?.kind).toBe('data')
+        drawing.completeTarget('target', { x: 240, y: 40 })
+        expect(session.getEdgeSnapshot('drawn-edge')?.kind).toBe('data')
+    })
+
+    it('draws two connections without reselecting the edge tool', () => {
+        const createId = vi.fn().mockReturnValueOnce('first-edge').mockReturnValueOnce('second-edge')
+        const { drawing, session } = createHarness(architectureDiagram(), createId)
+        drawing.activate({ kind: 'connection' })
+
+        drawing.beginSource('source', { x: 120, y: 40 })
+        expect(drawing.completeTarget('target', { x: 240, y: 40 })).toBe('first-edge')
+        drawing.beginSource('source', { x: 120, y: 40 })
+        expect(drawing.completeTarget('target', { x: 240, y: 40 })).toBe('second-edge')
+
+        expect(session.getActiveToolSnapshot()).toBe('edge:connection')
+        expect(drawing.getPreviewSnapshot()).toBeNull()
+    })
+
     it('creates an entity relationship between persisted connection points', () => {
         const { drawing, geometry, selection, session } = createHarness(entityDiagram())
 
@@ -241,7 +305,7 @@ describe('DiagramEdgeDrawingService', () => {
         expect(edgeMembershipChanged).toHaveBeenCalledTimes(1)
         expect(targetFanInChanged).toHaveBeenCalledTimes(1)
         expect(selection.getSelectionSnapshot()).toEqual([{ objectId: 'drawn-edge', objectKind: 'edge' }])
-        expect(session.getActiveToolSnapshot()).toBe('select')
+        expect(session.getActiveToolSnapshot()).toBe('edge:data')
         expect(session.getTransientGestureSnapshot()).toBeNull()
         expect(drawing.getPreviewSnapshot()).toBeNull()
     })
@@ -359,7 +423,7 @@ describe('DiagramEdgeDrawingService', () => {
 
         expect(drawing.cancelDrawing()).toBe(true)
         expect(drawing.getPreviewSnapshot()).toBeNull()
-        expect(session.getActiveToolSnapshot()).toBe('select')
+        expect(session.getActiveToolSnapshot()).toBe('edge:connection')
 
         drawing.activate({ kind: 'connection' })
         drawing.beginSource('source', { x: 120, y: 40 })

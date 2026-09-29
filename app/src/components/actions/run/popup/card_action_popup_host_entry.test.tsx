@@ -17,6 +17,7 @@ describe('CardActionPopupHostEntry', () => {
             id: 'popup-1',
             kind: 'action',
             requestedActionId: 'review',
+            requestedConversationPath: 'design/activity/card__card-1.json#conversation=conversation-1',
             requestedRunId: 'run-7',
         }
 
@@ -24,8 +25,10 @@ describe('CardActionPopupHostEntry', () => {
 
         expect(actionPopup.mock.calls[0][0]).toMatchObject({
             initialActionId: 'review',
+            initialConversationPath: 'design/activity/card__card-1.json#conversation=conversation-1',
             initialRunId: 'run-7',
             popupEntryId: 'popup-1',
+            popupVisible: true,
             stackPosition: 2,
         })
     })

@@ -4,6 +4,7 @@ import type { RemoteControlConnectionSettings } from '../../data/remote_control_
 import { deriveAutoConnectSettings } from '../../data/remote_connect_string'
 import { remoteConnectionService } from '../../services/data/remote_connection_service'
 import type { RemoteControlStorageService } from '../../services/data/remote_control_storage_service'
+import { dialogService } from '../../services/dialog_service'
 import { projectSessionService } from '../../services/project/project_session_service'
 import { requestOpenProjectDialog } from '../project_command_events'
 import { RemoteConnectDialog } from './remote_connect_dialog'
@@ -11,16 +12,16 @@ import { RemoteConnectDialog } from './remote_connect_dialog'
 async function openRemoteProject(storage: RemoteControlStorageService) {
     const activeProject = await storage.getActiveProject().catch(() => null)
     if (!activeProject) {
-        requestOpenProjectDialog('remote')
+        dialogService.info('The remote md2 server has no open project. Open a project in the md2 desktop app first.')
 
         return
     }
 
     try {
         const resolution = await projectSessionService.openProject('remote', activeProject, null, storage)
-        if (resolution) requestOpenProjectDialog('remote', activeProject, resolution)
+        if (resolution) requestOpenProjectDialog(undefined, resolution)
     } catch {
-        requestOpenProjectDialog('remote', activeProject)
+        // ProjectSessionService emits the user-visible error.
     }
 }
 

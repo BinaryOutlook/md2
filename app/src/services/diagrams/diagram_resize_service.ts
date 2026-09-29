@@ -227,8 +227,7 @@ export class DiagramResizeService {
         if (object.objectKind === 'node') {
             if (changesX) this.session.setNodeField(object.objectId, 'x', box.x)
             if (changesY) this.session.setNodeField(object.objectId, 'y', box.y)
-            this.session.setNodeField(object.objectId, 'width', box.width)
-            this.session.setNodeField(object.objectId, 'height', box.height)
+            this.session.setNodeSize(object.objectId, box.width, box.height)
 
             return
         }
@@ -284,8 +283,7 @@ export class DiagramResizeService {
 
     private applySize(object: ResizingDiagramObject, width: number | undefined, height: number | undefined) {
         if (object.objectKind === 'node') {
-            this.session.setNodeField(object.objectId, 'width', width)
-            this.session.setNodeField(object.objectId, 'height', height)
+            this.session.setNodeSize(object.objectId, width, height)
 
             return
         }

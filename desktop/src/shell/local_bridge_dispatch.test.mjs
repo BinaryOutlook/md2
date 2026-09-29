@@ -7,6 +7,7 @@ const { createLocalBridgeDispatch } = require('./local_bridge_dispatch');
 function createDispatch(options = {}) {
     const agentExecutableAvailability = vi.fn(async () => ({ codex: { available: true, error: null } }));
     const actionRunnerService = {
+        answerInput: vi.fn(),
         answerAgentApproval: vi.fn(),
         answerAgentQuestion: vi.fn(),
         cancel: vi.fn(),
@@ -89,6 +90,7 @@ function createDispatch(options = {}) {
         loadProject: vi.fn(async () => ({ files: [], workingFolder: 'design' })),
         loadProjectRoot: vi.fn(async () => ({ files: [], workingFolder: 'design' })),
         loadTextFile: vi.fn(async (_project, path) => ({ content: '{"version":2}', path })),
+        resolveExistingProjectEntry: vi.fn(async (_project, entryPath) => `C:/repo/${entryPath}`),
         resolveLocalProject: vi.fn(async () => ({ branch: 'topic', id: 'C:/repo', rootPath: 'C:/repo' })),
         readFileAtCommit: vi.fn(async () => ({ content: '# Card', exists: true })),
         resolveCommitMetadata: vi.fn(async (_rootPath, commit) => ({
@@ -182,6 +184,7 @@ function createDispatch(options = {}) {
         projectStatsWorkerService,
         readDesktopConfig: () => desktopConfig,
         saveDesktopConfig,
+        showItemInFolder: options.showItemInFolder,
         updateCodexCli,
         worktreeService,
     });
@@ -769,6 +772,7 @@ describe('createLocalBridgeDispatch', () => {
         const { actionRunnerService, dispatch } = createDispatch();
 
         await dispatch.actionBridge.cancelActionRun('action-1');
+        await dispatch.actionBridge.answerActionInput('action-1', { type: 'version', value: 'candidate 2' });
         await dispatch.actionBridge.sendActionMessage('action-1', 'approved');
         await dispatch.actionBridge.enqueueActionPrompt('action-1', 'next');
         await dispatch.actionBridge.editActionQueuedPrompt('action-1', 'prompt-1', 0, 'edited');
@@ -779,6 +783,7 @@ describe('createLocalBridgeDispatch', () => {
         await dispatch.actionBridge.finishActionRun('action-1');
 
         expect(actionRunnerService.cancel).toHaveBeenCalledWith('action-1');
+        expect(actionRunnerService.answerInput).toHaveBeenCalledWith('action-1', { type: 'version', value: 'candidate 2' });
         expect(actionRunnerService.sendAgentMessage).toHaveBeenCalledWith('action-1', 'approved');
         expect(actionRunnerService.enqueueAgentPrompt).toHaveBeenCalledWith('action-1', 'next');
         expect(actionRunnerService.editQueuedAgentPrompt).toHaveBeenCalledWith('action-1', 'prompt-1', 0, 'edited');
@@ -984,6 +989,28 @@ describe('createLocalBridgeDispatch', () => {
         await dispatch.dataBridge.loadTextFile(project, 'design/activity/card__card-1.json');
 
         expect(localGitService.loadTextFile).toHaveBeenCalledWith(project, 'design/activity/card__card-1.json');
+    });
+
+    it('reveals a resolved project entry in the file explorer', async () => {
+        const showItemInFolder = vi.fn();
+        const { dispatch, localGitService } = createDispatch({ showItemInFolder });
+        const project = { branch: 'main', id: 'local', rootPath: 'C:/repo' };
+        await dispatch.dataBridge.loadProject(project, 'design');
+
+        await dispatch.dataBridge.showInFileExplorer({ path: 'design/F-1.md' });
+
+        expect(localGitService.resolveExistingProjectEntry).toHaveBeenCalledWith(project, 'design/F-1.md');
+        expect(showItemInFolder).toHaveBeenCalledWith('C:/repo/design/F-1.md');
+    });
+
+    it('does not reveal an entry that fails to resolve', async () => {
+        const showItemInFolder = vi.fn();
+        const { dispatch, localGitService } = createDispatch({ showItemInFolder });
+        localGitService.resolveExistingProjectEntry.mockRejectedValueOnce(new Error('Project entry does not exist: design/gone.md'));
+
+        await expect(dispatch.dataBridge.showInFileExplorer({ path: 'design/gone.md' }))
+            .rejects.toThrow('Project entry does not exist: design/gone.md');
+        expect(showItemInFolder).not.toHaveBeenCalled();
     });
 
     it('runs and cancels stats calculations through worker service for active project', async () => {

@@ -55,7 +55,9 @@ export function WorktreeSelector(props: WorktreeSelectorProps) {
     const [commitDialogOpen, setCommitDialogOpen] = useState(false)
     const [integrationDialogOpen, setIntegrationDialogOpen] = useState(false)
     const [unassignDialogOpen, setUnassignDialogOpen] = useState(false)
-    const deleteBranchPreference = useConfigValueOrFallback('react.deleteBranchAfterIntegration', false)
+    const deleteBranchPreference = useConfigValueOrFallback('project.deleteBranchAfterIntegration', false)
+    // The remembered preference is saved through the project config file, so the dialog tracks the pending choice itself.
+    const [deleteBranch, setDeleteBranch] = useState(deleteBranchPreference)
     const cardPath = assignmentTarget.kind === 'card' ? assignmentTarget.path : null
     const assignedWorktree = assignment.worktree ?? null
     const {
@@ -173,6 +175,7 @@ export function WorktreeSelector(props: WorktreeSelectorProps) {
         try {
             if (assignmentTarget.kind === 'card') {
                 if (assignedRecord?.status.dirty) setCommitMessage(getCommitMessage())
+                setDeleteBranch(deleteBranchPreference)
                 setIntegrationDialogOpen(true)
                 return
             }
@@ -282,8 +285,9 @@ export function WorktreeSelector(props: WorktreeSelectorProps) {
         }
     }
     const handleIntegrationClose = () => setIntegrationDialogOpen(false)
-    const handleDeleteBranchChange = (deleteBranch: boolean) => {
-        configService.setReactPreference('react.deleteBranchAfterIntegration', deleteBranch)
+    const handleDeleteBranchChange = (nextDeleteBranch: boolean) => {
+        setDeleteBranch(nextDeleteBranch)
+        void configService.setProjectPreference('project.deleteBranchAfterIntegration', nextDeleteBranch)
     }
     const handleIntegration = async () => {
         if (assignmentTarget.kind !== 'card') return
@@ -301,7 +305,7 @@ export function WorktreeSelector(props: WorktreeSelectorProps) {
         }
 
         try {
-            await worktreeService.integrateCardWorktree(assignmentTarget.path, deleteBranchPreference)
+            await worktreeService.integrateCardWorktree(assignmentTarget.path, deleteBranch)
             setIntegrationDialogOpen(false)
         } catch (error) {
             const fallbackMessage = commitBeforeIntegration
@@ -369,63 +373,71 @@ export function WorktreeSelector(props: WorktreeSelectorProps) {
     return (
         <>
             <Tooltip title={tooltip}>{selectorDisabled ? <span>{button}</span> : button}</Tooltip>
-            <Menu anchorEl={anchorElement} onClose={handleClose} open={!!anchorElement}>
-                <MenuItem onClick={handlePrimary} selected={assignment.worktree === null && !assignment.worktreeError}>
+            {anchorElement ? (
+                <Menu anchorEl={anchorElement} onClose={handleClose} open>
+                    <MenuItem onClick={handlePrimary} selected={assignment.worktree === null && !assignment.worktreeError}>
                     Primary{primaryPath ? ` — ${primaryPath}` : ''}
-                </MenuItem>
-                {(hasActiveCardWorktree || hasActiveProjectWorktree) ? (
-                    <>
-                        <MenuItem disabled={!canCommit} onClick={handleCommitMenu}>Commit</MenuItem>
-                        <MenuItem disabled={!hasIncomingChanges} onClick={handleUpdateMenu}>Update worktree</MenuItem>
-                        {assignmentTarget.kind === 'card' ? (
-                            <MenuItem disabled={!canIntegrate} onClick={handleViewDiffMenu}>View diff</MenuItem>
-                        ) : null}
-                        <MenuItem disabled={assignmentTarget.kind === 'card' ? !canIntegrate : !hasOutgoingChanges} onClick={handleIntegrateMenu}>
-                            Integrate into project
-                        </MenuItem>
-                    </>
-                ) : worktrees.map((record, index) => (record.valid ? (
-                    <MenuItem
-                        data-worktree={index + 1}
-                        disabled={assignmentTarget.kind === 'card'
-                            && !worktreeService.isWorktreeAvailableForCard(index + 1, assignmentTarget.path)}
-                        key={`${index}-${record.path}`}
-                        onClick={handleWorktree}
-                        selected={assignment.worktree === index + 1}
-                    >
-                        {index + 1} — {record.path}
                     </MenuItem>
-                ) : null))}
-                {state.error ? <MenuItem disabled selected>{state.value} — {state.error}</MenuItem> : null}
-            </Menu>
-            <WorktreeCommitDialog
-                action={commitAction}
-                busy={preparing}
-                message={commitMessage}
-                onClose={handleCommitDialogClose}
-                onCommit={handleCommit}
-                onMessageChange={setCommitMessage}
-                open={commitDialogOpen}
-            />
-            <WorktreeIntegrationDialog
-                busy={preparing}
-                commitMessage={assignedRecord?.status.dirty ? commitMessage : null}
-                deleteBranch={deleteBranchPreference}
-                onClose={handleIntegrationClose}
-                onCommitMessageChange={setCommitMessage}
-                onDeleteBranchChange={handleDeleteBranchChange}
-                onIntegrate={handleIntegration}
-                open={integrationDialogOpen}
-            />
-            <WorktreeUnassignDialog
-                busy={preparing}
-                commitMessage={commitMessage}
-                onClose={handleUnassignClose}
-                onCommitMessageChange={setCommitMessage}
-                onCommitIntegrate={handleCommitIntegrateAndUnassign}
-                onDrop={handleDropAndUnassign}
-                open={unassignDialogOpen}
-            />
+                    {(hasActiveCardWorktree || hasActiveProjectWorktree) ? (
+                        <>
+                            <MenuItem disabled={!canCommit} onClick={handleCommitMenu}>Commit</MenuItem>
+                            <MenuItem disabled={!hasIncomingChanges} onClick={handleUpdateMenu}>Update worktree</MenuItem>
+                            {assignmentTarget.kind === 'card' ? (
+                                <MenuItem disabled={!canIntegrate} onClick={handleViewDiffMenu}>View diff</MenuItem>
+                            ) : null}
+                            <MenuItem disabled={assignmentTarget.kind === 'card' ? !canIntegrate : !hasOutgoingChanges} onClick={handleIntegrateMenu}>
+                            Integrate into project
+                            </MenuItem>
+                        </>
+                    ) : worktrees.map((record, index) => (record.valid ? (
+                        <MenuItem
+                            data-worktree={index + 1}
+                            disabled={assignmentTarget.kind === 'card'
+                            && !worktreeService.isWorktreeAvailableForCard(index + 1, assignmentTarget.path)}
+                            key={`${index}-${record.path}`}
+                            onClick={handleWorktree}
+                            selected={assignment.worktree === index + 1}
+                        >
+                            {index + 1} — {record.path}
+                        </MenuItem>
+                    ) : null))}
+                    {state.error ? <MenuItem disabled selected>{state.value} — {state.error}</MenuItem> : null}
+                </Menu>
+            ) : null}
+            {commitDialogOpen ? (
+                <WorktreeCommitDialog
+                    action={commitAction}
+                    busy={preparing}
+                    message={commitMessage}
+                    onClose={handleCommitDialogClose}
+                    onCommit={handleCommit}
+                    onMessageChange={setCommitMessage}
+                    open
+                />
+            ) : null}
+            {integrationDialogOpen ? (
+                <WorktreeIntegrationDialog
+                    busy={preparing}
+                    commitMessage={assignedRecord?.status.dirty ? commitMessage : null}
+                    deleteBranch={deleteBranch}
+                    onClose={handleIntegrationClose}
+                    onCommitMessageChange={setCommitMessage}
+                    onDeleteBranchChange={handleDeleteBranchChange}
+                    onIntegrate={handleIntegration}
+                    open
+                />
+            ) : null}
+            {unassignDialogOpen ? (
+                <WorktreeUnassignDialog
+                    busy={preparing}
+                    commitMessage={commitMessage}
+                    onClose={handleUnassignClose}
+                    onCommitMessageChange={setCommitMessage}
+                    onCommitIntegrate={handleCommitIntegrateAndUnassign}
+                    onDrop={handleDropAndUnassign}
+                    open
+                />
+            ) : null}
         </>
     )
 }

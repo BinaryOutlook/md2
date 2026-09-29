@@ -2,8 +2,8 @@ import type { ActionContext } from '../../../../data/action_context'
 import type { ActionDefinition } from '../../../../data/action_types'
 import { actionRunRegistry } from '../../../../services/actions/action_run_registry'
 import { worktreeService } from '../../../../services/project/worktree_service'
-import { ActionConversationStore } from '../../conversation/action_conversation_store'
-import { ActionConversationSearchService } from '../../conversation/action_conversation_search_service'
+import { ActionConversationStore } from '../../conversation/state/action_conversation_store'
+import { ActionConversationSearchService } from '../../conversation/search/action_conversation_search_service'
 import { ActionScheduleStore } from '../schedule/action_schedule_store'
 import { ActionHistoryStore } from '../state/action_history_store'
 import { ActionRunBindingStore } from '../state/action_run_binding_store'
@@ -20,13 +20,18 @@ export function createActionPopupBindings(
     action: ActionDefinition,
     context: ActionContext,
     requestedRunId?: string,
+    requestedConversationPath?: string,
 ): ActionPopupBindings {
-    const initialRunId = requestedRunId
-        ?? actionRunRegistry.getActionRunStore(action.id, context)?.getSnapshot().runId
-        ?? null
+    const initialRunId = requestedConversationPath
+        ? null
+        : requestedRunId
+            ?? actionRunRegistry.getActionRunStore(action.id, context)?.getSnapshot().runId
+            ?? null
     const bindingStore = new ActionRunBindingStore(initialRunId)
+    if (requestedConversationPath) bindingStore.setRunId(null)
     bindingStore.trackInitialRun(action.id, context)
     const conversationStore = new ActionConversationStore(action.id, context, bindingStore)
+    if (requestedConversationPath) conversationStore.configureInitialSelection(requestedConversationPath)
     const historyStore = new ActionHistoryStore(action, context)
     const usageScopeStore = new ActionUsageScopeStore()
     const usageValuesService = new ActionUsageValuesService({

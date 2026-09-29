@@ -8,10 +8,10 @@ import { cardPopupService } from '../../../services/card_popup_service'
 import { agentAcknowledgementService } from '../../../services/agents/agent_acknowledgement_service'
 import { AppThemeProvider } from '../../../theme/theme_provider'
 import { ActionConversationChat } from './action_conversation_chat'
-import type { ActionConversationStore } from './action_conversation_store'
+import type { ActionConversationStore } from './state/action_conversation_store'
 import { ActionRunBindingStore } from '../run/state/action_run_binding_store'
 import type { ActionUsageValuesService } from '../run/popup/action_usage_values_service'
-import { ActionConversationSearchService } from './action_conversation_search_service'
+import { ActionConversationSearchService } from './search/action_conversation_search_service'
 
 const context = { cardInternalId: 'card-1', file: 'design/F-138.md', kind: 'card' as const }
 const snapshot = { conversations: [], loading: false, selectedConversation: null }
@@ -29,6 +29,7 @@ const usageValuesSnapshot = {
         tokens: { cachedInputTokens: 0, inputTokens: 10, outputTokens: 0, reasoningTokens: 0, totalTokens: 10 },
     },
     activeScope: 'actionCard',
+    actionScopeLabel: 'Action/card',
     conversation: null,
     conversationAvailable: false,
 } as const
@@ -276,6 +277,41 @@ describe('ActionConversationChat integration', () => {
         expect(await screen.findByText('Context usage: 50%', { selector: '.MuiTooltip-tooltip' })).toBeInTheDocument()
     })
 
+    it('shows project token totals without context capacity and shows percentage when capacity arrives', () => {
+        const projectContext = { kind: 'project' as const }
+        const firstConversation = {
+            ...conversation('project-1', '2026-08-04T10:01:00.000Z', undefined),
+            cardInternalId: null, cardPath: null,
+        }
+        const { selectConversation, store: selectableStore } = createConversationStore(firstConversation)
+        const projectUsageValuesSnapshot = { ...usageValuesSnapshot, actionScopeLabel: 'Action/project' as const }
+        const projectUsageValuesService = {
+            getSnapshot: () => projectUsageValuesSnapshot,
+            subscribe: () => () => undefined,
+            toggleScope: vi.fn(),
+        } as unknown as ActionUsageValuesService
+
+        render(
+            <AppThemeProvider>
+                <ActionConversationChat
+                    actionId="review"
+                    bindingStore={bindingStore}
+                    context={projectContext}
+                    searchService={conversationSearchService}
+                    store={selectableStore}
+                    usageValuesService={projectUsageValuesService}
+                />
+            </AppThemeProvider>,
+        )
+
+        expect(screen.getByRole('button', { name: 'Tokens, Action/project scope' })).toHaveTextContent('tokens: 10')
+        expect(screen.queryByRole('progressbar', { name: 'Context usage' })).not.toBeInTheDocument()
+
+        act(() => selectConversation({ ...firstConversation, contextWindowUsage: { capacityTokens: 200, usedTokens: 100 } }))
+
+        expect(screen.getByRole('progressbar', { name: 'Context usage' })).toHaveAttribute('aria-valuenow', '50')
+    })
+
     it('keeps usage summary visible before a conversation exists', () => {
         render(
             <AppThemeProvider>
@@ -344,6 +380,7 @@ describe('ActionConversationChat integration', () => {
                     bindingStore={bindingStore}
                     context={context}
                     popupEntryId={popupEntry.id}
+                    popupVisible
                     searchService={conversationSearchService}
                     store={selectableStore}
                 />
@@ -401,13 +438,14 @@ describe('ActionConversationChat integration', () => {
         const coveringEntry = cardPopupService.getSnapshot().at(-1)
         if (!firstEntry || !coveringEntry) throw new Error('Missing popup entries')
 
-        render(
+        const rendered = render(
             <AppThemeProvider>
                 <ActionConversationChat
                     actionId="review"
                     bindingStore={bindingStore}
                     context={context}
                     popupEntryId={firstEntry.id}
+                    popupVisible={false}
                     searchService={conversationSearchService}
                     store={selectedStore}
                 />
@@ -419,6 +457,19 @@ describe('ActionConversationChat integration', () => {
             if (scenario === 'activated') cardPopupService.activate(firstEntry.id)
             else cardPopupService.close(coveringEntry.id)
         })
+        rendered.rerender(
+            <AppThemeProvider>
+                <ActionConversationChat
+                    actionId="review"
+                    bindingStore={bindingStore}
+                    context={context}
+                    popupEntryId={firstEntry.id}
+                    popupVisible
+                    searchService={conversationSearchService}
+                    store={selectedStore}
+                />
+            </AppThemeProvider>,
+        )
 
         await waitFor(() => expect(updateActionConversationViewed).toHaveBeenCalledWith(unseen.path, true))
     })

@@ -49,6 +49,19 @@ function hasStreamingAction(action, visited = new Set()) {
         .some((linkedAction) => hasStreamingAction(linkedAction, visited));
 }
 
+function userInputRequest(action, visited = new Set()) {
+    if (visited.has(action.id)) return null;
+    visited.add(action.id);
+    if (action.userInput) return action.userInput;
+
+    for (const linkedAction of [...action.onBefore, ...action.on.map(({ action: match }) => match), ...action.onAfter]) {
+        const request = userInputRequest(linkedAction, visited);
+        if (request) return request;
+    }
+
+    return null;
+}
+
 class ActionRunnerService {
     constructor(dependencies) {
         this.actionWorktreeRunService = dependencies?.actionWorktreeRunService;
@@ -162,6 +175,10 @@ class ActionRunnerService {
         const project = { ...this.project };
         const actionsFolder = this.actionsFolder;
         const rootAction = await this.loadRootAction(startRequest.actionId);
+        const requestedInput = userInputRequest(rootAction);
+        if (options.interactive === false && requestedInput && startRequest.runInput[requestedInput.type] === undefined) {
+            throw new Error(`Unattended action requires a supplied ${requestedInput.type}: ${rootAction.label}`);
+        }
         const diagramPath = this.resolveStartDiagramPath(startRequest, rootAction);
         if (options.interactive === false && hasStreamingAction(rootAction)) {
             throw new Error(`Streaming action requires an interactive manual run: ${rootAction.label}`);
@@ -185,6 +202,7 @@ class ActionRunnerService {
             releasesFolder: this.releasesFolder,
             rootAction,
             runInput: startRequest.runInput,
+            requestedInput,
             startedAt: new Date().toISOString(),
         }, {
             actionWorktreeRunService: this.actionWorktreeRunService,
@@ -199,6 +217,7 @@ class ActionRunnerService {
         this.runEvents.set(runId, []);
         this.runs.set(runId, run);
         run.start(this.finalizeRun.bind(this, run));
+        if (rootAction.type === 'agent') await run.waitForInitialConversationSave();
 
         return runId;
     }
@@ -211,7 +230,7 @@ class ActionRunnerService {
         const action = await this.loadRootAction(startRequest.actionId);
         if (action.type !== 'agent') throw new Error('Cannot reserve a conversation for a command action');
         const origin = activityOrigin(startRequest.context);
-        const conversationId = `agent-${crypto.randomUUID()}`;
+        const conversationId = startRequest.runInput.conversationId ?? `agent-${crypto.randomUUID()}`;
         const reference = this.localGitService.activityConversationReference(this.projectFolder, origin, conversationId);
         const { activityPath } = parseConversationActivityReference(reference);
         const reservation = { activityPath, conversationId, reference };
@@ -261,6 +280,7 @@ class ActionRunnerService {
             '',
             this.diagramFooter,
             diagramFile,
+            '{{version}}',
         );
 
         return {
@@ -322,12 +342,16 @@ class ActionRunnerService {
         this.requireRun(runId).cancel();
     }
 
+    answerInput(runId, response) {
+        return this.requireRun(runId).answerInput(response);
+    }
+
     sendAgentMessage(runId, content) {
         return this.requireRun(runId).sendAgentMessage(content);
     }
 
-    enqueueAgentPrompt(runId, content) {
-        return this.requireRun(runId).enqueueAgentPrompt(content);
+    enqueueAgentPrompt(runId, content, submissionId) {
+        return this.requireRun(runId).enqueueAgentPrompt(content, submissionId);
     }
 
     editQueuedAgentPrompt(runId, promptId, revision, content) {

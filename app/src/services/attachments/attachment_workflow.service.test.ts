@@ -1,13 +1,38 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { dataService } from '../data/data_service'
+import type { Card } from '../../data/data_types'
 import { attachmentChoiceService } from './attachment_choice_service'
 import {
     absoluteFileUrl,
-    attachFilesToCard,
+    attachFilesToBoardCardMarkdown,
     attachFilesToCardMarkdown,
     attachFilesToOriginalMarkdown,
 } from './attachment_workflow'
 import { MarkdownDraft } from '../markdown/markdown_draft'
+
+function boardCard(): Card {
+    return {
+        agentConversationErrors: [], agentConversations: [], content: '# Card\n\nCurrent body',
+        hasFrontmatter: true, isActive: true, path: 'design/F-1.md',
+        header: {
+            affects: [], after: null, agentLogReferences: [], changedFiles: [], author: null,
+            id: 'F-1', internalId: 'card-1', owner: null, policy: {}, references: ['design/old.pdf'],
+            status: 'ready', title: 'Card', worktree: null, worktreeError: null, worktreeValue: null,
+        },
+    }
+}
+
+function mockBoardCard(card: Card) {
+    vi.spyOn(dataService, 'getState').mockReturnValue({
+        project: { branch: 'main', id: 'project' }, runningAgents: [],
+        snapshot: { activeCards: [card], backgroundCards: [], repositoryFiles: [], workingFolder: 'design' },
+    })
+    vi.spyOn(dataService.cards, 'updateCardBody').mockImplementation((_path, body) => {
+        card.content = body
+        return card
+    })
+    vi.spyOn(dataService.cards, 'flushPendingCommits').mockResolvedValue()
+}
 
 afterEach(() => {
     attachmentChoiceService.cancel()
@@ -89,15 +114,79 @@ describe('attachment workflow', () => {
         expect(deleteAttachments).toHaveBeenCalledWith(['design/report.pdf'])
     })
 
-    it('cancel leaves card references and repository unchanged', async () => {
+    it('appends copied image and file links to latest body without changing header references', async () => {
+        const card = boardCard()
+        mockBoardCard(card)
+        const files = [new File(['image'], 'image.png', { type: 'image/png' }), new File(['notes'], 'notes.pdf', { type: 'application/pdf' })]
+        vi.spyOn(dataService.cards, 'copyAttachmentsForCard').mockResolvedValue([
+            { fileName: 'image-1.png', path: 'design/image-1.png' },
+            { fileName: 'notes.pdf', path: 'design/notes.pdf' },
+        ])
+        const addReferences = vi.spyOn(dataService.cards, 'addCardReferences')
+        const operation = attachFilesToBoardCardMarkdown('card-1', files)
+        attachmentChoiceService.select('copy')
+
+        await expect(operation).resolves.toBe(true)
+        expect(card.content).toBe('# Card\n\nCurrent body\n![image.png](<image-1.png>)\n[notes.pdf](<notes.pdf>)\n')
+        expect(card.header.references).toEqual(['design/old.pdf'])
+        expect(addReferences).not.toHaveBeenCalled()
+    })
+
+    it('appends original links to latest body without copying files', async () => {
+        const card = boardCard()
+        mockBoardCard(card)
+        window.md2Files = { getPathForFile: () => 'C:\\source\\notes.pdf' }
+        const copyAttachments = vi.spyOn(dataService.cards, 'copyAttachmentsForCard')
+        const operation = attachFilesToBoardCardMarkdown('card-1', [new File(['notes'], 'notes.pdf')])
+        attachmentChoiceService.select('original')
+
+        await expect(operation).resolves.toBe(true)
+        expect(card.content).toContain('[notes.pdf](<file:///C:/source/notes.pdf>)')
+        expect(copyAttachments).not.toHaveBeenCalled()
+    })
+
+    it('uses body edits made while attachment choice is open', async () => {
+        const card = boardCard()
+        mockBoardCard(card)
+        window.md2Files = { getPathForFile: () => 'C:\\source\\notes.pdf' }
+        const operation = attachFilesToBoardCardMarkdown('card-1', [new File(['notes'], 'notes.pdf')])
+        card.content = '# Card\n\nNewer body'
+        attachmentChoiceService.select('original')
+
+        await expect(operation).resolves.toBe(true)
+        expect(card.content).toBe('# Card\n\nNewer body\n[notes.pdf](<file:///C:/source/notes.pdf>)\n')
+    })
+
+    it('cancel leaves card body, references, and repository unchanged', async () => {
+        const card = boardCard()
+        mockBoardCard(card)
         const addReferences = vi.spyOn(dataService.cards, 'addCardReferences')
         const copyAttachments = vi.spyOn(dataService.cards, 'copyAttachmentsForCard')
-        const operation = attachFilesToCard('design/F-1.md', [new File(['one'], 'one.pdf')])
+        const updateCardBody = vi.mocked(dataService.cards.updateCardBody)
+        const operation = attachFilesToBoardCardMarkdown('card-1', [new File(['one'], 'one.pdf')])
 
         attachmentChoiceService.cancel()
 
-        await expect(operation).resolves.toEqual([])
+        await expect(operation).resolves.toBe(false)
         expect(addReferences).not.toHaveBeenCalled()
         expect(copyAttachments).not.toHaveBeenCalled()
+        expect(updateCardBody).not.toHaveBeenCalled()
+        expect(card.content).toBe('# Card\n\nCurrent body')
+        expect(card.header.references).toEqual(['design/old.pdf'])
+    })
+
+    it('restores body and cleans copied files when save fails', async () => {
+        const card = boardCard()
+        mockBoardCard(card)
+        vi.spyOn(dataService.cards, 'copyAttachmentsForCard').mockResolvedValue([{ fileName: 'notes.pdf', path: 'design/notes.pdf' }])
+        const deleteAttachments = vi.spyOn(dataService.cards, 'deleteCopiedAttachments').mockResolvedValue()
+        vi.mocked(dataService.cards.flushPendingCommits).mockRejectedValueOnce(new Error('save failed'))
+        const operation = attachFilesToBoardCardMarkdown('card-1', [new File(['notes'], 'notes.pdf')])
+        attachmentChoiceService.select('copy')
+
+        await expect(operation).rejects.toThrow('save failed')
+        expect(card.content).toBe('# Card\n\nCurrent body')
+        expect(card.header.references).toEqual(['design/old.pdf'])
+        expect(deleteAttachments).toHaveBeenCalledWith(['design/notes.pdf'])
     })
 })

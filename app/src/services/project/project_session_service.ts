@@ -60,6 +60,7 @@ export interface ProjectSessionState {
     errorMessage: string | null
     isCommitting: boolean
     isLoading: boolean
+    isProjectLoading: boolean
     isPulling: boolean
     isPushing: boolean
     pendingGithubConflictProject: ProjectReference | null
@@ -271,6 +272,7 @@ export class ProjectSessionService extends EventTarget {
         errorMessage: null,
         isCommitting: false,
         isLoading: false,
+        isProjectLoading: false,
         isPulling: false,
         isPushing: false,
         pendingGithubConflictProject: null,
@@ -371,6 +373,8 @@ export class ProjectSessionService extends EventTarget {
     }
 
     setError(message: string | null) {
+        if (this.state.errorMessage === message && this.state.pendingGithubConflictProject === null) return
+
         this.state = { ...this.state, errorMessage: message, pendingGithubConflictProject: null }
         this.dispatchChanged()
     }
@@ -424,7 +428,7 @@ export class ProjectSessionService extends EventTarget {
         accessToken: string | null,
         existingStorage?: StorageService,
     ): Promise<ProjectOpenResolution | null> {
-        return this.withLoading('Project load failed', async () => {
+        return this.withProjectLoading('Project load failed', async () => {
             const storage = existingStorage ?? createStorageService(storageType, accessToken)
             if (storageType === 'github-readonly') {
                 return loadProjectSession(storage, storageType, project, () => this.setReadOnly(true))
@@ -460,7 +464,7 @@ export class ProjectSessionService extends EventTarget {
         accessToken: string | null,
     ) {
         projectAccessService.requireWritable()
-        await this.withLoading('Project folder setup failed', async () => {
+        await this.withProjectLoading('Project folder setup failed', async () => {
             const storage = createStorageService(resolution.storageType, accessToken)
             const folderValues = requireProjectFolderValues(values)
             const storedConfig = resolution.hasProjectConfig ? await storage.loadProjectConfig(resolution.project) : null
@@ -562,11 +566,11 @@ export class ProjectSessionService extends EventTarget {
         return this.withLoading('Release preparation failed', () => dataService.releases.getReleaseBranchCandidates())
     }
 
-    async completeRelease(releaseName: string, selectedBranchNames: string[], includeProjectActivity = false) {
+    async completeRelease(releaseName: string, selectedBranchNames: string[]) {
         projectAccessService.requireWritable()
         await this.withLoading(
             'Release completion failed',
-            () => dataService.releases.completeRelease(releaseName, selectedBranchNames, includeProjectActivity),
+            () => dataService.releases.completeRelease(releaseName, selectedBranchNames),
         )
     }
 
@@ -616,6 +620,18 @@ export class ProjectSessionService extends EventTarget {
 
     private setReadOnly(isReadOnly: boolean) {
         this.projectAccess.setReadOnly(isReadOnly)
+    }
+
+    private async withProjectLoading<T>(fallbackMessage: string, operation: () => Promise<T>): Promise<T> {
+        this.state = { ...this.state, isProjectLoading: true }
+        this.dispatchChanged()
+
+        try {
+            return await this.withLoading(fallbackMessage, operation)
+        } finally {
+            this.state = { ...this.state, isProjectLoading: false }
+            this.dispatchChanged()
+        }
     }
 
     private async withLoading<T>(fallbackMessage: string, operation: () => Promise<T>): Promise<T> {

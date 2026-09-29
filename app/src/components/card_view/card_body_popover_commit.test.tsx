@@ -8,7 +8,7 @@ import { cardCollectionFieldChangedEvent, dataService } from '../../services/dat
 import { cardPopupService } from '../../services/card_popup_service'
 import { worktreeService } from '../../services/project/worktree_service'
 import { actionService } from '../../services/actions/action_service'
-import { CardMarkdownDataSource } from '../editor/card_markdown_data_source'
+import { CardMarkdownDataSource } from '../editor/data_sources/card_markdown_data_source'
 
 vi.mock('../hooks/use_card_commits', () => ({
     useCardCommits: () => ({
@@ -114,7 +114,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -157,7 +156,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -187,7 +185,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -221,7 +218,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -246,7 +242,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -272,7 +267,6 @@ describe('CardBodyPopover commit diff', () => {
             isMobile: false,
             onDeleteCard: vi.fn(async () => undefined),
             onOpenAffects: vi.fn(),
-            onOpenInFileMode: vi.fn(),
             states,
             statusColors: new Map<string, string>(),
             visible: true,
@@ -318,7 +312,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -362,7 +355,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible
@@ -408,7 +400,6 @@ describe('CardBodyPopover commit diff', () => {
                     isMobile={false}
                     onDeleteCard={vi.fn(async () => undefined)}
                     onOpenAffects={vi.fn()}
-                    onOpenInFileMode={vi.fn()}
                     states={states}
                     statusColors={new Map()}
                     visible

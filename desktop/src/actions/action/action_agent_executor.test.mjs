@@ -72,6 +72,14 @@ function executionInput(overrides = {}) {
 }
 
 describe('ActionAgentExecutor', () => {
+    it('resolves version in definition and edited popup prompts', async () => {
+        const { agentRunnerService, executor } = createExecutor();
+        await executor.execute(executionInput({ action: { ...action, prompt: 'Ship {{version}} twice {{version}}' }, version: 'candidate 2' }));
+        expect(agentRunnerService.start.mock.calls[0][1].prompt).toBe('Ship candidate 2 twice candidate 2');
+
+        await executor.execute(executionInput({ runInput: { prompt: 'Edited {{version}}' }, version: 'candidate 2' }));
+        expect(agentRunnerService.start.mock.calls[1][1].prompt).toBe('Edited candidate 2');
+    });
     it('rejects unsupported streaming profiles before process start', async () => {
         const profile = { command: ['custom-agent'], models: ['default'], name: 'custom' };
         const agentConfigProvider = () => agentConfig('custom', 'default', [profile]);
@@ -88,8 +96,17 @@ describe('ActionAgentExecutor', () => {
         const input = executionInput({ runInput: { agent: 'codex', extraPrompt: 'focus', model: 'gpt-5.5', thinkingLevel: 'high' } });
 
         await expect(executor.execute(input)).resolves.toMatchObject({agent: 'codex', conversationId: 'run-conversation', exitCode: 0, model: 'gpt-5.5', prompt: 'Review design/card.md\n\nfocus', thinkingLevel: 'high'});
-        expect(agentRunnerService.start).toHaveBeenCalledWith(project, expect.objectContaining({activityOrigin: { cardInternalId: 'card-1', kind: 'card' }, cardPath: cardContext.file, prompt: 'Review design/card.md\n\nfocus'}), expect.any(Function), expect.any(Function), expect.any(Function));
+        expect(agentRunnerService.start).toHaveBeenCalledWith(project, expect.objectContaining({activityOrigin: { cardInternalId: 'card-1', kind: 'card' }, cardPath: cardContext.file, prompt: 'Review design/card.md\n\nfocus'}), expect.any(Function), expect.any(Function), expect.any(Function), undefined);
         expect(input.onActiveRunChange.mock.calls.map(([runId]) => runId)).toEqual(['active-run', null]);
+    });
+
+    it('passes the client conversation and submission IDs into the first agent turn', async () => {
+        const { agentRunnerService, executor } = createExecutor();
+        const runInput = { conversationId: 'agent-client', extraPrompt: '', submissionId: 'submission-1' };
+
+        await executor.execute(executionInput({ runInput }));
+
+        expect(agentRunnerService.start.mock.calls[0][1]).toMatchObject({ conversationId: 'agent-client', submissionId: 'submission-1' });
     });
 
     it('starts card agent with current relative and absolute reference paths only', async () => {
@@ -349,7 +366,7 @@ describe('ActionAgentExecutor', () => {
         const request = agentRunnerService.start.mock.calls[0][1];
         expect(request).toMatchObject({
             command: [
-                'claude', '--model', 'default', '--permission-mode', 'acceptEdits', '--print', '--verbose', '--output-format', 'stream-json',
+                'claude', '--model', 'default', '--effort', 'medium', '--permission-mode', 'acceptEdits', '--print', '--verbose', '--output-format', 'stream-json',
                 '--include-partial-messages', '--input-format', 'stream-json', '--permission-prompt-tool', 'stdio', '--resume', 'session-1',
             ],
             contextInput: expect.stringContaining('new'),
@@ -469,6 +486,15 @@ describe('ActionAgentExecutor', () => {
 
         await expect(executor.execute(executionInput({ runInput: { continueFrom: 'source.json', extraPrompt: '' } })))
             .rejects.toThrow('Agent conversation belongs to card-2, not card-1');
+        expect(agentRunnerService.start).not.toHaveBeenCalled();
+    });
+
+    it('rejects a continuation whose conversation ID disagrees with the loaded conversation', async () => {
+        const { agentRunnerService, executor } = createExecutor();
+        const runInput = { conversationId: 'conversation-other', continueFrom: 'source.json', extraPrompt: '' };
+
+        await expect(executor.execute(executionInput({ runInput })))
+            .rejects.toThrow('Continuation conversation ID does not match the loaded conversation');
         expect(agentRunnerService.start).not.toHaveBeenCalled();
     });
 

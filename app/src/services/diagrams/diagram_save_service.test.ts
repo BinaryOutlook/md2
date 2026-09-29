@@ -28,21 +28,45 @@ function createHarness(sourceDiagram: DiagramData = diagram) {
         path: 'design/diagrams/overview-edited-copy.json',
         sourceDiagramId: 'source',
     }
-    const saveEditedDiagramCopy = vi.fn<(request: SaveEditedDiagramCopyRequest) => Promise<DiagramRecord>>(async () => savedRecord)
-    const service = new DiagramSaveService(session, { saveEditedDiagramCopy })
+    let pendingCommit: (() => void) | null = null
+    const queueEditedDiagramCopy = vi.fn<(
+        request: SaveEditedDiagramCopyRequest,
+        onPersisted: (record: DiagramRecord) => void,
+    ) => Promise<DiagramRecord>>(async (_request, onPersisted) => {
+            pendingCommit = () => onPersisted(savedRecord)
 
-    return { saveEditedDiagramCopy, savedRecord, service, session }
+            return savedRecord
+        })
+    const flushQueuedDiagrams = vi.fn(async () => {
+        pendingCommit?.()
+        pendingCommit = null
+    })
+    const service = new DiagramSaveService(session, { flushQueuedDiagrams, queueEditedDiagramCopy })
+
+    return { flushQueuedDiagrams, queueEditedDiagramCopy, savedRecord, service, session }
 }
 
 describe('DiagramSaveService', () => {
+    it('queues edits automatically and acknowledges only after persistence', async () => {
+        const { flushQueuedDiagrams, queueEditedDiagramCopy, session } = createHarness()
+        session.setNodeField('orders', 'label', 'Purchases')
+
+        await vi.waitFor(() => expect(queueEditedDiagramCopy).toHaveBeenCalled())
+        expect(flushQueuedDiagrams).not.toHaveBeenCalled()
+        expect(session.getDirtySnapshot()).toBe(true)
+
+        await flushQueuedDiagrams()
+        expect(session.getDirtySnapshot()).toBe(false)
+    })
+
     it('persists New formatting through edited-copy save flow', async () => {
-        const { saveEditedDiagramCopy, service, session } = createHarness()
+        const { queueEditedDiagramCopy, service, session } = createHarness()
         session.setNodeRoleFormatting('focal', { box: { fillColor: '#112233' } })
         session.setFormattingScale('spacingScalePercent', 120)
 
         await service.save()
 
-        expect(JSON.parse(saveEditedDiagramCopy.mock.calls[0][0].content).formatting).toEqual({
+        expect(JSON.parse(queueEditedDiagramCopy.mock.calls.at(-1)![0].content).formatting).toEqual({
             nodeRoles: { focal: { box: { fillColor: '#112233' } } },
             spacingScalePercent: 120,
         })
@@ -54,14 +78,14 @@ describe('DiagramSaveService', () => {
             nodes: [{ ...diagram.nodes[0], fanIn: 4 }],
             width: 900,
         } as unknown as DiagramData
-        const { saveEditedDiagramCopy, savedRecord, service, session } = createHarness(sourceWithRenderingData)
+        const { queueEditedDiagramCopy, savedRecord, service, session } = createHarness(sourceWithRenderingData)
         const editableDiagram = session.getEditableDiagram()
         const originalDiagram = session.getOriginalDiagramSnapshot()
         session.setNodeField('orders', 'label', 'Purchases')
 
         await expect(service.save()).resolves.toBe(savedRecord)
 
-        const request = saveEditedDiagramCopy.mock.calls[0][0]
+        const request = queueEditedDiagramCopy.mock.calls.at(-1)![0]
         expect(JSON.parse(request.content)).toEqual({
             edges: [],
             groups: [],
@@ -76,7 +100,7 @@ describe('DiagramSaveService', () => {
     })
 
     it('uses the same saved record and rebases later dirty tracking to the saved copy', async () => {
-        const { saveEditedDiagramCopy, savedRecord, service, session } = createHarness()
+        const { queueEditedDiagramCopy, savedRecord, service, session } = createHarness()
         session.setNodeField('orders', 'label', 'Purchases')
         await service.save()
         session.setNodeField('orders', 'label', 'Sales')
@@ -85,29 +109,32 @@ describe('DiagramSaveService', () => {
         session.setNodeField('orders', 'label', 'Sales')
         session.setNodeField('orders', 'label', 'Purchases')
 
-        expect(saveEditedDiagramCopy.mock.calls[1][0].savedRecord).toBe(savedRecord)
+        expect(queueEditedDiagramCopy.mock.calls.at(-1)![0].savedRecord).toBe(savedRecord)
         expect(session.getDirtySnapshot()).toBe(true)
         expect(session.getChange(session.getChangeIdsSnapshot()[0])?.originalValue).toBe('Sales')
         expect(session.getOriginalDiagramSnapshot()?.diagram.nodes[0].label).toBe('Orders')
     })
 
-    it('rejects empty and invalid editable data before persistence', async () => {
+    it('rejects unchanged data and saves changes to an empty diagram', async () => {
         const empty = createHarness()
         await expect(empty.service.save()).rejects.toThrow('without changes')
-        expect(empty.saveEditedDiagramCopy).not.toHaveBeenCalled()
+        expect(empty.queueEditedDiagramCopy).not.toHaveBeenCalled()
 
-        const invalid = createHarness({ ...diagram, nodes: [] })
-        invalid.session.setMetadataField('title', 'Changed')
-        await expect(invalid.service.save()).rejects.toThrow('nodes has empty array')
-        expect(invalid.saveEditedDiagramCopy).not.toHaveBeenCalled()
+        const created = createHarness({ ...diagram, nodes: [] })
+        created.session.discard()
+        created.session.startCreation('source')
+        created.session.setMetadataField('title', 'Changed')
+        await expect(created.service.save()).resolves.toBe(created.savedRecord)
+        expect(created.queueEditedDiagramCopy).toHaveBeenCalled()
+        expect(created.session.getSessionSnapshot()?.creationSourceDiagramId).toBe('source')
     })
 
     it('retains complete session state when persistence fails', async () => {
-        const { saveEditedDiagramCopy, service, session } = createHarness()
+        const { flushQueuedDiagrams, service, session } = createHarness()
         const editableDiagram = session.getEditableDiagram()
         const originalDiagram = session.getOriginalDiagramSnapshot()
         session.setNodeField('orders', 'label', 'Purchases')
-        saveEditedDiagramCopy.mockRejectedValueOnce(new Error('commit failed'))
+        flushQueuedDiagrams.mockRejectedValueOnce(new Error('commit failed'))
 
         await expect(service.save()).rejects.toThrow('commit failed')
 
@@ -121,19 +148,30 @@ describe('DiagramSaveService', () => {
 
     it('binds the saved record but retains edits made while persistence is pending', async () => {
         const { savedRecord, session } = createHarness()
-        let finishSave: (record: DiagramRecord) => void = () => undefined
-        const pendingSave = new Promise<DiagramRecord>((resolve) => { finishSave = resolve })
+        let finishSave: () => void = () => undefined
+        const pendingSave = new Promise<void>((resolve) => { finishSave = resolve })
+        let persist: ((record: DiagramRecord) => void) | null = null
         const persistence = {
-            saveEditedDiagramCopy: vi.fn<(
-                request: SaveEditedDiagramCopyRequest,
-            ) => Promise<DiagramRecord>>(async () => pendingSave),
+            queueEditedDiagramCopy: vi.fn<(
+                request: SaveEditedDiagramCopyRequest, onPersisted: (record: DiagramRecord) => void,
+            ) => Promise<DiagramRecord>>(async (_request, onPersisted) => {
+                    persist = onPersisted
+
+                    return savedRecord
+                }),
+            flushQueuedDiagrams: vi.fn(async () => {
+                const activePersist = persist
+                await pendingSave
+                activePersist?.(savedRecord)
+            }),
         }
         const concurrentService = new DiagramSaveService(session, persistence)
         session.setNodeField('orders', 'label', 'Purchases')
 
         const save = concurrentService.save()
+        await vi.waitFor(() => expect(persistence.flushQueuedDiagrams).toHaveBeenCalled())
         session.setNodeField('orders', 'label', 'Sales')
-        finishSave(savedRecord)
+        finishSave()
         await save
 
         expect(session.getSavedRecordSnapshot()).toBe(savedRecord)

@@ -5,7 +5,7 @@ import type { ActionDefinition } from '../../../data/action_types'
 import type { ActionRun } from '../../../services/actions/action_run_registry'
 import type { ActionRunSettingsStore } from '../../../services/actions/action_run_settings_service'
 import { useBoundRunId, useRunSelector } from '../../hooks/use_action_runs'
-import type { ActionConversationStore } from '../conversation/action_conversation_store'
+import type { ActionConversationStore } from '../conversation/state/action_conversation_store'
 import type { ActionHistoryStore } from '../run/state/action_history_store'
 import { currentActionPromptDraft, runPopupAction } from '../run/popup/action_popup_operations'
 import { ActionPhraseButtons } from './action_phrase_buttons'
@@ -56,7 +56,7 @@ export function ActionPhraseButtonsOwner(props: ActionPhraseButtonsOwnerProps) {
     if (action.type !== 'agent' || action.phrases.length === 0) return null
 
     const handleSelect = async (text: string) => {
-        const promptDraft = currentActionPromptDraft(action, context, bindingStore, false)
+        const promptDraft = currentActionPromptDraft(action, context, bindingStore, conversationStore, false)
         const insertion = promptDraft.requestInsertion(text)
         pendingInsertionRef.current = insertion
         await insertion
@@ -69,7 +69,7 @@ export function ActionPhraseButtonsOwner(props: ActionPhraseButtonsOwnerProps) {
             return
         }
 
-        const promptDraft = currentActionPromptDraft(action, context, bindingStore, false)
+        const promptDraft = currentActionPromptDraft(action, context, bindingStore, conversationStore, false)
         promptDraft.requestFlush()
         await runPopupAction({
             action,

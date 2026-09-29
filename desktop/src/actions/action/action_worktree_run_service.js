@@ -40,13 +40,13 @@ class ActionWorktreeRunService {
         );
     }
 
-    /** Run one complete action run while holding its card-scoped lock. */
+    /** Track one card run while keeping release exclusive. */
     async runWithCardLock(primaryProject, contextValue, operation, options = {}) {
         const context = requireActionContext(contextValue);
         const cardKey = ActionWorktreeRunService.cardKey(primaryProject, context);
         if (cardKey === null) return operation();
 
-        return this.withRunLock(cardKey, options, operation);
+        return this.withRunClaim(cardKey, options, operation);
     }
 
     async resolve(primaryProject, action, context) {
@@ -86,31 +86,25 @@ class ActionWorktreeRunService {
         };
     }
 
-    async withRunLock(cardKey, options, operation) {
-        const request = await this.acquireRunLock(cardKey, options);
+    async withRunClaim(cardKey, options, operation) {
+        const request = this.acquireRunClaim(cardKey, options);
 
         try {
             return await operation();
         } finally {
-            this.releaseRunLock(cardKey, request);
+            this.releaseRunClaim(cardKey, request);
         }
     }
 
-    async acquireRunLock(cardKey, options) {
+    acquireRunClaim(cardKey, options) {
         const signal = options.signal;
         if (signal?.aborted) throw new ActionCancellationError('Action cancelled');
 
-        const { promise, reject, resolve } = Promise.withResolvers();
-        const state = this.runLockStates.get(cardKey) ?? { activeRequest: null, pending: [] };
-        if (state.activeRequest?.release) throw new Error('Cannot start action while card release is in progress');
-        const request = { acquired: false, abortHandler: null, reject, resolve, signal };
-        request.abortHandler = this.cancelLockRequest.bind(this, cardKey, request);
-        signal?.addEventListener('abort', request.abortHandler, { once: true });
-        state.pending.push(request);
+        const state = this.runLockStates.get(cardKey) ?? { activeRuns: new Set(), releaseRequest: null };
+        if (state.releaseRequest) throw new Error('Cannot start action while card release is in progress');
+        const request = {};
+        state.activeRuns.add(request);
         this.runLockStates.set(cardKey, state);
-        ActionWorktreeRunService.drainRunLocks(state);
-        if (!request.acquired) options.onQueued?.();
-        await promise;
 
         return request;
     }
@@ -129,13 +123,13 @@ class ActionWorktreeRunService {
         const busyKey = cardKeys.find((cardKey) => {
             const state = this.runLockStates.get(cardKey);
 
-            return !!state?.activeRequest || (state?.pending.length ?? 0) > 0;
+            return !!state?.releaseRequest || (state?.activeRuns.size ?? 0) > 0;
         });
         if (busyKey) throw new Error('Cannot complete release while a target card has a running action');
 
         const requests = cardKeys.map((cardKey) => {
-            const request = { acquired: true, release: true };
-            this.runLockStates.set(cardKey, { activeRequest: request, pending: [] });
+            const request = {};
+            this.runLockStates.set(cardKey, { activeRuns: new Set(), releaseRequest: request });
 
             return { cardKey, request };
         });
@@ -149,45 +143,18 @@ class ActionWorktreeRunService {
         const requests = this.releaseLockLeases.get(leaseId);
         if (!requests) throw new Error('Unknown release card lock lease');
         this.releaseLockLeases.delete(leaseId);
-        for (const { cardKey, request } of requests) this.releaseRunLock(cardKey, request);
+        for (const { cardKey, request } of requests) {
+            const state = this.runLockStates.get(cardKey);
+            if (!state || state.releaseRequest !== request) throw new Error('Invalid release card lock');
+            this.runLockStates.delete(cardKey);
+        }
     }
 
-    cancelLockRequest(cardKey, request) {
-        const state = this.runLockStates.get(cardKey);
-        if (!state || request.acquired) return;
-
-        const requestIndex = state.pending.indexOf(request);
-        if (requestIndex < 0) return;
-
-        state.pending.splice(requestIndex, 1);
-        request.signal?.removeEventListener('abort', request.abortHandler);
-        request.reject(new ActionCancellationError('Action cancelled'));
-        ActionWorktreeRunService.drainRunLocks(state);
-        this.deleteEmptyLockState(cardKey, state);
-    }
-
-    releaseRunLock(cardKey, request) {
+    releaseRunClaim(cardKey, request) {
         const state = this.runLockStates.get(cardKey);
         if (!state) throw new Error('Missing action run lock state');
-        if (state.activeRequest !== request) throw new Error('Invalid active action run lock');
-
-        state.activeRequest = null;
-        ActionWorktreeRunService.drainRunLocks(state);
-        this.deleteEmptyLockState(cardKey, state);
-    }
-
-    deleteEmptyLockState(cardKey, state) {
-        if (!state.activeRequest && state.pending.length === 0) this.runLockStates.delete(cardKey);
-    }
-
-    static drainRunLocks(state) {
-        if (state.activeRequest || state.pending.length === 0) return;
-
-        const request = state.pending.shift();
-        request.acquired = true;
-        state.activeRequest = request;
-        request.signal?.removeEventListener('abort', request.abortHandler);
-        request.resolve();
+        if (!state.activeRuns.delete(request)) throw new Error('Invalid active action run claim');
+        if (state.activeRuns.size === 0) this.runLockStates.delete(cardKey);
     }
 
     static cardKey(primaryProject, context) {

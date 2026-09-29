@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { DEFAULT_CARD_TYPES, DEFAULT_DIAGRAM_FOOTER, DEFAULT_STATES, defaultColumnAccent, resolveProjectConfigPaths } from '../../data/data_types'
 import { BUILTIN_AGENT_PROFILES, type AgentProfile } from '../../data/agent_profiles'
-import { CONFIG_ENTRIES, ConfigService, REACT_CONFIG_STORAGE_KEY, readStartupSplashPreference } from './config_service'
+import { CONFIG_ENTRIES, ConfigService } from './config_service'
 
 function agentSelection(activeAgent: string, model = '', thinkingLevel: 'none' | 'high' = 'none') {
     return { activeAgent, permissionMode: 'ask-for-approval' as const, settingsByAgent: { [activeAgent]: { model, thinkingLevel } } }
@@ -55,16 +55,15 @@ describe('ConfigService', () => {
 
         expectTypeOf(service.get('desktop.agentSelection').activeAgent).toEqualTypeOf<string>()
         expectTypeOf(service.get('desktop.agentProfiles')).toEqualTypeOf<AgentProfile[]>()
-        expectTypeOf(service.get('react.autoCommitDelayMs')).toEqualTypeOf<number>()
+        expectTypeOf(service.get('project.autoCommitDelayMs')).toEqualTypeOf<number>()
         if (import.meta.env.MODE === 'typecheck') {
             // @ts-expect-error desktop.agentSelection must stay selection typed.
             service.set('desktop.agentSelection', BUILTIN_AGENT_PROFILES)
         }
     })
 
-    it('replaces desktop values without clearing project or React values', () => {
+    it('replaces desktop values without clearing project values', () => {
         service.init()
-        service.setReactPreference('react.showStartupSplash', false)
         service.loadProjectConfig({ actionsFolder: 'ops', workingFolder: 'docs' })
         service.replaceDesktopConfig({
             agentSelection: agentSelection('custom', 'custom-model', 'high'),
@@ -77,12 +76,10 @@ describe('ConfigService', () => {
         expect(service.hasDesktopConfig()).toBe(true)
         expect(service.getDesktopValues()).toMatchObject({ agentSelection: agentSelection('custom', 'custom-model', 'high') })
         expect(service.getProjectConfig()).toMatchObject({ actionsFolder: 'ops', workingFolder: 'docs' })
-        expect(service.get('react.showStartupSplash')).toBe(false)
     })
 
     it('clears only desktop values and marks them unavailable', () => {
         service.init({ desktopConfig: { agentSelection: agentSelection('claude') } })
-        service.setReactPreference('react.showStartupSplash', false)
         service.loadProjectConfig({ actionsFolder: 'ops', workingFolder: 'docs' })
         service.loadDraft()
         service.clearDesktopConfig()
@@ -91,7 +88,6 @@ describe('ConfigService', () => {
         expect(service.get('desktop.agentSelection').activeAgent).toBe('codex')
         expect(service.getDraft()?.['desktop.agentSelection'].activeAgent).toBe('codex')
         expect(service.getProjectConfig()).toMatchObject({ actionsFolder: 'ops', workingFolder: 'docs' })
-        expect(service.get('react.showStartupSplash')).toBe(false)
     })
 
     it('defaults the actions folder when project config omits it', () => {
@@ -214,6 +210,69 @@ describe('ConfigService', () => {
         expect(service.getProjectConfig().backgroundShade).toBe('neutral')
     })
 
+    it('loads and validates project-owned pinned conversation identities', () => {
+        service.init()
+        const pinnedConversations = [
+            { cardInternalId: 'card-1', contextKind: 'card' as const, conversationId: 'conversation-1' },
+            { contextKind: 'project' as const, conversationId: 'conversation-2' },
+        ]
+        service.loadProjectConfig({ pinnedConversations })
+
+        expect(service.getProjectConfig().pinnedConversations).toEqual(pinnedConversations)
+        expect(() => service.loadProjectConfig({ pinnedConversations: [pinnedConversations[0], pinnedConversations[0]] }))
+            .toThrow('contains duplicate conversation identities')
+        expect(() => service.loadProjectConfig({ pinnedConversations: [{ contextKind: 'project', conversationId: '' }] }))
+            .toThrow('requires conversationId')
+    })
+
+    it('defaults a missing pinned conversation identity list to empty', () => {
+        service.init()
+        service.loadProjectConfig({ workingFolder: 'docs' })
+
+        expect(service.getProjectConfig().pinnedConversations).toEqual([])
+    })
+
+    it('retains reloaded pin identities when an open settings draft is saved', () => {
+        service.init()
+        const firstLocator = { contextKind: 'project' as const, conversationId: 'conversation-1' }
+        const secondLocator = { contextKind: 'diagram' as const, conversationId: 'conversation-2' }
+        service.loadProjectConfig({ pinnedConversations: [firstLocator] })
+        service.loadDraft()
+
+        service.loadProjectConfig({ pinnedConversations: [secondLocator] })
+        service.saveDraft()
+
+        expect(service.getProjectConfig().pinnedConversations).toEqual([secondLocator])
+    })
+
+    it('serializes pin and settings saves using latest canonical config', async () => {
+        service.init()
+        service.loadProjectConfig({ pinnedConversations: [], pushMode: 'auto' })
+        let releaseFirstSave: () => void = () => undefined
+        const firstSavePending = new Promise<void>((resolve) => {
+            releaseFirstSave = resolve
+        })
+        const persistedConfigs = [] as ReturnType<ConfigService['getProjectConfig']>[]
+        service.connectProjectConfigPersistence({
+            saveProjectConfig: vi.fn(async (config) => {
+                persistedConfigs.push(config)
+                if (persistedConfigs.length === 1) await firstSavePending
+            }),
+        })
+        const locator = { contextKind: 'project' as const, conversationId: 'conversation-1' }
+        const pinSave = service.setConversationPinned(locator, true)
+        await vi.waitFor(() => expect(persistedConfigs).toHaveLength(1))
+        service.loadDraft()
+        service.setDraftValue('project.pushMode', 'manual')
+        service.saveDraft()
+        const settingsSave = service.saveProjectConfig()
+
+        releaseFirstSave()
+        await Promise.all([pinSave, settingsSave])
+
+        expect(persistedConfigs[1]).toMatchObject({ pinnedConversations: [locator], pushMode: 'manual' })
+    })
+
     it('rejects unsupported project background shades', () => {
         service.init()
 
@@ -274,12 +333,12 @@ describe('ConfigService', () => {
         service.loadProjectConfig(null)
         service.loadDraft()
 
-        expect(service.hasDraftChangesForSource('react')).toBe(false)
+        expect(service.hasDraftChangesForSource('desktop')).toBe(false)
         expect(service.hasDraftChangesForSource('project')).toBe(false)
 
-        service.setDraftValue('react.showStartupSplash', false)
+        service.setDraftValue('desktop.editorCommand', 'notepad "{{file}}"')
 
-        expect(service.hasDraftChangesForSource('react')).toBe(true)
+        expect(service.hasDraftChangesForSource('desktop')).toBe(true)
         expect(service.hasDraftChangesForSource('project')).toBe(false)
 
         service.setDraftValue('project.pushMode', 'auto')
@@ -320,53 +379,50 @@ describe('ConfigService', () => {
         }])
     })
 
-    it('persists react values across instances, simulating a reload', () => {
+    it('defaults branch cleanup and auto commit delay when the project config file omits them', () => {
         service.init()
+        service.loadProjectConfig({ workingFolder: 'docs' })
+
+        expect(service.get('project.deleteBranchAfterIntegration')).toBe(false)
+        expect(service.get('project.deleteBranchesAfterRelease')).toBe(false)
+        expect(service.get('project.autoCommitDelayMs')).toBe(30000)
+    })
+
+    it('persists one project preference through the project config boundary and into an open draft', async () => {
+        const saveProjectConfig = vi.fn(async () => undefined)
+        service.init()
+        service.connectProjectConfigPersistence({ saveProjectConfig })
+        service.loadProjectConfig(null)
         service.loadDraft()
-        service.setDraftValue('react.autoCommitDelayMs', 5000)
-        service.setDraftValue('react.showStartupSplash', false)
-        service.saveDraft()
 
-        const reloaded = new ConfigService()
-        reloaded.init()
+        await service.setProjectPreference('project.deleteBranchesAfterRelease', true)
 
-        expect(reloaded.get('react.autoCommitDelayMs')).toBe(5000)
-        expect(reloaded.get('react.showStartupSplash')).toBe(false)
-
-        reloaded.clear()
+        expect(saveProjectConfig).toHaveBeenCalledWith(expect.objectContaining({ deleteBranchesAfterRelease: true }))
+        expect(service.get('project.deleteBranchesAfterRelease')).toBe(true)
+        expect(service.getDraft()?.['project.deleteBranchesAfterRelease']).toBe(true)
     })
 
-    it('persists integration and release branch cleanup preferences immediately', () => {
+    it('persists last confirmed version and restores it from project config', async () => {
+        const saveProjectConfig = vi.fn(async () => undefined)
         service.init()
-        service.setReactPreference('react.deleteBranchAfterIntegration', true)
-        service.setReactPreference('react.deleteBranchesAfterRelease', true)
+        service.connectProjectConfigPersistence({ saveProjectConfig })
+        service.loadProjectConfig(null)
 
-        const reloaded = new ConfigService()
-        reloaded.init()
-
-        expect(reloaded.get('react.deleteBranchAfterIntegration')).toBe(true)
-        expect(reloaded.get('react.deleteBranchesAfterRelease')).toBe(true)
-        reloaded.clear()
+        await service.setProjectPreference('project.lastVersion', 'candidate 1')
+        expect(saveProjectConfig).toHaveBeenCalledWith(expect.objectContaining({ lastVersion: 'candidate 1' }))
+        service.loadProjectConfig({ lastVersion: 'candidate 1' })
+        expect(service.get('project.lastVersion')).toBe('candidate 1')
     })
 
-    it('falls back to defaults when stored react config is corrupted', () => {
-        window.localStorage.setItem(REACT_CONFIG_STORAGE_KEY, 'not-json')
-
-        expect(() => service.init()).not.toThrow()
-        expect(service.get('react.autoCommitDelayMs')).toBe(30000)
-        expect(service.get('react.showStartupSplash')).toBe(true)
-    })
-
-    it('ignores an out-of-range persisted value and keeps its default, without affecting other keys', () => {
-        window.localStorage.setItem(
-            REACT_CONFIG_STORAGE_KEY,
-            JSON.stringify({ 'react.autoCommitDelayMs': 999999999, 'react.showStartupSplash': false }),
-        )
-
+    it('ignores a project preference write while no project is open', async () => {
+        const saveProjectConfig = vi.fn(async () => undefined)
         service.init()
+        service.connectProjectConfigPersistence({ saveProjectConfig })
 
-        expect(service.get('react.autoCommitDelayMs')).toBe(30000)
-        expect(service.get('react.showStartupSplash')).toBe(false)
+        await service.setProjectPreference('project.deleteBranchAfterIntegration', true)
+
+        expect(saveProjectConfig).not.toHaveBeenCalled()
+        expect(service.get('project.deleteBranchAfterIntegration')).toBe(false)
     })
 
     it('returns the current desktop values from getDesktopValues', () => {
@@ -403,16 +459,6 @@ describe('ConfigService', () => {
         expect(() => service.setDraftValue('desktop.mergeConflictResolverCommand', '')).not.toThrow()
         expect(() => service.setDraftValue('desktop.mergeConflictResolverCommand', 'merge-tool')).toThrow('requires {{file}} placeholder')
         expect(() => service.setDraftValue('desktop.mergeConflictResolverCommand', 'merge-tool "{{file}}"')).not.toThrow()
-    })
-
-    it('reads the startup splash preference before init, defaulting to true', () => {
-        expect(readStartupSplashPreference()).toBe(true)
-    })
-
-    it('reads a stored false startup splash preference before init', () => {
-        window.localStorage.setItem(REACT_CONFIG_STORAGE_KEY, JSON.stringify({ 'react.showStartupSplash': false }))
-
-        expect(readStartupSplashPreference()).toBe(false)
     })
 
     it('requires slider number entries to define min and max', () => {

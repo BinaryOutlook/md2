@@ -55,7 +55,7 @@ function operationInput(
     settingsStore = new ActionRunSettingsStore(action.id, null),
     conversationStore: Pick<ActionPopupOperationInput['conversationStore'], 'continuationPath' | 'getSnapshot' | 'load'> = {
         continuationPath: () => 'conversation.json',
-        getSnapshot: () => ({ conversations: [], loading: false, selectedConversation: null }),
+        getSnapshot: () => ({ conversations: [], loading: false, pinningConversationId: null, selectedConversation: null }),
         load: vi.fn(async () => undefined),
     },
 ): ActionPopupOperationInput {
@@ -65,7 +65,13 @@ function operationInput(
         action,
         bindingStore: new ActionRunBindingStore(runId),
         context,
-        conversationStore,
+        conversationStore: {
+            acceptSubmission: vi.fn(),
+            beginSubmission: vi.fn(() => 'submission-1'),
+            bindSubmission: vi.fn(),
+            failSubmission: vi.fn(),
+            ...conversationStore,
+        },
         historyStore: { load: vi.fn(async () => undefined) },
         inputStore,
         resultStore: {
@@ -151,27 +157,27 @@ describe('runPopupAction waiting follow-up', () => {
 
     it('sends follow-up through same live process and assigned worktree', async () => {
         const inputStore = new ActionRunInputStore()
-        actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false }).edit('Next request')
+        actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false }).edit('Next request')
 
         await runPopupAction(operationInput(inputStore))
 
-        expect(bridge.enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Next request')
+        expect(bridge.enqueueActionPrompt).toHaveBeenCalledWith('run-1', 'Next request', 'submission-1')
         expect(actionRunRegistry.getActionRunStore(action.id, context)?.getSnapshot()?.context.worktree).toBe('3')
         expect(restartAction).not.toHaveBeenCalled()
     })
 
-    it('clears the editor only after the bridge accepts the enqueued prompt', async () => {
+    it('clears the editor when the prompt is sent', async () => {
         const acceptance = deferred<void>()
         bridge.enqueueActionPrompt = vi.fn(async (_runId: string, content: string) => {
             await acceptance.promise
 
             return { content, dispatchState: 'queued' as const, id: 'prompt-1', revision: 0 }
         })
-        const draft = actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false })
         draft.edit('Next request')
 
         const send = runPopupAction(operationInput(new ActionRunInputStore()))
-        expect(draft.getSnapshot()).toBe('Next request')
+        expect(draft.getSnapshot()).toBe('')
         acceptance.resolve()
         await send
 
@@ -185,7 +191,7 @@ describe('runPopupAction waiting follow-up', () => {
 
             return { content, dispatchState: 'queued' as const, id: 'prompt-1', revision: 0 }
         })
-        const draft = actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false })
         draft.edit('Accepted text')
 
         const send = runPopupAction(operationInput(new ActionRunInputStore()))
@@ -196,21 +202,88 @@ describe('runPopupAction waiting follow-up', () => {
         expect(draft.getSnapshot()).toBe('New editor text')
     })
 
-    it('keeps the prompt on screen and reports a failed enqueue', async () => {
+    it('carries edits made during new-run startup into the new run editor', async () => {
+        const completion = deferred<{ changedPaths: string[], logs: [], status: 'completed' }>()
+        let started: ((runId: string) => void) | null = null
+        runAction.mockImplementation(async (_action, _context, _runInput, onStarted) => {
+            started = onStarted
+
+            return completion.promise
+        })
+        const operation = operationInput(new ActionRunInputStore(), undefined, {
+            continuationPath: () => null,
+            getSnapshot: () => ({ conversations: [], loading: false, pinningConversationId: null, selectedConversation: null }),
+            load: vi.fn(async () => undefined),
+        })
+        operation.bindingStore.setRunId(null)
+        const draft = actionPromptDraftService.getDraft(action.id, context, null, { prepare: false })
+        draft.edit('Submitted text')
+        const send = runPopupAction(operation)
+        const runInput = runAction.mock.calls[0]?.[2]
+        expect(runInput).toMatchObject({ conversationId: expect.stringMatching(/^agent-/u), submissionId: 'submission-1' })
+        expect(operation.conversationStore.beginSubmission).toHaveBeenCalledWith('Submitted text', null, runInput.conversationId)
+        draft.edit('Newer editor text')
+        if (!started) throw new Error('Missing run start callback')
+        const start = started as (runId: string) => void
+        start('run-2')
+        completion.resolve({ changedPaths: [], logs: [], status: 'completed' })
+        await send
+
+        expect(draft.getSnapshot()).toBe('Newer editor text')
+    })
+
+    it('keeps a newer history selection when a pending run starts', async () => {
+        const completion = deferred<{ changedPaths: string[], logs: [], status: 'completed' }>()
+        let started: ((runId: string) => void) | null = null
+        runAction.mockImplementation(async (_action, _context, _runInput, onStarted) => {
+            started = onStarted
+
+            return completion.promise
+        })
+        let selectedConversation: AgentConversation | null = null
+        const conversationStore = {
+            continuationPath: () => null,
+            getSnapshot: () => ({ conversations: [], loading: false, pinningConversationId: null, selectedConversation }),
+            load: vi.fn(async () => undefined),
+        }
+        const operation = operationInput(new ActionRunInputStore(), undefined, conversationStore)
+        operation.bindingStore.setRunId(null)
+        actionPromptDraftService.getDraft(action.id, context, null, { prepare: false }).edit('Start now')
+        const send = runPopupAction(operation)
+        selectedConversation = storedConversation([])
+        if (!started) throw new Error('Missing run start callback')
+        const start = started as (runId: string) => void
+        start('run-2')
+
+        expect(operation.bindingStore.getSnapshot()).toBeNull()
+        expect(operation.conversationStore.getSnapshot().selectedConversation?.id).toBe(selectedConversation.id)
+        completion.resolve({ changedPaths: [], logs: [], status: 'completed' })
+        await send
+    })
+
+    it('keeps a failed prompt in the chatlog without restoring the draft', async () => {
         bridge.enqueueActionPrompt = vi.fn(async () => {
             throw new Error('Queue unavailable')
         })
         const reportError = vi.spyOn(dialogService, 'error')
-        const draft = actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false })
         draft.edit('Do not lose this')
 
         await runPopupAction(operationInput(new ActionRunInputStore()))
 
-        expect(draft.getSnapshot()).toBe('Do not lose this')
-        expect(reportError).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Queue unavailable' }),
-            { fallbackMessage: 'Could not send agent message' },
-        )
+        expect(draft.getSnapshot()).toBe('')
+        expect(reportError).not.toHaveBeenCalled()
+    })
+
+    it('keeps unsent conversation text when the run is cancelled or finished', async () => {
+        const operation = operationInput(new ActionRunInputStore())
+        const draft = actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false })
+        draft.edit('Still typing')
+
+        await cancelPopupAction(operation.bindingStore, operation.conversationStore)
+        await finishPopupAction(operation.bindingStore, operation.conversationStore)
+
+        expect(draft.getSnapshot()).toBe('Still typing')
     })
 
     it('guards Send, Stop, and Finish while active run has historical display', async () => {
@@ -223,8 +296,8 @@ describe('runPopupAction waiting follow-up', () => {
         const input = operationInput(new ActionRunInputStore(), undefined, conversationStore)
 
         await runPopupAction(input)
-        await cancelPopupAction(action, input.bindingStore, context, conversationStore)
-        await finishPopupAction(action, input.bindingStore, context, conversationStore)
+        await cancelPopupAction(input.bindingStore, conversationStore)
+        await finishPopupAction(input.bindingStore, conversationStore)
 
         expect(bridge.enqueueActionPrompt).not.toHaveBeenCalled()
         expect(bridge.cancelActionRun).not.toHaveBeenCalled()
@@ -235,7 +308,7 @@ describe('runPopupAction waiting follow-up', () => {
         const inputStore = new ActionRunInputStore()
         const settingsStore = new ActionRunSettingsStore(action.id, null)
         settingsStore.setSettings(selectModel(defaultSelection, 'gpt-5.6'), true)
-        actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false }).edit('Next request')
+        actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false }).edit('Next request')
         restartAction.mockImplementation(async (_runId, _action, _context, _runInput, onStarted) => {
             onStarted('run-2')
             return { changedPaths: [], logs: [], status: 'completed' }
@@ -256,7 +329,7 @@ describe('runPopupAction waiting follow-up', () => {
         const inputStore = new ActionRunInputStore()
         const settingsStore = new ActionRunSettingsStore(action.id, null)
         settingsStore.setSettings(defaultSelection, true)
-        const draft = actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false })
+        const draft = actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false })
         draft.edit('Keep request')
         restartAction.mockImplementation(async () => {
             throw new Error('restart failed')
@@ -265,12 +338,9 @@ describe('runPopupAction waiting follow-up', () => {
 
         await runPopupAction(operationInput(inputStore, settingsStore))
 
-        expect(draft.getSnapshot()).toBe('Keep request')
-        expect(currentActionPromptDraft(action, context, new ActionRunBindingStore('run-1'), false)).toBe(draft)
-        expect(reportError).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'restart failed' }),
-            { fallbackMessage: 'Action run failed' },
-        )
+        expect(draft.getSnapshot()).toBe('')
+        expect(currentActionPromptDraft(action, context, new ActionRunBindingStore('run-1'), operationInput(inputStore).conversationStore, false)).toBe(draft)
+        expect(reportError).not.toHaveBeenCalled()
     })
 
     it('restores draft when replacement run fails before persisting submitted message', async () => {
@@ -280,11 +350,14 @@ describe('runPopupAction waiting follow-up', () => {
         const previousConversation = storedConversation([{content: 'Earlier answer', id: 'assistant-1', kind: 'message', role: 'assistant', timestamp: '2026-01-01T00:01:00.000Z'}])
         const conversationStore = {
             continuationPath: () => previousConversation.path,
-            getSnapshot: () => ({ conversations: [previousConversation], loading: false, selectedConversation: previousConversation }),
+            getSnapshot: () => ({
+                conversations: [previousConversation], loading: false,
+                pinningConversationId: null, selectedConversation: previousConversation,
+            }),
             load: vi.fn(async () => undefined),
         }
         const operation = operationInput(inputStore, settingsStore, conversationStore)
-        actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false }).edit('Keep request')
+        actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false }).edit('Keep request')
         restartAction.mockImplementation(async (_runId, _action, _context, _runInput, onStarted) => {
             onStarted('run-2')
             return {
@@ -304,7 +377,7 @@ describe('runPopupAction waiting follow-up', () => {
 
         await runPopupAction(operation)
 
-        expect(currentActionPromptDraft(action, context, operation.bindingStore, false).getSnapshot()).toBe('Keep request')
+        expect(currentActionPromptDraft(action, context, operation.bindingStore, operation.conversationStore, false).getSnapshot()).toBe('')
         expect(operation.resultStore.setResult).toHaveBeenCalledWith(expect.objectContaining({
             logs: [expect.objectContaining({ message: 'Codex executable could not start' })],
             status: 'failed',
@@ -326,10 +399,13 @@ describe('runPopupAction waiting follow-up', () => {
         let selectedConversation = previousConversation
         const conversationStore = {
             continuationPath: () => previousConversation.path,
-            getSnapshot: () => ({ conversations: [selectedConversation], loading: false, selectedConversation }),
+            getSnapshot: () => ({
+                conversations: [selectedConversation], loading: false,
+                pinningConversationId: null, selectedConversation,
+            }),
             load: vi.fn(async () => { selectedConversation = failedConversation }),
         }
-        actionPromptDraftService.getDraft(action.id, context, 'run-1', { prepare: false }).edit('Sent request')
+        actionPromptDraftService.getDraft(action.id, context, 'conversation-1', { prepare: false }).edit('Sent request')
         restartAction.mockImplementation(async (_runId, _action, _context, _runInput, onStarted) => {
             onStarted('run-2')
             return { changedPaths: [], logs: [], status: 'failed' }
@@ -338,7 +414,7 @@ describe('runPopupAction waiting follow-up', () => {
         const operation = operationInput(inputStore, settingsStore, conversationStore)
         await runPopupAction(operation)
 
-        expect(currentActionPromptDraft(action, context, operation.bindingStore, false).getSnapshot()).toBe('')
+        expect(currentActionPromptDraft(action, context, operation.bindingStore, operation.conversationStore, false).getSnapshot()).toBe('')
     })
 })
 
@@ -367,7 +443,7 @@ describe('restored conversation questions', () => {
             updateConversation: vi.fn(),
         } as unknown as ActionPopupOperationInput['conversationStore']
         const input = operationInput(new ActionRunInputStore(), undefined, conversationStore)
-        const draft = currentActionPromptDraft(action, context, input.bindingStore, false)
+        const draft = currentActionPromptDraft(action, context, input.bindingStore, input.conversationStore, false)
         draft.edit('Unused draft')
         runAction.mockImplementation(async (_action, _context, _runInput, onStarted) => {
             onStarted('continued-run')
@@ -387,7 +463,7 @@ describe('restored conversation questions', () => {
             expect.objectContaining({ continueFrom: conversation.path, prompt: 'How wide?: Narrow' }),
             expect.any(Function),
         )
-        expect(draft.getSnapshot()).toBe('')
+        expect(draft.getSnapshot()).toBe('Unused draft')
     })
 
     it('persists restored-question dismissal and updates renderer stores', async () => {

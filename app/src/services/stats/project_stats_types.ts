@@ -63,6 +63,8 @@ export interface StatsControls {
     usageGranularity: StatsShortGranularity;
 }
 
+export type StatsViewMode = 'tables' | 'charts';
+
 export interface StatsStatusCounts {
     cancelled: number;
     completed: number;

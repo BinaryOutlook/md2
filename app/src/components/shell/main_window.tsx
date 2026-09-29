@@ -9,9 +9,11 @@ import { createSearchRegexpAgent, isSearchRegexpAgentAvailable } from '../../ser
 import { GLOBAL_SEARCH_SHORTCUT_BINDING } from '../../services/search/search_open_service'
 import { keyboardShortcutService } from '../../services/shortcuts/keyboard_shortcut_service'
 import { AppMenu } from './menu/app_menu'
-import { SearchControl } from './search/search_control'
 import { StatusBar } from './status_bar'
 import type { ProjectOpenResolution } from '../../services/project/project_session_service'
+import { useProjectLoading } from '../hooks/use_project_loading'
+import { useProjectOpenPhase } from '../hooks/use_project_open_phase'
+import { ProjectLoadingIndicator } from './project_loading_indicator'
 
 interface MainWindowProps {
     auth: UseGithubAuthResult
@@ -27,6 +29,8 @@ export function MainWindow(props: MainWindowProps) {
     const isMobile = useMediaQuery(theme.breakpoints.down('md'))
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const project = useProjectReference()
+    const isProjectLoading = useProjectLoading()
+    const projectOpenPhase = useProjectOpenPhase()
     const isConfigOpen = location.pathname === '/config'
     const regexpAgent = useMemo(
         () => isSearchRegexpAgentAvailable() ? createSearchRegexpAgent() : undefined,
@@ -58,14 +62,16 @@ export function MainWindow(props: MainWindowProps) {
                 isMobile={isMobile}
                 onOpenConfig={handleOpenConfig}
                 onOpenMobileMenu={handleOpenMenu}
-                search={<SearchControl isMobile={isMobile} regexpAgent={regexpAgent} />}
+                regexpAgent={regexpAgent}
             />
-            <ProjectWorkspace
-                auth={auth}
-                isMenuOpen={isMenuOpen}
-                key={project ? `${project.id}:${project.branch}` : 'no-project'}
-                onLeftPanelInteraction={handleCloseMenu}
-            />
+            {isProjectLoading || projectOpenPhase === 'loading' ? <ProjectLoadingIndicator /> : (
+                <ProjectWorkspace
+                    auth={auth}
+                    isMenuOpen={isMenuOpen}
+                    key={project ? `${project.id}:${project.branch}` : 'no-project'}
+                    onLeftPanelInteraction={handleCloseMenu}
+                />
+            )}
             {!isMobile ? <StatusBar /> : null}
             {isConfigOpen ? <ConfigPage hash={location.hash} /> : null}
         </Box>

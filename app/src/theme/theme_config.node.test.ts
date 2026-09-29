@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
     DEFAULT_COLOR_SCHEME,
+    MARKDOWN_FONT_FAMILIES,
     MARKDOWN_STYLE_PRESETS,
     cloneMarkdownStyleConfig,
+    fontFamilyOptions,
     isColorSchemeConfig,
     isMarkdownStyleConfig,
     isMarkdownStyleName,
@@ -10,6 +12,14 @@ import {
 } from './theme_config'
 
 describe('theme_config', () => {
+    it('adds an unknown family without changing font presets', () => {
+        const presets = [...MARKDOWN_FONT_FAMILIES]
+
+        expect(fontFamilyOptions('Inter')).toEqual([...presets, { label: 'Inter', value: 'Inter' }])
+        expect(fontFamilyOptions('')).toEqual(presets)
+        expect(MARKDOWN_FONT_FAMILIES).toEqual(presets)
+    })
+
     it('includes custom as a selectable style without treating it as a preset', () => {
         expect(isMarkdownStyleName('custom')).toBe(true)
         expect(isMarkdownStylePresetName('custom')).toBe(false)

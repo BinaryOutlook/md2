@@ -1,0 +1,94 @@
+{
+  "edges": [
+    {
+      "from": "5044cb23-2d60-421a-8278-c4f54e282f21",
+      "id": "09d8aeaf-a8b1-49f6-9d2a-f28326e44a8c",
+      "kind": "connection",
+      "to": "0a81d1ab-7760-4dd7-912c-68e3b7706357"
+    },
+    {
+      "from": "7072ccff-d1b9-4d19-90fd-aaaa69c1b91c",
+      "id": "c38c38e6-51d0-4d7d-bc8e-3a93efb3ce62",
+      "kind": "connection",
+      "label": "Do",
+      "to": "0a81d1ab-7760-4dd7-912c-68e3b7706357"
+    },
+    {
+      "from": "0a81d1ab-7760-4dd7-912c-68e3b7706357",
+      "id": "508c6f26-45ca-4043-8ddb-2c90312c1db3",
+      "kind": "connection",
+      "label": "Do",
+      "to": "cbf7c30e-208c-4d03-b491-4a73672ede9e"
+    }
+  ],
+  "formatting": {
+    "connectionKinds": {
+      "connection": {
+        "endMarker": "open-arrow",
+        "font": {
+          "bold": false,
+          "italic": false,
+          "size": 15,
+          "underline": false
+        },
+        "line": {},
+        "startMarker": "none"
+      }
+    }
+  },
+  "groups": [],
+  "meta": {
+    "description": "A test on mobile",
+    "legend": [
+      {
+        "role": "optional",
+        "label": "Optional"
+      }
+    ],
+    "title": "Test",
+    "type": "mindmap",
+    "version": 1
+  },
+  "nodes": [
+    {
+      "height": 128,
+      "id": "0a81d1ab-7760-4dd7-912c-68e3b7706357",
+      "kind": "root",
+      "label": "Template",
+      "role": "focal",
+      "width": 128,
+      "x": 148,
+      "y": 68
+    },
+    {
+      "height": 96,
+      "id": "7072ccff-d1b9-4d19-90fd-aaaa69c1b91c",
+      "kind": "topic",
+      "label": "New topic",
+      "role": "backend",
+      "width": 96,
+      "x": 20,
+      "y": 208
+    },
+    {
+      "height": 96,
+      "id": "cbf7c30e-208c-4d03-b491-4a73672ede9e",
+      "kind": "topic",
+      "label": "New topic",
+      "role": "backend",
+      "width": 96,
+      "x": 296,
+      "y": 256
+    },
+    {
+      "height": 96,
+      "id": "5044cb23-2d60-421a-8278-c4f54e282f21",
+      "kind": "topic",
+      "label": "New topic",
+      "role": "backend",
+      "width": 96,
+      "x": 24,
+      "y": 4
+    }
+  ]
+}

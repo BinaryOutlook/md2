@@ -1,0 +1,46 @@
+import { MenuItem, TextField } from '@mui/material'
+import type { ChangeEvent } from 'react'
+import { conversationPickerLabel, type ConversationPickerConversation } from './action_conversation_picker_data'
+import { ActionConversationPickerOption } from './action_conversation_picker_option'
+
+interface ActionConversationPickerProps {
+    conversations: ConversationPickerConversation[]
+    disabled: boolean
+    loading: boolean
+    onChange: (event: ChangeEvent<HTMLInputElement>) => void
+    selectedConversationId: string
+}
+
+/** Selects New conversation or one persisted/live conversation for popup display. */
+export function ActionConversationPicker(props: ActionConversationPickerProps) {
+    const { conversations, disabled, loading, onChange, selectedConversationId } = props
+
+    return (
+        <TextField
+            disabled={disabled || loading}
+            onChange={onChange}
+            select
+            slotProps={{ select: { displayEmpty: true, inputProps: { 'aria-label': 'Conversation history' } } }}
+            sx={{
+                flexShrink: 1,
+                minWidth: { sm: 150, xs: 112 },
+                '& .MuiInputBase-root': { borderRadius: 0.75, color: 'text.secondary', fontSize: 12, fontWeight: 600, height: 26, pl: 0.75 },
+                '& .MuiInputBase-root:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                '& .MuiInput-root:before, & .MuiInput-root:after': { display: 'none' },
+            }}
+            value={selectedConversationId}
+            variant="standard"
+        >
+            <MenuItem value="">New conversation</MenuItem>
+            {conversations.map((conversation) => (
+                <ActionConversationPickerOption
+                    conversation={conversation}
+                    key={conversation.id}
+                    value={conversation.id}
+                >
+                    {conversationPickerLabel(conversation)}
+                </ActionConversationPickerOption>
+            ))}
+        </TextField>
+    )
+}

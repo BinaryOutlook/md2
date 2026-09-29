@@ -10,6 +10,7 @@ import {
     type StatsCardDescriptor,
     type StatsControls,
     type StatsProjectBinding,
+    type StatsViewMode,
 } from './project_stats_types';
 import { buildSnapshot } from './stats_snapshot_builder';
 
@@ -34,6 +35,7 @@ export class ProjectStatsService extends EventTarget {
     private projectKey: string | null = null;
     private snapshot = INITIAL_SNAPSHOT;
     private source: LoadedStatsSource | null = null;
+    private viewModeChoice: StatsViewMode | null = null;
 
     constructor(calculateStats?: StatsCalculator) {
         super();
@@ -48,6 +50,20 @@ export class ProjectStatsService extends EventTarget {
         return () => this.removeEventListener('changed', listener);
     };
 
+    getViewModeChoice = () => this.viewModeChoice;
+
+    subscribeViewMode = (listener: () => void) => {
+        this.addEventListener('viewModeChanged', listener);
+
+        return () => this.removeEventListener('viewModeChanged', listener);
+    };
+
+    setViewModeChoice(mode: StatsViewMode) {
+        if (this.viewModeChoice === mode) return;
+        this.viewModeChoice = mode;
+        this.dispatchEvent(new Event('viewModeChanged'));
+    }
+
     bindProject(binding: StatsProjectBinding) {
         const projectKey = `${binding.project.id}:${binding.project.branch}`;
         if (projectKey !== this.projectKey) this.clear();
@@ -59,6 +75,10 @@ export class ProjectStatsService extends EventTarget {
         this.close();
         this.binding = null;
         this.projectKey = null;
+        if (this.viewModeChoice !== null) {
+            this.viewModeChoice = null;
+            this.dispatchEvent(new Event('viewModeChanged'));
+        }
     }
 
     async open(cards: StatsCardDescriptor[], agentProfiles: AgentProfile[] = configService.get('desktop.agentProfiles')) {

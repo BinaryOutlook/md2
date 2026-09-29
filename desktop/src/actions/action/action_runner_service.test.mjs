@@ -97,6 +97,60 @@ async function runToCompletion(runner, request = { actionId: 'main', context, ru
 }
 
 describe('ActionRunnerService', () => {
+    it('keeps version placeholder in prepared editable prompt until execution', async () => {
+        const files = [actionFile('main', { command: undefined, prompt: 'Ship {{version}}', type: 'agent', userInput: { type: 'version' } })];
+        const { runner } = createRunner(files);
+
+        await expect(runner.prepareActionPrompt({ actionId: 'main', context })).resolves.toEqual({ prompt: 'Ship {{version}}' });
+    });
+    it('requests one version before linked commands and reuses it throughout the run', async () => {
+        const files = [
+            actionFile('main', { command: 'main {{version}}', onBefore: ['before'], onAfter: ['after'] }),
+            actionFile('before', { command: 'before {{version}}', userInput: { type: 'version', prompt: 'Which release?' } }),
+            actionFile('after', { command: 'after {{version}}', userInput: { type: 'version' } }),
+        ];
+        const { commandRunner, runner } = createRunner(files);
+        const events = [];
+        runner.subscribe((event) => events.push(event));
+
+        const runId = await runner.start({ actionId: 'main', context, runInput: {} });
+        await vi.waitFor(() => expect(events.some(({ type }) => type === 'inputRequest')).toBe(true));
+        expect(commandRunner).not.toHaveBeenCalled();
+        expect(events.filter(({ type }) => type === 'inputRequest')).toHaveLength(1);
+        expect(events.find(({ type }) => type === 'inputRequest').prompt).toBe('Which release?');
+        expect(events.find(({ type }) => type === 'inputRequest').inputType).toBe('version');
+
+        expect(() => runner.answerInput(runId, { type: 'other', value: '1.0' })).toThrow('Unexpected action input type');
+        expect(() => runner.answerInput(runId, { type: 'version', value: '   ' })).toThrow('Version must contain non-whitespace text');
+        runner.answerInput(runId, { type: 'version', value: 'release candidate 2' });
+        expect(() => runner.answerInput(runId, { type: 'version', value: 'late' })).toThrow('No pending input request');
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'completed' });
+        expect(commandRunner.mock.calls.map(([, command]) => command)).toEqual([
+            'before release candidate 2', 'main release candidate 2', 'after release candidate 2',
+        ]);
+    });
+
+    it('cancels a pending version without executing and rejects a late answer', async () => {
+        const { commandRunner, runner } = createRunner([actionFile('main', { userInput: { type: 'version' } })]);
+        const runId = await runner.start({ actionId: 'main', context, runInput: {} });
+        await vi.waitFor(() => expect(runner.runs.get(runId)?.pendingInput).not.toBeNull());
+
+        runner.cancel(runId);
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'cancelled' });
+        expect(commandRunner).not.toHaveBeenCalled();
+        expect(() => runner.answerInput(runId, { type: 'version', value: '1.0' })).toThrow();
+    });
+
+    it('fails unattended version runs before effects unless a version is supplied', async () => {
+        const { commandRunner, runner } = createRunner([actionFile('main', { command: 'ship {{version}}', userInput: { type: 'version' } })]);
+        await expect(runner.start({ actionId: 'main', context, runInput: {} }, { interactive: false }))
+            .rejects.toThrow('Unattended action requires a supplied version');
+        expect(commandRunner).not.toHaveBeenCalled();
+
+        const runId = await runner.start({ actionId: 'main', context, runInput: { version: '1.0 beta' } }, { interactive: false });
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'completed' });
+        expect(commandRunner).toHaveBeenCalledWith(expect.anything(), 'ship 1.0 beta', expect.anything(), expect.anything());
+    });
     it('binds usage metrics to primary project before any worktree run starts', () => {
         const { usageMetricsService } = createRunner();
 
@@ -114,13 +168,48 @@ describe('ActionRunnerService', () => {
         await expect(runner.wait(runId)).resolves.toMatchObject({ runId, status: 'completed' });
     });
 
+    it('returns a root agent run ID only after its first conversation save', async () => {
+        const files = [actionFile('main', { agent: 'codex', command: undefined, prompt: 'Run', type: 'agent' })];
+        const checkpoint = Promise.withResolvers();
+        const { agentRunnerService, runner } = createRunner(files);
+        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete, _onError, onConversationSaved) => {
+            await checkpoint.promise;
+            onConversationSaved();
+            onComplete(0, {
+                changedPaths: [], conversation: { id: request.conversationId }, missingSession: false,
+                reference: 'conversation.json', stderr: '', stdout: '', turnStarted: true,
+            });
+
+            return { runId: 'agent-turn-1' };
+        });
+
+        const starting = runner.start({ actionId: 'main', context, runInput: { conversationId: 'conversation-1' } });
+        await vi.waitFor(() => expect(agentRunnerService.start).toHaveBeenCalledOnce());
+        await expect(Promise.race([starting, Promise.resolve('pending')])).resolves.toBe('pending');
+
+        checkpoint.resolve();
+        const runId = await starting;
+        expect(runId).toMatch(/^action-/u);
+        await expect(runner.wait(runId)).resolves.toMatchObject({ status: 'completed' });
+    });
+
+    it('rejects a root agent start when its first conversation save fails', async () => {
+        const files = [actionFile('main', { agent: 'codex', command: undefined, prompt: 'Run', type: 'agent' })];
+        const { agentRunnerService, runner } = createRunner(files);
+        agentRunnerService.start.mockRejectedValue(new Error('Conversation save failed'));
+
+        await expect(runner.start({ actionId: 'main', context, runInput: { conversationId: 'conversation-1' } }))
+            .rejects.toThrow('Conversation save failed');
+    });
+
     it('reserves a root agent conversation without creating its activity file', async () => {
         const files = [actionFile('main', { agent: 'codex', command: undefined, prompt: 'Run', type: 'agent' })];
         const { runner } = createRunner(files);
 
-        const reservation = await runner.reserveConversation({ actionId: 'main', context, runInput: {} });
+        const reservation = await runner.reserveConversation({ actionId: 'main', context, runInput: { conversationId: 'agent-client' } });
 
         expect(reservation.activityPath).toBe('design/activity/card__card-010.json');
+        expect(reservation.conversationId).toBe('agent-client');
         expect(reservation.reference).toBe(`design/activity/card__card-010.json#conversation=${reservation.conversationId}`);
     });
 
@@ -339,7 +428,8 @@ describe('ActionRunnerService', () => {
         })];
         const now = vi.fn(() => Date.parse('2026-08-31T14:25:30.123Z'));
         const { agentRunnerService, runner } = createRunner(files, { now });
-        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete) => {
+        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete, _onError, onConversationSaved) => {
+            onConversationSaved();
             onComplete(0, {
                 changedPaths: [], conversation: { id: request.actionId }, missingSession: false,
                 reference: `${request.actionId}.json`, stderr: '', stdout: '', turnStarted: true,
@@ -373,7 +463,8 @@ describe('ActionRunnerService', () => {
             prompt: 'Implement:\n{{diagram-changes}}', type: 'agent',
         })];
         const { agentRunnerService, runner } = createRunner(files);
-        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete) => {
+        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete, _onError, onConversationSaved) => {
+            onConversationSaved();
             onComplete(0, {
                 changedPaths: [], conversation: { id: request.actionId }, missingSession: false,
                 reference: `${request.actionId}.json`, stderr: '', stdout: '', turnStarted: true,
@@ -397,7 +488,8 @@ describe('ActionRunnerService', () => {
             actionFile('child', { command: undefined, prompt: 'Child', type: 'agent' }),
         ];
         const { agentRunnerService, runner } = createRunner(files);
-        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete) => {
+        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete, _onError, onConversationSaved) => {
+            onConversationSaved();
             onComplete(0, {
                 changedPaths: [], conversation: { id: request.actionId }, missingSession: false,
                 reference: `${request.actionId}.json`, stderr: '', stdout: '', turnStarted: true,
@@ -450,7 +542,8 @@ describe('ActionRunnerService', () => {
             actionFile('after-agent', { command: undefined, prompt: 'After', type: 'agent' }),
         ];
         const { agentRunnerService, commandRunner, localGitService, runner } = createRunner(files);
-        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete) => {
+        agentRunnerService.start.mockImplementation(async (_project, request, _onEvent, onComplete, _onError, onConversationSaved) => {
+            onConversationSaved?.();
             onComplete(0, {
                 changedPaths: [], conversation: { id: request.actionId }, missingSession: false,
                 reference: `${request.actionId}.json`, stderr: '', stdout: request.actionId, turnStarted: true,
@@ -522,11 +615,12 @@ describe('ActionRunnerService', () => {
         expect(commandRunner).not.toHaveBeenCalled();
     });
 
-    it('returns terminal failure for runtime selection error', async () => {
+    it('rejects a root agent start when runtime selection fails before its first save', async () => {
         const files = [actionFile('main', {agent: 'codex', command: undefined, model: 'gpt-5.5', prompt: 'Run {{card-file}}', type: 'agent'})];
         const { agentRunnerService, runner } = createRunner(files);
 
-        await expect(runToCompletion(runner, {actionId: 'main', context, runInput: { model: 'retired-model' }})).resolves.toMatchObject({ failure: expect.stringContaining('Unknown model'), status: 'failed' });
+        await expect(runner.start({actionId: 'main', context, runInput: { model: 'retired-model' }}))
+            .rejects.toThrow('Unknown model');
         expect(agentRunnerService.start).not.toHaveBeenCalled();
     });
 

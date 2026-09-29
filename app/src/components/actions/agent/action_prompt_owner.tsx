@@ -9,8 +9,8 @@ import { remoteConnectionService } from '../../../services/data/remote_connectio
 import { useBoundRunId, useRunSelector } from '../../hooks/use_action_runs'
 import { ActionAgentPrompt } from './action_agent_prompt'
 import type { RestoredAgentQuestions } from './action_agent_question_owner'
-import type { ActionConversationStore } from '../conversation/action_conversation_store'
-import { pendingConversationQuestions } from '../conversation/action_conversation_chat_selectors'
+import type { ActionConversationStore } from '../conversation/state/action_conversation_store'
+import { pendingConversationQuestions } from '../conversation/state/action_conversation_chat_selectors'
 import type { ActionHistoryStore } from '../run/state/action_history_store'
 import {
     answerRestoredConversationQuestions,
@@ -108,7 +108,9 @@ export function ActionPromptOwner(props: ActionPromptOwnerProps) {
         && conversationSnapshot.selectedConversation === null
     const prepare = newConversationDraft && !conversationSnapshot.loading
     const commandInitialValue = sessionActive && activeActionType === 'agent' ? '' : undefined
-    const promptDraft = currentActionPromptDraft(action, context, bindingStore, newConversationDraft, commandInitialValue)
+    const promptDraft = currentActionPromptDraft(
+        action, context, bindingStore, conversationStore, newConversationDraft, commandInitialValue,
+    )
     const handleAttachments = useCallback(async (files: File[], insertMarkdown: (markdown: string) => void) => {
         const attachmentWorkflow = await import('../../../services/attachments/attachment_workflow')
         if (context.file) {
@@ -169,7 +171,7 @@ export function ActionPromptOwner(props: ActionPromptOwnerProps) {
             convertMessage={inputSnapshot.convertMessage}
             monospace={action.type === 'command'}
             onRunShortcut={handleRunShortcut}
-            plainText
+            plainText={action.type === 'command'}
             promptDraft={promptDraft}
             questionsEnabled={props.questionsEnabled}
             restoredQuestions={restored}

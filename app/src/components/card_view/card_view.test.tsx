@@ -7,13 +7,14 @@ import { CardColumn } from './card_column'
 import * as cardColumnModule from './card_column'
 import { actionService } from '../../services/actions/action_service'
 import type { ActionFile } from '../../data/action_types'
+import type { ElectronDataBridge } from '../../data/electron_data_bridge'
 import { DEFAULT_CARD_TYPES, type CardTypeConfig, type Card, type ProjectReference } from '../../data/data_types'
 import { telemetryService } from '../../services/telemetry/telemetry_service'
 import { AppThemeProvider } from '../../theme/theme_provider'
 import { dataService } from '../../services/data/data_service'
 import { dialogService } from '../../services/dialog_service'
 import { worktreeService } from '../../services/project/worktree_service'
-import { cardMarkdownDataSource } from '../editor/card_markdown_data_source'
+import { cardMarkdownDataSource } from '../editor/data_sources/card_markdown_data_source'
 import { openFilesService } from '../../services/open_files_service'
 import { workspaceViewService } from '../../services/project/workspace_view_service'
 import { cardDragDropService } from './card_drag_drop_service'
@@ -23,6 +24,7 @@ import { projectAccessService } from '../../services/project/project_access_serv
 import { cardPopupService } from '../../services/card_popup_service'
 import { cardSequenceDraftService } from '../actions/run/sequence/card_sequence_draft_service'
 import { CARD_SEQUENCE_DROP_ID } from '../actions/run/sequence/card_sequence_dnd'
+import { CardActionPopupHost } from '../actions/run/popup/card_action_popup_host'
 
 const dragContextHandlers = vi.hoisted(() => ({
     onDragCancel: null as DndContextProps['onDragCancel'] | null,
@@ -89,7 +91,6 @@ function createColumnHandlers() {
     return {
         onArchiveCard: vi.fn(async () => undefined),
         onDeleteCard: vi.fn(async () => undefined),
-        onOpenInFileMode: vi.fn(),
         onTitleChange: vi.fn(),
         onTogglePolicy: vi.fn(),
     }
@@ -104,6 +105,7 @@ function renderCardView(
     setCards(activeCards, repositoryFiles, project)
     render(
         <AppThemeProvider>
+            <CardActionPopupHost />
             <CardView
                 cardTypes={DEFAULT_CARD_TYPES}
                 states={[
@@ -140,6 +142,7 @@ describe('CardView', () => {
 
     afterEach(() => {
         cleanup()
+        cardPopupService.clear()
         attachmentChoiceService.cancel()
         cardDragDropService.endDrag()
         const { selectedPath } = workspaceViewService.getSnapshot()
@@ -181,15 +184,16 @@ describe('CardView', () => {
         expect(screen.getByText('First')).toBeInTheDocument()
     })
 
-    it('shows accessible attachment state and opens one choice for external file drop', () => {
+    it('hides header attachments and opens one choice for external file drop', () => {
         const referencedCard = { ...cards[0], header: { ...cards[0].header, references: ['design/report.pdf'] } }
         const copyAttachments = vi.spyOn(dataService.cards, 'copyAttachmentsForCard')
         const addReferences = vi.spyOn(dataService.cards, 'addCardReferences')
         renderCardView({}, [referencedCard, cards[1]])
 
-        expect(screen.getByRole('button', { name: 'Attach files to F-1; 1 attached' })).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: /Attach files to F-1/u })).not.toBeInTheDocument()
         fireEvent.contextMenu(screen.getByText('First'))
-        expect(screen.getByRole('menuitem', { name: 'Attach files (1)' })).toBeInTheDocument()
+        expect(screen.queryByRole('menuitem', { name: /Attach files/u })).not.toBeInTheDocument()
+        expect(screen.queryByRole('menuitem', { name: 'Open in file mode' })).not.toBeInTheDocument()
         fireEvent.keyDown(document, { key: 'Escape' })
 
         const cardSurface = screen.getByText('First').closest('[data-card-path]')
@@ -200,6 +204,55 @@ describe('CardView', () => {
         expect(attachmentChoiceService.getSnapshot()).toMatchObject({ fileCount: 1, fileNames: ['report.pdf'] })
         expect(copyAttachments).not.toHaveBeenCalled()
         expect(addReferences).not.toHaveBeenCalled()
+    })
+
+    it('opens dropped card popup after body save and keeps an open popup visible', async () => {
+        window.md2Files = { getPathForFile: () => 'C:\\source\\notes.pdf' }
+        const updateCardBody = vi.spyOn(dataService.cards, 'updateCardBody').mockReturnValue(cards[0])
+        const flushPendingCommits = vi.spyOn(dataService.cards, 'flushPendingCommits').mockResolvedValue()
+        const showCardDetails = vi.spyOn(cardPopupService, 'showCardDetails')
+        renderCardView()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Drag F-1' }))
+        const popup = screen.getByRole('dialog')
+        const cardSurface = screen.getByText('First').closest('[data-card-path]')
+        if (!cardSurface) throw new Error('Missing card drop surface')
+        fireEvent.drop(cardSurface, { dataTransfer: { files: [new File(['notes'], 'notes.pdf')], types: ['Files'] } })
+        attachmentChoiceService.select('original')
+
+        await waitFor(() => expect(showCardDetails).toHaveBeenCalledWith('f-1', cardSurface))
+        expect(updateCardBody).toHaveBeenCalledWith('design/F-1.md', '# First\n\nBody of F-1\n[notes.pdf](<file:///C:/source/notes.pdf>)\n')
+        expect(flushPendingCommits.mock.invocationCallOrder[0]).toBeLessThan(showCardDetails.mock.invocationCallOrder[0])
+        expect(popup).toBeInTheDocument()
+        expect(dataService.cards.moveCard).not.toHaveBeenCalled()
+        expect(cards[0].header.references).toEqual([])
+        delete window.md2Files
+    })
+
+    it('ignores read-only file drops without opening attachment choice or moving cards', () => {
+        projectAccessService.setReadOnly(true)
+        renderCardView()
+        const cardSurface = screen.getByText('First').closest('[data-card-path]')
+        if (!cardSurface) throw new Error('Missing card drop surface')
+        fireEvent.drop(cardSurface, { dataTransfer: { files: [new File(['notes'], 'notes.pdf')], types: ['Files'] } })
+
+        expect(attachmentChoiceService.getSnapshot()).toBeNull()
+        expect(dataService.cards.moveCard).not.toHaveBeenCalled()
+        expect(cards[0].content).toBe('# First\n\nBody of F-1')
+    })
+
+    it('keeps card closed after cancelled file drop', async () => {
+        const showCardDetails = vi.spyOn(cardPopupService, 'showCardDetails')
+        renderCardView()
+        const cardSurface = screen.getByText('First').closest('[data-card-path]')
+        if (!cardSurface) throw new Error('Missing card drop surface')
+        fireEvent.drop(cardSurface, { dataTransfer: { files: [new File(['notes'], 'notes.pdf')], types: ['Files'] } })
+        attachmentChoiceService.cancel()
+
+        await waitFor(() => expect(attachmentChoiceService.getSnapshot()).toBeNull())
+        expect(showCardDetails).not.toHaveBeenCalled()
+        expect(cards[0].content).toBe('# First\n\nBody of F-1')
+        expect(cards[0].header.references).toEqual([])
     })
 
     it('lets desktop columns flex between their minimum and maximum widths', () => {
@@ -429,13 +482,11 @@ describe('CardView', () => {
             .toEqual(expect.arrayContaining(['done', 'todo']))
     })
 
-    it('routes the file-mode action from the popup to the callback', () => {
+    it('removes file-mode action from the popup', () => {
         renderCardView()
 
         fireEvent.click(screen.getByRole('button', { name: 'Drag F-1' }))
-        fireEvent.click(screen.getByRole('button', { name: 'Open in file mode' }))
-
-        expect(openFilesService.openPath).toHaveBeenCalledWith('design/F-1.md')
+        expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Open in file mode' })).not.toBeInTheDocument()
     })
 
     it('edits the title from the card popup and commits on Enter', () => {
@@ -497,12 +548,9 @@ describe('CardView', () => {
         expect(within(screen.getByRole('dialog')).getByText('Saved')).toBeInTheDocument()
     })
 
-    it('routes the file-mode action from the card header without opening the popup', () => {
+    it('removes file-mode action from the card header', () => {
         renderCardView()
-
-        fireEvent.click(screen.getByRole('button', { name: 'Open F-1 in file mode' }))
-
-        expect(openFilesService.openPath).toHaveBeenCalledWith('design/F-1.md')
+        expect(screen.queryByRole('button', { name: 'Open F-1 in file mode' })).not.toBeInTheDocument()
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
@@ -539,6 +587,27 @@ describe('CardView', () => {
         fireEvent.contextMenu(screen.getByText('First'))
         const contextItems = screen.getAllByRole('menuitem').map((item) => item.textContent)
         expect(contextItems.slice(-2)).toEqual(['Archive', 'Delete'])
+    })
+
+    it('offers Open in file explorer from both card menu entry points', async () => {
+        const showInFileExplorer = vi.fn().mockResolvedValue(undefined)
+        window.md2Data = { showInFileExplorer } as Partial<ElectronDataBridge> as ElectronDataBridge
+        try {
+            renderCardView()
+
+            fireEvent.click(screen.getByRole('button', { name: 'Card actions for F-1' }))
+            const dotsItems = screen.getAllByRole('menuitem').map((item) => item.textContent)
+            expect(dotsItems).toContain('Open in file explorer')
+            expect(dotsItems).not.toContain('Open in file mode')
+            fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+
+            fireEvent.contextMenu(screen.getByText('First'))
+            fireEvent.click(screen.getByRole('menuitem', { name: 'Open in file explorer' }))
+
+            await waitFor(() => expect(showInFileExplorer).toHaveBeenCalledWith({ path: 'design/F-1.md' }))
+        } finally {
+            delete window.md2Data
+        }
     })
 
     it('disables Archive on a read-only project', () => {
@@ -618,13 +687,12 @@ describe('CardView', () => {
         expect(dialog.getByRole('button', { name: 'Send' })).toBeInTheDocument()
     })
 
-    it('opens existing card commands from the icon button menu', () => {
+    it('omits removed card commands from the icon button menu', () => {
         renderCardView()
 
         fireEvent.click(screen.getByRole('button', { name: 'Card actions for F-1' }))
-        fireEvent.click(screen.getByRole('menuitem', { name: 'Open in file mode' }))
-
-        expect(openFilesService.openPath).toHaveBeenCalledWith('design/F-1.md')
+        expect(screen.queryByRole('menuitem', { name: 'Open in file mode' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('menuitem', { name: /Attach files/u })).not.toBeInTheDocument()
     })
 
     it('copies local card paths from three-dot and right-click menus and closes each menu', async () => {
@@ -671,6 +739,7 @@ describe('CardView', () => {
         const copyError = new Error('Clipboard denied')
         const reportError = vi.spyOn(dialogService, 'error')
         Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(copyError) } })
+        document.execCommand = vi.fn(() => { throw copyError })
         renderCardView()
 
         fireEvent.click(screen.getByRole('button', { name: 'Card actions for F-1' }))
@@ -705,7 +774,7 @@ describe('CardView', () => {
         expect(dialog).toHaveStyle({ height: '620px', width: '760px' })
         expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
         expect(within(dialog).getByRole('button', { name: 'Affects' })).toBeInTheDocument()
-        expect(within(dialog).getByRole('button', { name: 'Open in file mode' })).toBeInTheDocument()
+        expect(within(dialog).queryByRole('button', { name: 'Open in file mode' })).not.toBeInTheDocument()
         expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument()
         expect(within(dialog).getByRole('button', { name: 'Fullscreen' })).toBeInTheDocument()
         expect(screen.getByRole('separator', { name: 'Resize card details popup from right' })).toBeInTheDocument()

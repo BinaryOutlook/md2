@@ -1,14 +1,17 @@
 import { register } from '../service_injector'
 import {
     diagramEditSessionService,
-    type DiagramCollectionKind,
     type DiagramEditSessionService,
-    type DiagramMembershipChangeDetail,
 } from './diagram_edit_session_service'
+import type {
+    DiagramCollectionKind,
+    DiagramMembershipChangeDetail,
+} from './diagram_edit_types'
 import { diagramGeometryService, type DiagramGeometryService } from './diagram_geometry_service'
 import {
     diagramRectangleBetween,
     diagramRectangleIntersectsBox,
+    diagramRectangleIntersectsQuadraticCurve,
     diagramRectangleIntersectsRoute,
     type DiagramPoint,
     type DiagramRectangle,
@@ -16,6 +19,7 @@ import {
 
 const SELECTION_MEMBERSHIP_CHANGED_EVENT = 'selection:membership'
 const SELECTION_RECTANGLE_CHANGED_EVENT = 'selection:rectangle'
+const SELECTION_BOUNDARY_CHANGED_EVENT = 'selection:boundary'
 const EMPTY_SELECTION: readonly DiagramSelectionIdentity[] = Object.freeze([])
 
 export type DiagramSelectableObjectKind = Extract<DiagramCollectionKind, 'edge' | 'group' | 'node'>
@@ -34,6 +38,7 @@ type DiagramSelectionSession = Pick<
     | 'getNodeSnapshot'
     | 'getNodeIdsSnapshot'
     | 'getSessionSnapshot'
+    | 'getMetadataFieldSnapshot'
     | 'getActiveToolSnapshot'
     | 'removeObjects'
     | 'subscribeActiveTool'
@@ -43,7 +48,8 @@ type DiagramSelectionSession = Pick<
 
 type DiagramSelectionGeometry = Pick<
     DiagramGeometryService,
-    'getEdgeRouteSnapshot' | 'getGroupGeometryFieldSnapshot' | 'getNodeGeometryFieldSnapshot'
+    | 'getEdgeControlPointSnapshot' | 'getEdgeRouteSnapshot' | 'getGroupGeometryFieldSnapshot' | 'getNodeGeometryFieldSnapshot'
+    | 'subscribeEdgeGeometryField' | 'subscribeGroupGeometryField' | 'subscribeNodeGeometryField' | 'subscribeGeometrySession'
 >
 
 function selectionKey({ objectId, objectKind }: DiagramSelectionIdentity) {
@@ -69,6 +75,8 @@ export class DiagramSelectionService extends EventTarget {
     private readonly geometry: DiagramSelectionGeometry
     private rectangle: DiagramRectangle | null = null
     private rectangleStart: DiagramPoint | null = null
+    private boundary: DiagramRectangle | null = null
+    private boundaryUnsubscribes: (() => void)[] = []
     private selection: readonly DiagramSelectionIdentity[] = EMPTY_SELECTION
     private selectedKeys = new Set<string>()
     private readonly session: DiagramSelectionSession
@@ -85,11 +93,14 @@ export class DiagramSelectionService extends EventTarget {
         this.session.subscribeCollectionMembershipWillChange('edge', this.handleCollectionMembershipWillChange)
         this.session.subscribeCollectionMembershipWillChange('group', this.handleCollectionMembershipWillChange)
         this.session.subscribeCollectionMembershipWillChange('node', this.handleCollectionMembershipWillChange)
+        this.geometry.subscribeGeometrySession(this.updateBoundary)
     }
 
     getSelectionSnapshot = () => this.selection
 
     getRectangleSnapshot = () => this.rectangle
+
+    getBoundarySnapshot = () => this.boundary
 
     getSelectedSnapshot = (identity: DiagramSelectionIdentity) => this.isSelected(identity)
 
@@ -100,6 +111,8 @@ export class DiagramSelectionService extends EventTarget {
     subscribeSelection = (listener: () => void) => this.subscribe(SELECTION_MEMBERSHIP_CHANGED_EVENT, listener)
 
     subscribeRectangle = (listener: () => void) => this.subscribe(SELECTION_RECTANGLE_CHANGED_EVENT, listener)
+
+    subscribeBoundary = (listener: () => void) => this.subscribe(SELECTION_BOUNDARY_CHANGED_EVENT, listener)
 
     subscribeSelected = (identity: DiagramSelectionIdentity, listener: () => void) => (
         this.subscribe(selectedChangedEvent(identity), listener)
@@ -248,8 +261,15 @@ export class DiagramSelectionService extends EventTarget {
                 identities.push({ objectId: nodeId, objectKind: 'node' })
             }
         }
+        const isMindmap = this.session.getMetadataFieldSnapshot('type') === 'mindmap'
         for (const edgeId of this.session.getEdgeIdsSnapshot()) {
-            if (diagramRectangleIntersectsRoute(rectangle, this.geometry.getEdgeRouteSnapshot(edgeId))) {
+            const route = this.geometry.getEdgeRouteSnapshot(edgeId)
+            const controlPoint = isMindmap ? this.geometry.getEdgeControlPointSnapshot(edgeId) : null
+            const intersects = isMindmap
+                ? !!controlPoint && route.length === 2
+                    && diagramRectangleIntersectsQuadraticCurve(rectangle, route[0], controlPoint, route[1])
+                : diagramRectangleIntersectsRoute(rectangle, route)
+            if (intersects) {
                 identities.push({ objectId: edgeId, objectKind: 'edge' })
             }
         }
@@ -307,8 +327,63 @@ export class DiagramSelectionService extends EventTarget {
     }
 
     private publish(changedIdentities: readonly DiagramSelectionIdentity[]) {
+        this.bindBoundaryGeometry()
+        this.updateBoundary()
         for (const identity of changedIdentities) this.dispatchEvent(new Event(selectedChangedEvent(identity)))
         this.dispatchEvent(new Event(SELECTION_MEMBERSHIP_CHANGED_EVENT))
+    }
+
+    private bindBoundaryGeometry() {
+        this.boundaryUnsubscribes.forEach((unsubscribe) => unsubscribe())
+        this.boundaryUnsubscribes = []
+        if (this.selection.length < 2) return
+        for (const { objectId, objectKind } of this.selection) {
+            if (objectKind === 'edge') {
+                this.boundaryUnsubscribes.push(this.geometry.subscribeEdgeGeometryField(objectId, 'points', this.updateBoundary))
+                this.boundaryUnsubscribes.push(this.geometry.subscribeEdgeGeometryField(objectId, 'controlPoint', this.updateBoundary))
+                continue
+            }
+            for (const field of ['x', 'y', 'width', 'height'] as const) {
+                const subscribe = objectKind === 'node'
+                    ? this.geometry.subscribeNodeGeometryField
+                    : this.geometry.subscribeGroupGeometryField
+                this.boundaryUnsubscribes.push(subscribe(objectId, field, this.updateBoundary))
+            }
+        }
+    }
+
+    private updateBoundary = () => {
+        let left = Infinity
+        let top = Infinity
+        let right = -Infinity
+        let bottom = -Infinity
+        if (this.selection.length > 1) {
+            for (const { objectId, objectKind } of this.selection) {
+                if (objectKind === 'edge') {
+                    const route = this.geometry.getEdgeRouteSnapshot(objectId)
+                    const controlPoint = this.geometry.getEdgeControlPointSnapshot(objectId)
+                    for (const point of controlPoint ? [...route, controlPoint] : route) {
+                        left = Math.min(left, point.x)
+                        top = Math.min(top, point.y)
+                        right = Math.max(right, point.x)
+                        bottom = Math.max(bottom, point.y)
+                    }
+                    continue
+                }
+                const box = this.readBox(objectKind, objectId)
+                if (!box) continue
+                left = Math.min(left, box.x)
+                top = Math.min(top, box.y)
+                right = Math.max(right, box.x + box.width)
+                bottom = Math.max(bottom, box.y + box.height)
+            }
+        }
+        const next = Number.isFinite(left) ? { x: left, y: top, width: right - left, height: bottom - top } : null
+        const current = this.boundary
+        if (current?.x === next?.x && current?.y === next?.y
+            && current?.width === next?.width && current?.height === next?.height) return
+        this.boundary = next
+        this.dispatchEvent(new Event(SELECTION_BOUNDARY_CHANGED_EVENT))
     }
 
     private subscribe(eventType: string, listener: () => void) {

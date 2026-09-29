@@ -1,11 +1,24 @@
-import { Box, ToggleButtonGroup } from '@mui/material'
-import type { MouseEvent } from 'react'
+import { ToggleButtonGroup } from '@mui/material'
+import { useEffect, useRef, type MouseEvent } from 'react'
 import type { ActionContext } from '../../../../data/action_context'
 import type { ActionRunStatus } from '../../../../data/action_run_types'
 import type { ActionDefinition } from '../../../../data/action_types'
 import { useActiveActionRunsForContext } from '../../../hooks/use_action_runs'
+import { HorizontalScrollArea } from '../../../horizontal_scroll_area'
 import { ActionSelectorButton } from './action_selector_button'
 import { ACTION_SELECTOR_GROUP_SX } from './action_selector_styles'
+
+/** Single-row variant of the shared group styles; buttons keep their natural width inside the scroll area. */
+const ACTION_SELECTOR_ROW_SX = {
+    ...ACTION_SELECTOR_GROUP_SX,
+    flexWrap: 'nowrap',
+    '& .MuiToggleButtonGroup-grouped': {
+        ...ACTION_SELECTOR_GROUP_SX['& .MuiToggleButtonGroup-grouped'],
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+    },
+} as const
+const SELECTED_BUTTON_SELECTOR = '[aria-pressed="true"]'
 
 interface ActionSelectorProps {
     actions: ActionDefinition[]
@@ -18,6 +31,7 @@ interface ActionSelectorProps {
 export function ActionSelector(props: ActionSelectorProps) {
     const { actions, context, onSelect, selectedAction } = props
     const activeRuns = useActiveActionRunsForContext(context)
+    const groupRef = useRef<HTMLDivElement>(null)
     const activeActionStatuses: Record<string, ActionRunStatus> = {}
     for (const { rootActionId, status } of activeRuns) {
         if (status === 'waitingForInput' || !activeActionStatuses[rootActionId]) activeActionStatuses[rootActionId] = status
@@ -26,27 +40,31 @@ export function ActionSelector(props: ActionSelectorProps) {
         if (actionId) onSelect(actionId)
     }
 
+    useEffect(() => {
+        const selectedButton = groupRef.current?.querySelector(SELECTED_BUTTON_SELECTOR)
+        selectedButton?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }, [selectedAction.id])
+
     return (
-        <Box sx={{ alignItems: 'center', display: 'flex', flex: 1, flexWrap: 'wrap', gap: 1, minWidth: 0 }}>
-            <Box sx={{ minWidth: 0 }}>
-                <ToggleButtonGroup
-                    aria-label="Actions"
-                    exclusive
-                    onChange={handleChange}
-                    size="small"
-                    sx={ACTION_SELECTOR_GROUP_SX}
-                    value={selectedAction.id}
-                >
-                    {actions.map((action) => (
-                        <ActionSelectorButton
-                            action={action}
-                            context={context}
-                            key={action.id}
-                            liveStatus={activeActionStatuses[action.id]}
-                        />
-                    ))}
-                </ToggleButtonGroup>
-            </Box>
-        </Box>
+        <HorizontalScrollArea>
+            <ToggleButtonGroup
+                aria-label="Actions"
+                exclusive
+                onChange={handleChange}
+                ref={groupRef}
+                size="small"
+                sx={ACTION_SELECTOR_ROW_SX}
+                value={selectedAction.id}
+            >
+                {actions.map((action) => (
+                    <ActionSelectorButton
+                        action={action}
+                        context={context}
+                        key={action.id}
+                        liveStatus={activeActionStatuses[action.id]}
+                    />
+                ))}
+            </ToggleButtonGroup>
+        </HorizontalScrollArea>
     )
 }

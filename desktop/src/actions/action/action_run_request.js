@@ -1,5 +1,5 @@
 const ALLOWED_REQUEST_FIELDS = new Set(['actionId', 'context', 'conversationReservation', 'runInput']);
-const ALLOWED_RUN_INPUT_FIELDS = new Set(['agent', 'command', 'continueFrom', 'diagramPath', 'extraPrompt', 'model', 'permissionMode', 'prompt', 'thinkingLevel']);
+const ALLOWED_RUN_INPUT_FIELDS = new Set(['agent', 'command', 'conversationId', 'continueFrom', 'diagramPath', 'extraPrompt', 'model', 'permissionMode', 'prompt', 'submissionId', 'thinkingLevel', 'version']);
 const CONTEXT_KINDS = new Set(['card', 'diagram', 'file', 'folder', 'merge-conflict', 'project']);
 
 function readOptionalString(value, fieldName) {
@@ -36,14 +36,23 @@ function validateRunInput(runInput = {}) {
     return {
         agent: readOptionalString(runInput.agent, 'agent'),
         command: readOptionalString(runInput.command, 'command'),
+        conversationId: readOptionalString(runInput.conversationId, 'conversationId'),
         continueFrom: readOptionalString(runInput.continueFrom, 'continueFrom'),
         diagramPath: readOptionalString(runInput.diagramPath, 'diagramPath'),
         extraPrompt: readOptionalString(runInput.extraPrompt, 'extraPrompt') ?? '',
         model: readOptionalString(runInput.model, 'model'),
         permissionMode: readOptionalString(runInput.permissionMode, 'permissionMode'),
         ...readPrompt(runInput),
+        submissionId: readOptionalString(runInput.submissionId, 'submissionId'),
         thinkingLevel: readOptionalString(runInput.thinkingLevel, 'thinkingLevel'),
+        version: runInput.version === undefined ? undefined : validateVersion(runInput.version),
     };
+}
+
+function validateVersion(value) {
+    if (typeof value !== 'string' || value.trim().length === 0) throw new Error('Version must contain non-whitespace text');
+
+    return value;
 }
 
 function validateConversationReservation(reservation) {
@@ -94,4 +103,4 @@ function validatePreparePromptRequest(request) {
     return { actionId: request.actionId, context: validateContext(request.context) };
 }
 
-module.exports = { validatePreparePromptRequest, validateStartRequest };
+module.exports = { validatePreparePromptRequest, validateStartRequest, validateVersion };

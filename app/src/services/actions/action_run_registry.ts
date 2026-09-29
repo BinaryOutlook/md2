@@ -29,6 +29,8 @@ import { dialogService } from '../dialog_service'
 import { getService, register } from '../service_injector'
 import { projectAccessService } from '../project/project_access_service'
 import type { DataService } from '../data/data_service'
+import { ActionRunStore } from './action_run_store'
+import { actionVersionRequestService } from './action_version_request_service'
 
 const TERMINAL_STATUSES = new Set<ActionRunTerminalStatus>(['cancelled', 'completed', 'failed', 'okButNotAfter'])
 const ACTIVE_STATUSES = new Set<ActionRunStatus>(['queued', 'running', 'waitingForInput'])
@@ -361,38 +363,6 @@ export async function finishActionRun(runId: string) {
     await bridge.finishActionRun(runId)
 }
 
-/** Stable state owner for one action run. */
-export class ActionRunStore {
-    private readonly listeners = new Set<StoreListener>()
-    private readonly onReleased: (store: ActionRunStore) => void
-    private snapshot: ActionRun
-
-    constructor(snapshot: ActionRun, onReleased: (store: ActionRunStore) => void) {
-        this.onReleased = onReleased
-        this.snapshot = snapshot
-    }
-
-    readonly getSnapshot = () => this.snapshot
-
-    readonly subscribe = (listener: StoreListener) => {
-        this.listeners.add(listener)
-
-        return () => {
-            this.listeners.delete(listener)
-            this.onReleased(this)
-        }
-    }
-
-    hasConsumers() {
-        return this.listeners.size > 0
-    }
-
-    update(snapshot: ActionRun) {
-        this.snapshot = snapshot
-        for (const listener of this.listeners) listener()
-    }
-}
-
 function actionContextKey(actionId: string, context: ActionContext) {
     return `${actionId}\u0000${contextKey(context)}`
 }
@@ -496,6 +466,7 @@ export class ActionRunRegistry extends EventTarget {
 
     stop() {
         const runIds = [...this.runs.keys()]
+        actionVersionRequestService.clear()
         this.unsubscribeBridge?.()
         this.subscribedBridge = null
         this.unsubscribeBridge = null
@@ -738,6 +709,7 @@ export class ActionRunRegistry extends EventTarget {
     }
 
     private completeRecoveredRun(result: ActionRunRecoveryTerminalResult) {
+        actionVersionRequestService.remove(result.runId)
         const store = this.runs.get(result.runId)
         const context = store?.getSnapshot().context ?? this.runContexts.get(result.runId) ?? null
         let logs: ActionRunLogEntry[] = []
@@ -785,7 +757,7 @@ export class ActionRunRegistry extends EventTarget {
                 status: result.status,
             }
             store.update(next)
-            actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
+            actionPromptDraftService.flushContextDrafts(next.rootActionId, next.context)
             this.publishActiveIndexes(contextKey(current.context), contextKey(next.context))
         }
 
@@ -823,6 +795,8 @@ export class ActionRunRegistry extends EventTarget {
             if (event.sequence <= currentSequence) return
             this.eventSequences.set(event.runId, event.sequence)
         }
+        if (event.type === 'inputRequest') actionVersionRequestService.request(event)
+        else actionVersionRequestService.remove(event.runId)
         const store = this.runs.get(event.runId)
         const current = store?.getSnapshot() ?? {
             activeActionAutoFinish: null,
@@ -846,6 +820,8 @@ export class ActionRunRegistry extends EventTarget {
             status: 'running' as const,
         }
         let next = { ...current, context: event.context, rootActionId: event.rootActionId }
+        if (event.type === 'update') next = { ...next, status: event.status }
+        if (event.type === 'inputRequest') next = { ...next, status: 'waitingForInput' }
         if (event.type === 'run') {
             next = {
                 ...next,
@@ -856,7 +832,7 @@ export class ActionRunRegistry extends EventTarget {
         }
         if (event.type === 'run' && TERMINAL_STATUSES.has(event.status as ActionRunTerminalStatus)) {
             next = { ...next, approvals: [], question: null, queuedPrompts: [] }
-            actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
+            actionPromptDraftService.flushContextDrafts(next.rootActionId, next.context)
         }
         if (event.type === 'agentState') next = { ...next, status: event.status }
         if (event.type === 'action') {
@@ -873,7 +849,7 @@ export class ActionRunRegistry extends EventTarget {
                 reference: event.reference ?? next.reference,
             }
             if (active) next.status = event.status
-            if (!active) actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
+            else actionPromptDraftService.flushContextDrafts(next.rootActionId, next.context)
         }
         if (event.type === 'agentState') {
             next = {
@@ -894,14 +870,12 @@ export class ActionRunRegistry extends EventTarget {
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentStarted') {
-            const { continued } = event.update
             next = {
                 ...next,
                 conversation: event.update.conversation,
                 conversationChange: { kind: 'replace' },
                 conversationPersisted: null,
             }
-            if (continued) actionPromptDraftService.discardUneditedDraft(next.rootActionId, next.context, next.runId)
         }
         if (event.type === 'update' && event.update.kind === 'agentClosed') {
             next = {
@@ -952,7 +926,11 @@ export class ActionRunRegistry extends EventTarget {
                     : entry),
             }
         }
-        if (event.type === 'update' && event.update.kind === 'agentPromptRemoved') {
+        if (event.type === 'update' && (
+            event.update.kind === 'agentPromptDeleted'
+            || event.update.kind === 'agentPromptDiscarded'
+            || event.update.kind === 'agentPromptDispatched'
+        )) {
             const { promptId } = event.update
             next = {
                 ...next,
@@ -963,7 +941,6 @@ export class ActionRunRegistry extends EventTarget {
             next = {
                 ...next,
                 question: { questions: event.update.questions, requestId: event.update.requestId },
-                status: event.status,
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentQuestionDismissed' && next.conversation) {
@@ -976,7 +953,6 @@ export class ActionRunRegistry extends EventTarget {
                 },
                 conversationChange: { entryIndex: next.conversation.entries.length, kind: 'entry' },
                 question: matchingQuestion ? null : next.question,
-                status: event.status,
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentApproval') {
@@ -985,7 +961,6 @@ export class ActionRunRegistry extends EventTarget {
             next = {
                 ...next,
                 approvals: [...approvals, { ...event.update.approval, submitted: false }],
-                status: event.status,
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentApprovalSubmitted') {
@@ -1003,7 +978,6 @@ export class ActionRunRegistry extends EventTarget {
             next = {
                 ...next,
                 approvals,
-                status: event.status,
             }
         }
         if (
@@ -1018,7 +992,6 @@ export class ActionRunRegistry extends EventTarget {
                     entries: [...next.conversation.entries, event.update.userMessage],
                 },
                 conversationChange: { entryIndex: next.conversation.entries.length, kind: 'entry' },
-                status: event.status,
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentQuestionAnswer' && next.conversation) {
@@ -1031,7 +1004,6 @@ export class ActionRunRegistry extends EventTarget {
                 },
                 conversationChange: { entryIndex: next.conversation.entries.length, kind: 'entry' },
                 question: matchingQuestion ? null : next.question,
-                status: event.status,
             }
         }
         if (event.type === 'update' && event.update.kind === 'agentOutput') {
@@ -1146,7 +1118,6 @@ export class ActionRunRegistry extends EventTarget {
         this.runs.delete(runId)
         this.runContexts.delete(runId)
         this.eventSequences.delete(runId)
-        actionPromptDraftService.deleteUneditedDraft(run.rootActionId, run.context, runId)
         this.dispatchEvent(new Event(runEventType(runId)))
     }
 

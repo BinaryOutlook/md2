@@ -1,8 +1,8 @@
 import type { ActionContext } from '../../../../data/action_context'
 import type { ActionDefinition } from '../../../../data/action_types'
 import type { ActionRunSettingsStore } from '../../../../services/actions/action_run_settings_service'
-import type { ActionConversationStore } from '../../conversation/action_conversation_store'
-import type { ActionConversationSearchService } from '../../conversation/action_conversation_search_service'
+import type { ActionConversationStore } from '../../conversation/state/action_conversation_store'
+import type { ActionConversationSearchService } from '../../conversation/search/action_conversation_search_service'
 import type { ActionScheduleStore } from '../schedule/action_schedule_store'
 import type { ActionHistoryStore } from '../state/action_history_store'
 import type { ActionRunBindingStore } from '../state/action_run_binding_store'
@@ -18,6 +18,7 @@ export interface ActionPopupContentProps {
     baseContext: ActionContext
     draggable?: boolean
     fullHeight: boolean
+    initialConversationPath?: string
     initialRunId?: string
     onActivate?: () => void
     onClose: () => void
@@ -25,6 +26,7 @@ export interface ActionPopupContentProps {
     onToggleFullHeight: () => void
     open: boolean
     popupEntryId?: string
+    popupVisible?: boolean
     primaryPath: string | null
     readOnlyMessage: string | null
     stackPosition?: number

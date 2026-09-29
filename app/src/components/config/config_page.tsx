@@ -15,13 +15,12 @@ import {
 } from '@mui/material'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { navigateTo } from '../../app/app_navigation'
-import { CONFIG_SECTIONS, configService, type ConfigEntry, type ConfigKey } from '../../services/config/config_service'
+import { CONFIG_SECTIONS, configService, type ConfigEntry, type ConfigKey, type ConfigValues } from '../../services/config/config_service'
 import { saveDesktopConfigToHost } from '../../services/config/desktop_config_transport'
 import { dataService } from '../../services/data/data_service'
 import { dialogService } from '../../services/dialog_service'
 import { DesktopConfigSection } from './desktop_config_section'
 import { ProjectConfigSection } from './project_config_section'
-import { ReactConfigSection } from './react_config_section'
 import { useAppTheme } from '../../theme/use_app_theme'
 import {
     cloneMarkdownStyleConfig,
@@ -67,11 +66,34 @@ function getActiveSection(hash: string, sections: typeof CONFIG_SECTIONS) {
 function getVisibleSections(entries: ConfigEntry[]) {
     return CONFIG_SECTIONS.flatMap((section) => {
         const visibleSection = entries.some((entry) => entry.section === section.id) ? [section] : []
-        if (section.id === 'react') return [...visibleSection, MARKDOWN_CONFIG_SECTION]
-        if (section.id === 'project') return [...visibleSection, SENTRY_CONFIG_SECTION]
+        if (section.id === 'project') return [...visibleSection, SENTRY_CONFIG_SECTION, MARKDOWN_CONFIG_SECTION]
 
         return visibleSection
     })
+}
+
+function removedNames(savedNames: string[], draftNames: string[]) {
+    return savedNames.filter((name) => !draftNames.includes(name))
+}
+
+/** Message naming the card types and columns a draft drops, or null when it drops none. */
+function removedProjectValuesWarning(draft: ConfigValues) {
+    const removedCardTypes = removedNames(
+        configService.get('project.cardTypes').map((cardType) => cardType.type),
+        draft['project.cardTypes'].map((cardType) => cardType.type),
+    )
+    const removedColumns = removedNames(
+        configService.get('project.states').map((column) => column.state),
+        draft['project.states'].map((column) => column.state),
+    )
+    if (removedCardTypes.length === 0 && removedColumns.length === 0) return null
+
+    const removedParts = [
+        ...(removedCardTypes.length > 0 ? [`card types ${removedCardTypes.join(', ')}`] : []),
+        ...(removedColumns.length > 0 ? [`columns ${removedColumns.join(', ')}`] : []),
+    ]
+
+    return `Saving removes ${removedParts.join(' and ')}. Cards still using them render without a colour or ID prefix.`
 }
 
 function getConfigDraftSnapshot() {
@@ -193,6 +215,8 @@ export function ConfigPage(props: ConfigPageProps) {
                 && (await remoteControlBridge.getStatus()).active
             const shouldUpdateCardSeparator = configService.hasProjectConfig()
                 && previousCardSeparator !== nextCardSeparator
+            const removalWarning = configService.hasProjectConfig() ? removedProjectValuesWarning(draft) : null
+            if (removalWarning) dialogService.warning(removalWarning, { critical: true, title: 'Project config values removed' })
             if (shouldUpdateCardSeparator) {
                 await dataService.projectLoading.updateCardSeparator(previousCardSeparator, nextCardSeparator)
             }
@@ -207,7 +231,7 @@ export function ConfigPage(props: ConfigPageProps) {
             else if (markdownStyleChanged && isMarkdownStylePresetName(markdownStyleDraft.name)) {
                 setMarkdownStyle(markdownStyleDraft.name)
             }
-            if (shouldSaveProjectConfig && configService.hasProjectConfig()) await dataService.projectLoading.saveProjectConfig()
+            if (shouldSaveProjectConfig && configService.hasProjectConfig()) await configService.saveProjectConfig()
             navigateTo('/')
             if (shouldRestartRemoteControl) {
                 try {
@@ -288,7 +312,6 @@ export function ConfigPage(props: ConfigPageProps) {
                     <Stack spacing={3} sx={{ maxWidth: CONFIG_FORM_MAX_WIDTH }}>
                         {isMobile ? sectionTabs : null}
 
-                        {activeSection === 'react' ? <ReactConfigSection {...sectionProps} /> : null}
                         {activeSection === 'markdown' ? (
                             <MarkdownConfigSection
                                 config={markdownStyleDraft.config}

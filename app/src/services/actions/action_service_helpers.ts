@@ -125,6 +125,7 @@ export function editableActionDefinition(action: ActionDefinition): RawActionDef
         ...(action.thinkingLevel !== null ? { thinkingLevel: action.thinkingLevel } : {}),
         ...(action.trackFileChanges ? { trackFileChanges: true } : {}),
         ...(action.streaming ? { streaming: true } : {}),
+        ...(action.userInput != null ? { userInput: action.userInput } : {}),
         phrases: action.phrases,
         ...(action.type === 'agent' ? { prompt: action.prompt as string } : { command: action.command as string }),
     }

@@ -6,9 +6,7 @@ import { buildCardColumns } from '../../data/card_ordering'
 import type { CardTypeConfig, StateConfig } from '../../data/data_types'
 import { dataService } from '../../services/data/data_service'
 import { dialogService } from '../../services/dialog_service'
-import { openFilesService } from '../../services/open_files_service'
 import { workspaceViewService } from '../../services/project/workspace_view_service'
-import { telemetryService } from '../../services/telemetry/telemetry_service'
 import { AffectsEditorDialog } from './affects_editor_dialog'
 import { CardBodyPopover } from './card_body_popover'
 import { cardPopupService } from '../../services/card_popup_service'
@@ -147,14 +145,6 @@ export function MobileCardView(props: MobileCardViewProps) {
         if (drop) void runCardEdit(() => dataService.cards.moveCard(path, drop.targetStatus, drop.targetIndex), `Card move failed: ${path}`)
     }, [clearActiveCard, selectedColumn, states])
 
-    const handleOpenInFileMode = (path: string) => {
-        cardPopupService.closeCardDetails()
-        workspaceViewService.selectPath(path)
-        void runCardEdit(() => openFilesService.openPath(path), `File open failed: ${path}`)
-        workspaceViewService.setViewMode('text')
-        telemetryService.trackEvent('navigation')
-    }
-
     const handleArchiveCard = async (path: string) => {
         try {
             const activeCards = dataService.getState().snapshot?.activeCards ?? []
@@ -221,7 +211,6 @@ export function MobileCardView(props: MobileCardViewProps) {
                             isMobile
                             onArchiveCard={handleArchiveCard}
                             onDeleteCard={handleDeleteCard}
-                            onOpenInFileMode={handleOpenInFileMode}
                             onTitleChange={handleTitleChange}
                             onTogglePolicy={handleTogglePolicy}
                         />
@@ -234,7 +223,6 @@ export function MobileCardView(props: MobileCardViewProps) {
                     isMobile
                     onDeleteCard={handleDeleteCard}
                     onOpenAffects={setOpenAffectsPath}
-                    onOpenInFileMode={handleOpenInFileMode}
                     states={states}
                     statusColors={statusColors}
                     visible

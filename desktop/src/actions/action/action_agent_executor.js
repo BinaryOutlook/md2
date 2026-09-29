@@ -49,6 +49,9 @@ class ActionAgentExecutor {
                 continuationReferencePath(input.runInput.continueFrom),
             )
             : null;
+        if (sourceConversation && input.runInput.conversationId && sourceConversation.id !== input.runInput.conversationId) {
+            throw new Error('Continuation conversation ID does not match the loaded conversation');
+        }
         const expectedCardInternalId = input.activityOrigin.kind === 'card' ? input.activityOrigin.cardInternalId : null;
         if (sourceConversation && sourceConversation.cardInternalId !== expectedCardInternalId) {
             throw new Error(`Agent conversation belongs to ${sourceConversation.cardInternalId}, not ${expectedCardInternalId}`);
@@ -70,6 +73,7 @@ class ActionAgentExecutor {
                     '',
                     input.diagramFooter,
                     input.diagramFile,
+                    input.version,
                 )
                 : resolvePopupPrompt(
                     input.runInput.prompt,
@@ -80,6 +84,7 @@ class ActionAgentExecutor {
                     input.releasesFolder,
                     input.activeCardsFolder,
                     input.diagramFile,
+                    input.version,
                 )
             : sourceConversation
                 ? input.runInput.extraPrompt.trim().length > 0 ? input.runInput.extraPrompt : CONTINUE_INPUT
@@ -94,6 +99,7 @@ class ActionAgentExecutor {
                     input.runInput.extraPrompt,
                     input.diagramFooter,
                     input.diagramFile,
+                    input.version,
                 );
         const prompt = await appendCurrentCardReferences(
             basePrompt,
@@ -116,11 +122,13 @@ class ActionAgentExecutor {
             ...(input.context.file ? { cardPath: input.context.file } : {}),
             command,
             ...(sourceConversation ? { conversation: sourceConversation, reference } : {}),
-            ...(!sourceConversation && input.conversationReservation
-                ? { conversationId: input.conversationReservation.conversationId, reference }
-                : {}),
+            ...(!sourceConversation ? {
+                conversationId: input.conversationReservation?.conversationId ?? input.runInput.conversationId,
+                reference,
+            } : {}),
             ...(contextInput ? { contextInput } : {}),
             actionRunId: input.runId,
+            ...(input.runInput.submissionId ? { submissionId: input.runInput.submissionId } : {}),
             prompt,
             projectFolder: input.projectFolder,
             releasesFolder: input.releasesFolder,
@@ -176,7 +184,9 @@ class ActionAgentExecutor {
             turnStarted: run.turnStarted,
         });
         const onEvent = (agentEvent) => input.onEvent(agentEvent);
-        const started = await this.agentRunnerService.start(input.project, request, onEvent, onComplete, reject);
+        const started = await this.agentRunnerService.start(
+            input.project, request, onEvent, onComplete, reject, input.onConversationSaved,
+        );
         input.onActiveRunChange(started.runId);
 
         try {

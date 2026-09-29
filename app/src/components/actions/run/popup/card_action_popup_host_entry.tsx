@@ -28,11 +28,13 @@ export function CardActionPopupHostEntry({ entry, stackPosition, visible }: Card
             context={entry.context}
             draggable
             initialActionId={entry.requestedActionId ?? undefined}
+            initialConversationPath={entry.requestedConversationPath ?? undefined}
             initialRunId={entry.requestedRunId ?? undefined}
             onActivate={handleActivate}
             onClose={handleClose}
             open={visible}
             popupEntryId={entry.id}
+            popupVisible={visible}
             stackPosition={stackPosition}
         />
     )

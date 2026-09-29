@@ -15,28 +15,30 @@ import type { ActionPlaceholder } from '../../data/action_placeholders'
 import { useProjectState } from '../hooks/use_project_state'
 import { dialogService } from '../../services/dialog_service'
 import { useAppTheme } from '../../theme/use_app_theme'
-import { markdownDocumentHistoryPlugin } from './markdown_document_history_realm_plugin'
-import type { MarkdownDocumentHistoryStore } from './markdown_document_history_store'
-import { MarkdownFormatToolbarControls } from './markdown_format_toolbar_controls'
-import { markdownFileSearchPlugin } from './markdown_file_search_realm_plugin'
-import { markdownLocalTextSearchPlugin } from './markdown_local_text_search_realm_plugin'
+import { HorizontalScrollArea } from '../horizontal_scroll_area'
+import { markdownDocumentHistoryPlugin } from './history/markdown_document_history_realm_plugin'
+import type { MarkdownDocumentHistoryStore } from './history/markdown_document_history_store'
+import { MarkdownFormatToolbarControls } from './toolbar/markdown_format_toolbar_controls'
+import type { MarkdownToolbarContext } from './toolbar/markdown_toolbar_context'
+import { markdownFileSearchPlugin } from './file_search/markdown_file_search_realm_plugin'
+import { markdownLocalTextSearchPlugin } from './local_search/markdown_local_text_search_realm_plugin'
 import { plainMarkdownPlugin } from './plain_markdown_realm_plugin'
-import { markdownPlaceholderPlugin } from './markdown_placeholder_realm_plugin'
-import { markdownPlainTextPlugin } from './markdown_plain_text_realm_plugin'
-import { readPlainText, writePlainText } from './markdown_plain_text'
+import { markdownPlaceholderPlugin } from './placeholders/markdown_placeholder_realm_plugin'
+import { markdownPlainTextPlugin } from './plain_text/markdown_plain_text_realm_plugin'
+import { readPlainText, writePlainText } from './plain_text/markdown_plain_text'
 import { registerMarkdownEditorStage } from '../../services/project/markdown_editor_staging'
-import { markdownPastePlugin } from './markdown_paste_realm_plugin'
-import type { MarkdownImagePasteHandler } from './markdown_paste_cell'
+import { markdownPastePlugin } from './paste/markdown_paste_realm_plugin'
+import type { MarkdownImagePasteHandler } from './paste/markdown_paste_cell'
 import type {
     ActiveMarkdownDocumentChangedDetail,
     MarkdownBindingKind,
     MarkdownDataSource,
     MarkdownDocumentTarget,
-} from './markdown_data_source'
-import { MarkdownAttachmentControl } from './markdown_attachment_control'
+} from './data_sources/markdown_data_source'
+import { MarkdownAttachmentControl } from './attachments/markdown_attachment_control'
 import type { AttachmentMarkdownInserter } from '../../services/attachments/attachment_workflow'
 import type { MarkdownDraftBinding } from '../../services/markdown/markdown_draft'
-import { useMarkdownDraft } from './use_markdown_draft'
+import { useMarkdownDraft } from './data_sources/use_markdown_draft'
 
 const DEFAULT_CODE_LANGUAGE = ''
 const CODE_BLOCK_LANGUAGES = { '': 'Plain text', js: 'JavaScript', ts: 'TypeScript', tsx: 'TSX', bash: 'Shell' }
@@ -66,7 +68,7 @@ interface MarkdownEditorPresentationProps {
     plainText?: boolean
     placeholders?: readonly ActionPlaceholder[]
     readOnly?: boolean
-    toolbarContents?: () => ReactNode
+    toolbarContents?: (toolbarContext: MarkdownToolbarContext) => ReactNode
     viewMode?: ViewMode
 }
 
@@ -373,30 +375,27 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         attachFiles([...event.dataTransfer.files])
     }
 
+    const onAttachFiles = attachmentHandler && !hideAttachmentControl ? attachFiles : undefined
     const toolbarContents = useCallback(() => (
-        <>
+        <HorizontalScrollArea>
             {!hideToolbar ? (
-                customToolbarContents?.()
+                customToolbarContents?.({ onAttachFiles })
                 ?? (
                     <MarkdownFormatToolbarControls
+                        onAttachFiles={onAttachFiles}
                         overlayContainer={overlayContainer}
                         placeholders={placeholders}
                         readOnly={readOnly}
                     />
                 )
             ) : null}
-            {attachmentHandler && !hideAttachmentControl ? (
-                <MarkdownAttachmentControl disabled={readOnly} onFiles={attachFiles} />
-            ) : null}
-        </>
-    ), [
-        attachFiles, attachmentHandler, customToolbarContents, hideAttachmentControl, hideToolbar, overlayContainer,
-        placeholders, readOnly,
-    ])
+            {hideToolbar && onAttachFiles ? <MarkdownAttachmentControl disabled={readOnly} onFiles={onAttachFiles} /> : null}
+        </HorizontalScrollArea>
+    ), [customToolbarContents, hideToolbar, onAttachFiles, overlayContainer, placeholders, readOnly])
     const editorSx = {
         ...markdownContentSx,
         ...(monospace ? {'& .mdxeditor-content, & .mdxeditor-content *': { fontFamily: 'monospace !important' }} : {}),
-        '& .mdxeditor-toolbar': { bgcolor: 'background.paper', position: 'sticky', top: 0, zIndex: 1 },
+        '& .mdxeditor-toolbar': { bgcolor: 'background.paper', overflow: 'hidden', position: 'sticky', top: 0, zIndex: 1 },
     }
     const historyPlugin = historyPluginConfig ? markdownDocumentHistoryPlugin(historyPluginConfig) : null
     const plugins = [
@@ -413,7 +412,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         ...(plainText ? [markdownPlainTextPlugin(plainTextConfig)] : [markdownShortcutPlugin()]),
         plainMarkdownPlugin(),
         ...(viewMode ? [diffSourcePlugin({ diffMarkdown: diffMarkdown ?? '', viewMode })] : []),
-        ...(!hideToolbar || (attachmentHandler && !hideAttachmentControl) ? [toolbarPlugin({ toolbarContents })] : []),
+        ...(!hideToolbar || onAttachFiles ? [toolbarPlugin({ toolbarContents })] : []),
         markdownPlaceholderPlugin({ overlayContainer, placeholders }),
         markdownFileSearchPlugin({ overlayContainer, repositoryFiles }),
         ...(localTextSearch ? [markdownLocalTextSearchPlugin({ overlayContainer })] : []),

@@ -18,10 +18,33 @@ function createBatcher(
 ) {
     const cardOperations = { commitFiles: commit, pushCommittedFiles: push, requireCardByInternalId }
 
-    return new CommitBatcher(cardOperations, delayMs)
+    return new CommitBatcher(cardOperations, () => delayMs)
 }
 
 describe('CommitBatcher', () => {
+    it('batches renamed diagram JSON and index under stable diagram identity', async () => {
+        const commit = vi.fn<CommitCallback>(async () => undefined)
+        const persisted = vi.fn()
+        const batcher = createBatcher(commit)
+        batcher.schedule('main', [
+            { content: 'first', diagramId: 'diagram-1', kind: 'diagram', onPersisted: persisted, path: 'design/diagrams/first-diagram-1.json', sourcePath: 'design/diagrams/original-diagram-1.json' },
+            { content: 'first-index', kind: 'file', path: 'design/diagrams/diagram-view.json' },
+        ], 'Save diagram')
+        batcher.schedule('main', [
+            { content: 'second', diagramId: 'diagram-1', kind: 'diagram', onPersisted: persisted, path: 'design/diagrams/second-diagram-1.json', sourcePath: 'design/diagrams/original-diagram-1.json' },
+            { content: 'second-index', kind: 'file', path: 'design/diagrams/diagram-view.json' },
+        ], 'Save diagram')
+
+        await batcher.flush()
+
+        expect(commit).toHaveBeenCalledOnce()
+        expect(commit.mock.calls[0][0]).toMatchObject({
+            files: [{ content: 'second-index', path: 'design/diagrams/diagram-view.json' }],
+            moves: [{ content: 'second', fromPath: 'design/diagrams/original-diagram-1.json', toPath: 'design/diagrams/second-diagram-1.json' }],
+        })
+        expect(persisted).toHaveBeenCalledOnce()
+    })
+
     it('serializes one owned card reference once with latest fields at flush', async () => {
         const card = { header: { status: 'design' }, path: 'design/F-1-root.md' } as Card
         const serializeCard = vi.spyOn(markdownParsingService, 'serializeCard').mockImplementation((currentCard: Card) => ({

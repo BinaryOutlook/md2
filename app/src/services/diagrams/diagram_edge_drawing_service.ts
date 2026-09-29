@@ -9,10 +9,13 @@ import {
 import {
     diagramEditSessionService,
     type DiagramEditSessionService,
-    type NewDiagramEdge,
 } from './diagram_edit_session_service'
+import type {
+    NewDiagramEdge,
+} from './diagram_edit_types'
 import { diagramGeometryService, type DiagramGeometryService } from './diagram_geometry_service'
 import {
+    mindmapConnectionGeometry,
     sequenceMessageInsertionIndexAt,
     sequenceMessageRowY,
     type PositionedDiagramNode,
@@ -37,6 +40,8 @@ export type DiagramEdgeDrawingDefaults = Omit<
 >
 
 export interface DiagramEdgeDrawingPreview {
+    controlPoint?: DiagramWaypoint
+    curved?: boolean
     kind: DiagramEdgeKind
     points: readonly DiagramWaypoint[]
     sourceAttachment: DiagramConnectionPoint
@@ -173,6 +178,10 @@ export class DiagramEdgeDrawingService extends EventTarget {
 
     beginSource(nodeId: string, point: DiagramEdgeDrawingPoint) {
         const defaults = this.requireActiveDefaults()
+        const selectedKey = this.session.getSelectedLegendEntryKeySnapshot()
+        const selectedKind = selectedKey?.startsWith('connection:')
+            ? selectedKey.slice('connection:'.length) as DiagramEdgeKind : null
+        const kind = selectedKind && this.isEdgeKindAvailable(selectedKind) ? selectedKind : defaults.kind
         const node = this.requirePositionedNode(nodeId)
         if (this.session.getMetadataFieldSnapshot('type') === 'sequence') {
             const spacingScalePercent = this.session.getFormattingScaleSnapshot('spacingScalePercent')
@@ -182,14 +191,14 @@ export class DiagramEdgeDrawingService extends EventTarget {
             const sourceAttachment = { nodeId, offset: 0.5, side: 'bottom' } as const
             const source = Object.freeze({ x: node.x + node.width / 2, y: sequenceMessageRowY(rowIndex, spacingScalePercent) })
             this.sequenceRowIndex = rowIndex
-            this.setPreview({ kind: defaults.kind, points: Object.freeze([source]), sourceAttachment, targetAttachment: null })
+            this.setPreview({ kind, points: Object.freeze([source]), sourceAttachment, targetAttachment: null })
             this.session.beginTransientGesture('edge')
 
             return true
         }
         const sourceAttachment = diagramConnectionPointAt(node, point)
         const source = absoluteConnectionPoint(sourceAttachment, node)
-        const preview = { kind: defaults.kind, points: Object.freeze([Object.freeze(source)]), sourceAttachment, targetAttachment: null }
+        const preview = { kind, points: Object.freeze([Object.freeze(source)]), sourceAttachment, targetAttachment: null }
         this.setPreview(preview)
         this.session.beginTransientGesture('edge')
 
@@ -201,6 +210,9 @@ export class DiagramEdgeDrawingService extends EventTarget {
         const preview = this.requirePreview()
         if (this.session.getMetadataFieldSnapshot('type') === 'sequence') {
             return this.updateSequencePreview(point, targetNodeId, preview)
+        }
+        if (this.session.getMetadataFieldSnapshot('type') === 'mindmap') {
+            return this.updateMindmapPreview(point, targetNodeId, preview)
         }
         const sourceNode = this.requirePositionedNode(preview.sourceAttachment.nodeId)
         const source = absoluteConnectionPoint(preview.sourceAttachment, sourceNode)
@@ -228,14 +240,17 @@ export class DiagramEdgeDrawingService extends EventTarget {
         const targetAttachment = completedPreview.targetAttachment
         if (!targetAttachment) return null
 
-        const sequenceDiagram = this.session.getMetadataFieldSnapshot('type') === 'sequence'
+        const diagramType = this.session.getMetadataFieldSnapshot('type')
+        const sequenceDiagram = diagramType === 'sequence'
+        const mindmapDiagram = diagramType === 'mindmap'
         const from = completedPreview.sourceAttachment.nodeId
         const edge: NewDiagramEdge = {
             ...defaults,
-            ...this.requiredLabel(defaults, from),
+            kind: completedPreview.kind,
+            ...this.requiredLabel({ ...defaults, kind: completedPreview.kind }, from),
             from,
-            ...(sequenceDiagram ? {} : { sourceAttachment: { ...completedPreview.sourceAttachment } }),
-            ...(sequenceDiagram ? {} : { targetAttachment: { ...targetAttachment } }),
+            ...(sequenceDiagram || mindmapDiagram ? {} : { sourceAttachment: { ...completedPreview.sourceAttachment } }),
+            ...(sequenceDiagram || mindmapDiagram ? {} : { targetAttachment: { ...targetAttachment } }),
             to: targetAttachment.nodeId,
         }
         const edgeId = sequenceDiagram
@@ -244,10 +259,9 @@ export class DiagramEdgeDrawingService extends EventTarget {
         if (!edgeId) return null
 
         this.selection.replace([{ objectId: edgeId, objectKind: 'edge' }])
-        this.defaults = null
         this.sequenceRowIndex = null
         this.setPreview(null)
-        this.session.setActiveTool('select')
+        this.session.completeTransientGesture()
 
         return edgeId
     }
@@ -255,7 +269,7 @@ export class DiagramEdgeDrawingService extends EventTarget {
     cancelDrawing() {
         if (!this.defaults && !this.preview) return false
 
-        this.defaults = null
+        this.sequenceRowIndex = null
         this.setPreview(null)
         this.session.cancelActiveInteraction()
 
@@ -291,6 +305,34 @@ export class DiagramEdgeDrawingService extends EventTarget {
         this.setPreview({
             kind: preview.kind,
             points: Object.freeze([source, target]),
+            sourceAttachment: preview.sourceAttachment,
+            targetAttachment,
+        })
+
+        return true
+    }
+
+    private updateMindmapPreview(
+        point: DiagramEdgeDrawingPoint,
+        targetNodeId: string | null,
+        preview: DiagramEdgeDrawingPreview,
+    ) {
+        const sourceNode = this.requirePositionedNode(preview.sourceAttachment.nodeId)
+        const targetNode = targetNodeId ? this.findPositionedNode(targetNodeId) : null
+        const target = targetNode ?? { height: 0, width: 0, x: point.x, y: point.y }
+        const { controlPoint, points } = mindmapConnectionGeometry(
+            sourceNode,
+            target,
+            sourceNode.id === targetNode?.id,
+        )
+        const targetAttachment = targetNode
+            ? { nodeId: targetNode.id, offset: 0.5, side: 'left' as const }
+            : null
+        this.setPreview({
+            controlPoint: Object.freeze(controlPoint),
+            curved: true,
+            kind: preview.kind,
+            points: Object.freeze(points.map((curvePoint) => Object.freeze(curvePoint))),
             sourceAttachment: preview.sourceAttachment,
             targetAttachment,
         })

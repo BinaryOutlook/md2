@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url);
 const { AGENT_FINISH_GRACE_MS, AgentRunnerService } = require('./agent_runner_service');
 const { CodexRuntimeService } = require('./codex_runtime_service');
 const { createRun } = require('./agent_run_state');
+const { createAgentProviderProtocolParser } = require('./agent_provider_protocol');
 
 function diagnosticStreamingEvent(content, providerItemId) {
     return {
@@ -150,6 +151,40 @@ describe('AgentRunnerService published run status', () => {
 });
 
 describe('AgentRunnerService state handling', () => {
+    it('replaces a running codex exec command and persists turn usage once at close', async () => {
+        const { onEvent, run, service } = streamingRunService();
+        run.streaming = false;
+        run.child = { pid: 10 };
+        run.conversation.id = 'conversation-1';
+        run.conversation.entries.push({ content: 'Run', id: 'user-1', kind: 'message', role: 'user', timestamp: 'now' });
+        const recordTokenUsage = vi.fn(async () => true);
+        service.usageMetricsService = { recordTokenUsage };
+        const parser = createAgentProviderProtocolParser('codex', (event) => service.handleProviderEvent(run.id, event), vi.fn(), 'C:/repo');
+        const command = { command: 'rg term app', id: 'item_3', type: 'command_execution' };
+
+        parser.push(`${JSON.stringify({ item: { ...command, status: 'in_progress' }, type: 'item.started' })}\n`);
+
+        expect(run.conversation.entries.at(-1)).toMatchObject({providerItemId: 'item_3', status: 'inProgress', type: 'commandExecution'});
+        expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'agentEvent' }));
+
+        parser.push(`${JSON.stringify({item: {...command, aggregated_output: 'match', exit_code: 0, status: 'completed'}, type: 'item.completed'})}\n`);
+        parser.push('{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":30,"reasoning_output_tokens":10}}\n');
+        parser.finish();
+
+        expect(run.conversation.entries.at(-1)).toMatchObject({content: 'match', exitCode: 0, providerItemId: 'item_3', status: 'completed', type: 'commandExecution'});
+        expect(run.conversation.entries).toHaveLength(2);
+        expect(run.changedPaths.size).toBe(0);
+        const expectedUsage = {cachedInputTokens: 20, inputTokens: 80, outputTokens: 20, reasoningTokens: 10, totalTokens: 130};
+        expect(run.turnUsage).toMatchObject(expectedUsage);
+        await service.handleClose(run.id, 0);
+
+        expect(run.conversation.usage).toMatchObject(run.turnUsage);
+        expect(recordTokenUsage).toHaveBeenCalledOnce();
+        expect(recordTokenUsage).toHaveBeenCalledWith('codex', run.turnUsage, expect.any(Number));
+        const closedConversation = expect.objectContaining({ usage: run.turnUsage });
+        expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({conversation: closedConversation, persisted: true, type: 'closed'}));
+    });
+
     it('reconciles and persists one-shot canonical provider file events', () => {
         const service = new AgentRunnerService();
         const run = {
@@ -247,6 +282,7 @@ describe('AgentRunnerService state handling', () => {
         const persistConversation = vi.fn(async () => undefined);
         const spawn = vi.fn(() => child);
         const onEvent = vi.fn();
+        const onConversationSaved = vi.fn();
         const service = new AgentRunnerService({
             executableResolver: { find: vi.fn(async () => '/tools/fake-agent') },
             persistConversation,
@@ -254,22 +290,25 @@ describe('AgentRunnerService state handling', () => {
             spawn,
         });
         const project = { rootPath: resolve(import.meta.dirname, '../../../..') };
-        const request = { command: ['fake-agent'], projectFolder: 'design', prompt: 'Start work' };
+        const request = { command: ['fake-agent'], projectFolder: 'design', prompt: 'Start work', submissionId: 'message-1' };
 
-        const start = service.start(project, request, onEvent, vi.fn(), vi.fn());
+        const start = service.start(project, request, onEvent, vi.fn(), vi.fn(), onConversationSaved);
         await vi.waitFor(() => expect(persistConversationCheckpoint).toHaveBeenCalledOnce());
 
+        expect(onConversationSaved).not.toHaveBeenCalled();
         expect(spawn).not.toHaveBeenCalled();
         expect(onEvent).not.toHaveBeenCalled();
 
         initialCheckpoint.resolve();
         const result = await start;
 
+        expect(onConversationSaved).toHaveBeenCalledOnce();
+        expect(onConversationSaved.mock.invocationCallOrder[0]).toBeLessThan(spawn.mock.invocationCallOrder[0]);
         expect(persistConversationCheckpoint.mock.invocationCallOrder[0]).toBeLessThan(spawn.mock.invocationCallOrder[0]);
         expect(spawn.mock.invocationCallOrder[0]).toBeLessThan(onEvent.mock.invocationCallOrder[0]);
         expect(persistConversationCheckpoint).toHaveBeenCalledWith(expect.objectContaining({
             conversation: expect.objectContaining({
-                entries: [expect.objectContaining({ content: 'Start work', role: 'user' })],
+                entries: [expect.objectContaining({ content: 'Start work', id: 'message-1', role: 'user' })],
                 id: result.conversation.id,
                 status: 'running',
             }),
@@ -319,9 +358,9 @@ describe('AgentRunnerService state handling', () => {
         expect(find).not.toHaveBeenCalled();
     });
 
-    it('rejects an unresolved selected executable before persistence, usage polling, or spawn', async () => {
+    it('saves the conversation before rejecting an unresolved executable', async () => {
         const claudeUsagePoller = { requestPoll: vi.fn(), stop: vi.fn() };
-        const persistConversationCheckpoint = vi.fn();
+        const persistConversationCheckpoint = vi.fn(async () => undefined);
         const spawn = vi.fn();
         const service = new AgentRunnerService({
             claudeUsagePoller,
@@ -334,7 +373,7 @@ describe('AgentRunnerService state handling', () => {
 
         await expect(service.start(project, request, vi.fn(), vi.fn(), vi.fn()))
             .rejects.toThrow('Executable not found for claude: missing-claude');
-        expect(persistConversationCheckpoint).not.toHaveBeenCalled();
+        expect(persistConversationCheckpoint).toHaveBeenCalledOnce();
         expect(claudeUsagePoller.requestPoll).not.toHaveBeenCalled();
         expect(spawn).not.toHaveBeenCalled();
     });
@@ -565,7 +604,8 @@ describe('AgentRunnerService state handling', () => {
         });
 
         expect(run.conversation.usage).toEqual(persistedUsage);
-        expect(run.conversation).not.toHaveProperty('contextWindowUsage');
+        // Context usage is not turn usage: each sample lands on the conversation right away.
+        expect(run.conversation.contextWindowUsage).toEqual(latestContextWindowUsage);
         expect(onEvent).toHaveBeenNthCalledWith(1, expect.objectContaining({
             contextWindowUsage: firstContextWindowUsage,
             type: 'usage',
@@ -634,8 +674,49 @@ describe('AgentRunnerService state handling', () => {
         service.failStreamingRun(run, new Error('Turn failed'));
 
         expect(run.conversation.usage).toBe(persistedUsage);
-        expect(run.conversation).not.toHaveProperty('contextWindowUsage');
         expect(run.liveTurnUsage).toEqual(expect.objectContaining({ totalTokens: 5 }));
+    });
+
+    it('applies a mid-turn context window sample to the conversation without committing its usage', async () => {
+        const service = new AgentRunnerService();
+        const persistedUsage = {
+            cachedInputTokens: 0,
+            inputTokens: 10,
+            outputTokens: 0,
+            reasoningTokens: 0,
+            totalTokens: 10,
+        };
+        const run = {
+            conversation: { entries: [], status: 'running', usage: persistedUsage },
+            id: 'run-1',
+            liveTurnUsage: null,
+            nextSequence: 1,
+            onEvent: vi.fn(),
+            secretValues: new Set(),
+            waitingForQuestion: false,
+        };
+        service.processes.set('run-1', run);
+
+        await service.handleStreamingEvent('run-1', {
+            contextWindowUsage: { capacityTokens: 258_400, usedTokens: 42_000 },
+            type: 'usage',
+            usage: { cachedInputTokens: 0, inputTokens: 5, outputTokens: 0, reasoningTokens: 0, totalTokens: 5 },
+        });
+
+        // The popup reads the ring from the run conversation, so a mid-turn sample must land there.
+        expect(run.conversation.contextWindowUsage).toEqual({ capacityTokens: 258_400, usedTokens: 42_000 });
+        // The turn's tokens stay provisional until the turn completes.
+        expect(run.conversation.usage).toBe(persistedUsage);
+        expect(run.liveTurnUsage).toEqual(expect.objectContaining({ totalTokens: 5 }));
+        expect(run.onEvent).toHaveBeenCalledWith(expect.objectContaining({
+            contextWindowUsage: { capacityTokens: 258_400, usedTokens: 42_000 },
+            type: 'usage',
+            usage: expect.objectContaining({ totalTokens: 15 }),
+        }));
+
+        await service.handleStreamingEvent('run-1', { contextWindowUsage: null, type: 'usage', usage: null });
+
+        expect(run.conversation).not.toHaveProperty('contextWindowUsage');
     });
 
     it('keeps streaming process stderr out of canonical conversation entries', () => {
@@ -1341,8 +1422,9 @@ describe('AgentRunnerService state handling', () => {
         };
         service.processes.set('run-1', run);
 
-        await service.sendMessage('run-1', 'Queued prompt');
+        await service.sendMessage('run-1', 'Queued prompt', 'message-2');
 
+        expect(run.conversation.entries.at(-1)).toMatchObject({ content: 'Queued prompt', id: 'message-2', role: 'user' });
         expect(run.waitingForQuestion).toBe(true);
         expect(run.pendingQuestionRequestId).toBe(8);
         expect(run.conversation.status).toBe('waitingForInput');

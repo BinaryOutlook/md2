@@ -9,7 +9,7 @@ import { THEME_MODE_STORAGE_KEY } from '../../theme/use_theme_settings'
 import { MARKDOWN_STYLE_PRESETS } from '../../theme/theme_config'
 import { useAppTheme } from '../../theme/use_app_theme'
 import { MarkdownEditor, type MarkdownEditorHandle } from './markdown_editor'
-import { MarkdownDocumentHistoryStore } from './markdown_document_history_store'
+import { MarkdownDocumentHistoryStore } from './history/markdown_document_history_store'
 import { stageMarkdownEditors } from '../../services/project/markdown_editor_staging'
 import { buildMarkdownContentSx } from './markdown_style_sx'
 import {
@@ -17,7 +17,7 @@ import {
     type MarkdownBindingKind,
     type MarkdownDataSource,
     type MarkdownDocumentTarget,
-} from './markdown_data_source'
+} from './data_sources/markdown_data_source'
 import type { CardOpenDocument } from '../../services/open_files_service'
 import { MarkdownDraft } from '../../services/markdown/markdown_draft'
 
@@ -793,6 +793,62 @@ describe('MarkdownEditor', () => {
         fireEvent.drop(screen.getByRole('textbox'), { dataTransfer: { files: [file], types: ['Files'] } })
 
         await waitFor(() => expect(attachmentHandler).toHaveBeenCalledWith([file], expect.any(Function)))
+    })
+
+    it('places the attachment control in the default toolbar link group without a trailing button', () => {
+        const attachmentHandler = vi.fn(async () => {})
+        render(
+            <AppThemeProvider>
+                <MarkdownEditor attachmentHandler={attachmentHandler} markdown="" onChange={vi.fn()} />
+            </AppThemeProvider>,
+        )
+
+        const attachButtons = screen.getAllByRole('button', { name: 'Attach files' })
+        expect(attachButtons).toHaveLength(1)
+        expect(screen.getByTestId('create-link').nextElementSibling).toContainElement(attachButtons[0])
+    })
+
+    it('hands the attach callback to custom toolbar contents when attachments are allowed', () => {
+        const attachmentHandler = vi.fn(async () => {})
+        const toolbarContents = vi.fn(() => <span>Custom toolbar</span>)
+        render(
+            <AppThemeProvider>
+                <MarkdownEditor attachmentHandler={attachmentHandler} markdown="" onChange={vi.fn()} toolbarContents={toolbarContents} />
+            </AppThemeProvider>,
+        )
+
+        expect(toolbarContents).toHaveBeenCalledWith({ onAttachFiles: expect.any(Function) })
+        expect(screen.getByText('Custom toolbar')).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Attach files' })).not.toBeInTheDocument()
+    })
+
+    it('withholds the attach callback from custom toolbar contents without an attachment handler', () => {
+        const toolbarContents = vi.fn(() => <span>Custom toolbar</span>)
+        render(
+            <AppThemeProvider>
+                <MarkdownEditor markdown="" onChange={vi.fn()} toolbarContents={toolbarContents} />
+            </AppThemeProvider>,
+        )
+
+        expect(toolbarContents).toHaveBeenCalledWith({ onAttachFiles: undefined })
+    })
+
+    it('withholds the attach callback from custom toolbar contents when the attachment control is hidden', () => {
+        const attachmentHandler = vi.fn(async () => {})
+        const toolbarContents = vi.fn(() => <span>Custom toolbar</span>)
+        render(
+            <AppThemeProvider>
+                <MarkdownEditor
+                    attachmentHandler={attachmentHandler}
+                    hideAttachmentControl
+                    markdown=""
+                    onChange={vi.fn()}
+                    toolbarContents={toolbarContents}
+                />
+            </AppThemeProvider>,
+        )
+
+        expect(toolbarContents).toHaveBeenCalledWith({ onAttachFiles: undefined })
     })
 
     it('applies acknowledged draft insertion at current selection and external replacement', async () => {

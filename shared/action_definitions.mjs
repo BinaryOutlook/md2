@@ -12,7 +12,7 @@ const ACTION_TYPES = ['agent', 'command']
 const LEGACY_FIELDS = ['after', 'before', 'runIn', 'text']
 export const ACTION_DEFINITION_FIELDS = Object.freeze([
     'id', 'label', 'description', 'type', 'icon', 'appliesTo', 'output', 'onBefore', 'on', 'onAfter',
-    'onState', 'needsWorkTree', 'showCommandWindow', 'trackFileChanges', 'streaming', 'autoFinish', 'agent', 'model', 'thinkingLevel', 'permissionMode', 'prompt', 'command', 'phrases',
+    'onState', 'needsWorkTree', 'showCommandWindow', 'trackFileChanges', 'streaming', 'autoFinish', 'agent', 'model', 'thinkingLevel', 'permissionMode', 'prompt', 'command', 'phrases', 'userInput',
 ])
 export const ACTION_AUTO_FINISH_FIELDS = Object.freeze(['when', 'state'])
 export const ACTION_OUTPUT_FIELDS = Object.freeze(['kind'])
@@ -33,7 +33,7 @@ export const REMARKABLE_CONVERT_ACTION_ID = 'md2.convert-remarkable-images-to-te
 // Fields the editor can route an error to. Anything else routes to the general summary.
 const ROUTABLE_FIELDS = new Set([
     'id', 'label', 'description', 'type', 'icon', 'appliesTo', 'output', 'onBefore', 'on', 'onAfter',
-    'onState', 'needsWorkTree', 'showCommandWindow', 'trackFileChanges', 'streaming', 'autoFinish', 'agent', 'model', 'thinkingLevel', 'permissionMode', 'prompt', 'command', 'phrases',
+    'onState', 'needsWorkTree', 'showCommandWindow', 'trackFileChanges', 'streaming', 'autoFinish', 'agent', 'model', 'thinkingLevel', 'permissionMode', 'prompt', 'command', 'phrases', 'userInput',
 ])
 
 /**
@@ -95,6 +95,7 @@ export const BUILTIN_CUSTOM_PROMPT = {
     trackFileChanges: false,
     streaming: true,
     type: 'agent',
+    userInput: null,
 }
 
 export const BUILTIN_REMARKABLE_CONVERT = {
@@ -123,6 +124,7 @@ export const BUILTIN_REMARKABLE_CONVERT = {
     trackFileChanges: false,
     streaming: false,
     type: 'agent',
+    userInput: null,
 }
 
 const BUILTIN_ACTIONS = [BUILTIN_CUSTOM_PROMPT, BUILTIN_REMARKABLE_CONVERT]
@@ -222,6 +224,18 @@ function readOutput(value, source) {
     }
 
     return { kind: 'diagram' }
+}
+
+function readUserInput(value, source) {
+    if (value === undefined) return undefined
+    if (!isPlainObject(value)) throw fail(`Invalid userInput in ${source}`, 'invalid-field', source, 'userInput')
+    rejectUnknownFields(value, new Set(['type', 'prompt']), source, 'userInput')
+    if (value.type !== 'version') throw fail(`Invalid userInput type in ${source}`, 'invalid-field', source, 'userInput.type')
+    if (value.prompt !== undefined && (typeof value.prompt !== 'string' || value.prompt.trim().length === 0)) {
+        throw fail(`Invalid userInput prompt in ${source}`, 'invalid-field', source, 'userInput.prompt')
+    }
+
+    return { type: 'version', ...(value.prompt === undefined ? {} : { prompt: value.prompt }) }
 }
 
 function readActionIdList(value, fieldName, source) {
@@ -391,6 +405,7 @@ function validateRawDefinition(value, source, dependencies) {
         trackFileChanges: value.trackFileChanges ?? false,
         streaming,
         type,
+        userInput: readUserInput(value.userInput, source),
     }
     validateAgentFields(raw, dependencies, source)
 
@@ -492,6 +507,7 @@ export function validateActionDefinitionGraph(entries, dependencies = {}) {
             trackFileChanges: raw.trackFileChanges,
             streaming: raw.streaming,
             type: raw.type,
+            userInput: raw.userInput ?? null,
         })
     }
 

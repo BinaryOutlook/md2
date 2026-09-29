@@ -4,14 +4,17 @@ import {
     type DiagramFlowPreset,
     type DiagramNode,
     type DiagramNodeKind,
+    type DiagramRole,
     type DiagramType,
 } from './diagram_data'
 import {
     diagramEditSessionService,
     type DiagramEditSessionService,
-    type NewDiagramNode,
 } from './diagram_edit_session_service'
-import { DIAGRAM_GRID_SIZE, type PositionedDiagramNode } from './diagram_layout'
+import type {
+    NewDiagramNode,
+} from './diagram_edit_types'
+import { DIAGRAM_GRID_SIZE, MINDMAP_TOPIC_DIAMETER, type PositionedDiagramNode } from './diagram_layout'
 import {
     diagramSelectionService,
     type DiagramSelectionService,
@@ -44,6 +47,11 @@ export interface DiagramNodePlacementPreview {
     node: PositionedDiagramNode
 }
 
+export const MINDMAP_TOPIC_PLACEMENT: DiagramNodePlacementDefinition = {
+    defaults: { height: MINDMAP_TOPIC_DIAMETER, label: 'New topic', role: 'backend', width: MINDMAP_TOPIC_DIAMETER },
+    kind: 'topic',
+}
+
 function snapCoordinate(value: number) {
     return Math.round(value / DIAGRAM_GRID_SIZE) * DIAGRAM_GRID_SIZE
 }
@@ -61,8 +69,8 @@ function cloneDefaults(defaults: DiagramNodePlacementDefaults): DiagramNodePlace
     }
 }
 
-function samePreviewPoint(preview: DiagramNodePlacementPreview | null, x: number, y: number) {
-    return preview?.node.x === x && preview.node.y === y
+function samePreviewPoint(preview: DiagramNodePlacementPreview | null, x: number, y: number, role: DiagramRole) {
+    return preview?.node.x === x && preview.node.y === y && preview.node.role === role
 }
 
 function previewSize(definition: DiagramNodePlacementDefinition) {
@@ -103,6 +111,9 @@ export class DiagramNodePlacementService extends EventTarget {
 
     isNodeKindAvailable(kind: DiagramNodeKind) {
         if (!this.session.getSessionSnapshot()) return false
+        if (kind === 'root' && this.session.getNodeIdsSnapshot().some((nodeId) => (
+            this.session.getNodeFieldSnapshot(nodeId, 'kind') === 'root'
+        ))) return false
 
         const diagramType = this.session.getMetadataFieldSnapshot('type')
         const flowPreset = this.session.getMetadataFieldSnapshot('preset')
@@ -145,9 +156,12 @@ export class DiagramNodePlacementService extends EventTarget {
 
         const x = snapCoordinate(point.x)
         const y = snapCoordinate(point.y)
-        if (samePreviewPoint(this.preview, x, y)) return false
+        const selectedKey = this.session.getSelectedLegendEntryKeySnapshot()
+        const role = selectedKey?.startsWith('node:')
+            ? selectedKey.slice('node:'.length) as DiagramRole : definition.defaults.role
+        if (samePreviewPoint(this.preview, x, y, role)) return false
 
-        const modelNode: DiagramNode = { ...cloneDefaults(definition.defaults), id: PREVIEW_NODE_ID, kind: definition.kind, x, y }
+        const modelNode: DiagramNode = { ...cloneDefaults(definition.defaults), id: PREVIEW_NODE_ID, kind: definition.kind, role, x, y }
         const { height, width } = previewSize(definition)
         const node: PositionedDiagramNode = { ...modelNode, fanIn: 0, height, width, x, y }
         const preview = {
@@ -170,6 +184,7 @@ export class DiagramNodePlacementService extends EventTarget {
         const node: NewDiagramNode = {
             ...cloneDefaults(definition.defaults),
             kind: definition.kind,
+            role: preview.node.role,
             x: preview.node.x,
             y: preview.node.y,
         }
@@ -177,9 +192,11 @@ export class DiagramNodePlacementService extends EventTarget {
         if (!nodeId) return null
 
         this.selection.replace([{ objectId: nodeId, objectKind: 'node' }])
-        this.definition = null
         this.setPreview(null)
-        this.session.setActiveTool('select')
+        this.session.completeTransientGesture()
+        if (definition.kind === 'root') {
+            this.activate(MINDMAP_TOPIC_PLACEMENT)
+        }
 
         return nodeId
     }
@@ -187,7 +204,6 @@ export class DiagramNodePlacementService extends EventTarget {
     cancelPlacement() {
         if (!this.definition && !this.preview) return false
 
-        this.definition = null
         this.setPreview(null)
         this.session.cancelActiveInteraction()
 

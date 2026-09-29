@@ -6,13 +6,13 @@ import type { KeyboardEvent, ReactNode } from 'react'
 import type { ActionContext } from '../../../../data/action_context'
 import { ResizablePopper } from '../../../resizable_popper'
 import type { WorktreeAssignmentTarget } from '../../../worktree_selector'
-import { MarkdownTypeaheadLayerProvider } from '../../../editor/markdown_typeahead_layer_provider'
+import { MarkdownTypeaheadLayerProvider } from '../../../editor/typeahead/markdown_typeahead_layer_provider'
 import { NO_DRAG_REGION } from '../../../shell/drag_region'
-import { ActionConversationPickerOwner } from '../../conversation/action_conversation_picker_owner'
-import type { ActionConversationStore } from '../../conversation/action_conversation_store'
-import type { ActionConversationSearchService } from '../../conversation/action_conversation_search_service'
-import { ActionConversationSearchButton } from '../../conversation/action_conversation_search_button'
-import { ActionConversationSearchRow } from '../../conversation/action_conversation_search_row'
+import { ActionConversationPickerOwner } from '../../conversation/picker/action_conversation_picker_owner'
+import type { ActionConversationStore } from '../../conversation/state/action_conversation_store'
+import type { ActionConversationSearchService } from '../../conversation/search/action_conversation_search_service'
+import { ActionConversationSearchButton } from '../../conversation/search/action_conversation_search_button'
+import { ActionConversationSearchRow } from '../../conversation/search/action_conversation_search_row'
 import type { ActionRunBindingStore } from '../state/action_run_binding_store'
 import { ActionSelector } from './action_selector'
 import type { ActionPopupContentProps } from './action_popup_types'
@@ -132,7 +132,10 @@ export function ActionPopupFrame(
                             display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1, px: 1.5, py: 1.5,
                         }}
                     >
-                        <Box data-testid="action-popup-toolbar" sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
+                        <Box
+                            data-testid="action-popup-toolbar"
+                            sx={{ alignItems: 'center', display: 'flex', gap: { sm: 1, xs: 0.5 }, minWidth: 0 }}
+                        >
                             {targetBadge && targetTitle ? <Tooltip title={targetTitle}>{targetBadge}</Tooltip> : targetBadge}
                             {assignmentTarget && !readOnlyMessage ? (
                                 <ActionWorktreeSelectorOwner

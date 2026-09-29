@@ -3,11 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AppThemeProvider } from '../../../theme/theme_provider'
 import { MainToolbar } from './main_toolbar'
 
-const search = <input aria-label="Search project" />
-const tabs = <button type="button">Home</button>
-const panel = <div>Project section</div>
-const mobileAction = <button type="button">Create</button>
-
 const DRAG = 'drag'
 const NO_DRAG = 'no-drag'
 
@@ -19,12 +14,17 @@ function renderToolbar(isMobile = false, onOpenMenu = vi.fn()) {
     return render(
         <AppThemeProvider>
             <MainToolbar
+                availableTabs={[{ label: 'Home', value: 'home' }]}
+                currentTab="home"
                 isMobile={isMobile}
-                mobileAction={mobileAction}
+                isNewActionDisabled={false}
+                isNewCardDisabled={false}
+                isNewDiagramDisabled={false}
+                onCreateAction={vi.fn()}
+                onCreateCard={vi.fn()}
+                onCreateDiagram={vi.fn()}
                 onOpenMenu={onOpenMenu}
-                panel={panel}
-                search={search}
-                tabs={tabs}
+                onTabChange={vi.fn()}
             />
         </AppThemeProvider>,
     )
@@ -54,6 +54,14 @@ describe('MainToolbar', () => {
         expect(onOpenMenu).toHaveBeenCalledTimes(1)
     })
 
+    it('does not mount the project name region on mobile', () => {
+        renderToolbar(true)
+
+        expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+        expect(screen.queryByTestId('project-name-region')).toBeNull()
+        expect(screen.queryByTestId('project-name-label')).toBeNull()
+    })
+
     it('renders the mobile action immediately before search', () => {
         renderToolbar(true)
 
@@ -62,19 +70,18 @@ describe('MainToolbar', () => {
         expect(createButton.parentElement?.nextElementSibling).toContainElement(searchInput)
     })
 
-    it('renders tabs before search and panel below the row', () => {
+    it('renders tabs before search', () => {
         const { container } = renderToolbar()
 
-        expect(screen.getByRole('button', { name: 'Home' })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: 'Home' })).toBeInTheDocument()
         expect(screen.getByRole('textbox', { name: 'Search project' })).toBeInTheDocument()
-        expect(screen.getByText('Project section')).toBeInTheDocument()
-        expect(container.textContent?.indexOf('Home')).toBeLessThan(container.textContent?.indexOf('Project section') ?? 0)
+        expect(container.textContent?.indexOf('Home')).toBeLessThan(container.textContent?.indexOf('Search project') ?? 0)
     })
 
     it('centers the project name region between the tabs and theme control', () => {
         renderToolbar()
 
-        const tabsRegion = screen.getByRole('button', { name: 'Home' }).parentElement as HTMLElement
+        const tabsRegion = screen.getByRole('tab', { name: 'Home' }).closest('.MuiTabs-root')?.parentElement as HTMLElement
         const projectNameRegion = screen.getByTestId('project-name-region')
         const themeRegion = screen.getByRole('button', { name: /Switch to (dark|light) theme/u }).parentElement as HTMLElement
 

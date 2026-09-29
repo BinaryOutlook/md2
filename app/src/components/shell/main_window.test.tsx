@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { within } from '@testing-library/react'
 import type { UseGithubAuthResult } from '../../auth/use_github_auth'
@@ -11,6 +11,9 @@ import { projectPersistenceService } from '../../services/project/project_persis
 import { openFilesService } from '../../services/open_files_service'
 import * as searchRegexpAgent from '../../services/search/search_regexp_agent'
 import { workspaceViewService } from '../../services/project/workspace_view_service'
+import { projectSessionService } from '../../services/project/project_session_service'
+import { projectOpenFlowService } from '../../services/project/project_open_flow_service'
+import { createDeferred } from '../../services/test_support/data_service_test_support'
 import { AppThemeProvider } from '../../theme/theme_provider'
 import { DialogDisplay } from '../dialog_display'
 import { MainWindow } from './main_window'
@@ -116,6 +119,7 @@ function mockMatchMedia(matches: boolean) {
 
 describe('MainWindow', () => {
     beforeEach(() => {
+        projectOpenFlowService.close()
         configService.init({ desktopConfig: null })
         openFilesService.init({ actionService, dataService })
         projectPersistenceService.init({ actionService, dataService, openFilesService })
@@ -124,12 +128,14 @@ describe('MainWindow', () => {
 
     afterEach(() => {
         cleanup()
+        projectOpenFlowService.close()
         dataService.init({ storage: createStorage() })
         configService.clear()
         delete window.md2Actions
         window.location.hash = ''
         workspaceViewService.setViewMode('cards')
         mockMatchMedia(false)
+        vi.restoreAllMocks()
     })
 
     it('shows the workspace and status bar on desktop', () => {
@@ -142,6 +148,49 @@ describe('MainWindow', () => {
         expect(screen.getByRole('button', { name: 'Running agents: 0' })).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: 'Open menu' })).toBeNull()
         expect(screen.queryByRole('region', { name: 'Project status' })).toBeNull()
+    })
+
+    it('shows a spinner instead of the workspace while a project loads', async () => {
+        const idleSnapshot = projectSessionService.getSnapshot()
+        const getSnapshot = vi.spyOn(projectSessionService, 'getSnapshot')
+        getSnapshot.mockReturnValue({ ...idleSnapshot, isProjectLoading: true })
+
+        renderWindow()
+
+        expect(screen.getByRole('status', { name: 'Loading project' })).toBeInTheDocument()
+        expect(screen.queryByLabelText('Project workspace')).toBeNull()
+
+        getSnapshot.mockReturnValue({ ...idleSnapshot, isProjectLoading: false })
+        act(() => projectSessionService.dispatchEvent(new Event('changed')))
+
+        await waitFor(() => {
+            expect(screen.queryByRole('status', { name: 'Loading project' })).toBeNull()
+            expect(screen.getByLabelText('Project workspace')).toBeInTheDocument()
+        })
+    })
+
+    it('shows the spinner while the open workflow loads a project', async () => {
+        const opened = createDeferred<null>()
+        const repository = { branch: 'main', id: 'octo/demo', owner: 'octo', repository: 'demo' }
+        vi.spyOn(projectSessionService, 'findGithubRepositoryBranches').mockResolvedValue({ branches: [], repository })
+        vi.spyOn(projectSessionService, 'openProject').mockReturnValue(opened.promise)
+        renderWindow()
+
+        let opening: Promise<void> = Promise.resolve()
+        act(() => {
+            projectOpenFlowService.show({ source: 'personal' })
+            opening = projectOpenFlowService.submit({ source: 'personal', owner: 'octo', repository: 'demo', branch: 'main' })
+        })
+
+        expect(screen.getByRole('status', { name: 'Loading project' })).toBeInTheDocument()
+        expect(screen.queryByLabelText('Project workspace')).toBeNull()
+
+        await act(async () => {
+            opened.resolve(null)
+            await opening
+        })
+        expect(screen.queryByRole('status', { name: 'Loading project' })).toBeNull()
+        expect(screen.getByLabelText('Project workspace')).toBeInTheDocument()
     })
 
     it('shows card columns without a left navigation panel in card view', async () => {
@@ -297,10 +346,12 @@ describe('MainWindow', () => {
 
     it('closes the config page and confirms a successful save', async () => {
         mockMatchMedia(false)
+        configService.loadProjectConfig(null)
+        const saveProjectConfig = vi.spyOn(configService, 'saveProjectConfig').mockResolvedValue()
         renderWindow()
 
         fireEvent.click(screen.getByRole('button', { name: 'Config' }))
-        fireEvent.click(screen.getByRole('switch', { name: 'Startup splash' }))
+        fireEvent.click(screen.getByRole('switch', { name: 'Delete integrated card branch' }))
         fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
         await waitFor(() => {
@@ -308,7 +359,9 @@ describe('MainWindow', () => {
             expect(screen.getByRole('alert')).toHaveTextContent('Config saved')
         })
         expect(window.location.hash).toBe('')
-        expect(configService.get('react.showStartupSplash')).toBe(false)
+        expect(configService.get('project.deleteBranchAfterIntegration')).toBe(true)
+
+        saveProjectConfig.mockRestore()
     })
 
     it('opens the config page directly from the URL', () => {

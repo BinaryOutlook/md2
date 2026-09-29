@@ -116,6 +116,25 @@ function entityDiagram(): DiagramData {
     }
 }
 
+function mindmapDiagram(): DiagramData {
+    return {
+        edges: [
+            { from: 'root', id: 'root-a', kind: 'connection', to: 'a' },
+            { from: 'a', id: 'a-child', kind: 'connection', label: 'child', to: 'child' },
+            { from: 'a', id: 'a-grandchild', kind: 'connection', to: 'grandchild' },
+        ],
+        groups: [],
+        meta: { description: 'Ideas', title: 'Ideas', type: 'mindmap', version: 1 },
+        nodes: [
+            { id: 'root', kind: 'root', label: 'Root', role: 'focal' },
+            { id: 'a', kind: 'topic', label: 'A', role: 'backend' },
+            { id: 'child', kind: 'topic', label: 'Child', role: 'backend' },
+            { id: 'grandchild', kind: 'topic', label: 'Grandchild', role: 'backend' },
+            { id: 'detached', kind: 'topic', label: 'Detached', role: 'optional' },
+        ],
+    }
+}
+
 class DiagramSourceStub extends EventTarget {
     private readonly source: DiagramViewSourceSnapshot
 
@@ -141,6 +160,51 @@ function createHarness(diagram: DiagramData = architectureDiagram(), createId?: 
 
     return { geometry, session }
 }
+
+function edgeGrowthDiagram(): DiagramData {
+    return {
+        edges: [],
+        groups: [],
+        meta: { description: 'Growth', title: 'Growth', type: 'architecture', version: 1 },
+        nodes: [{ height: 64, id: 'moving', label: 'Moving', role: 'focal', width: 120, x: 80, y: 80 }],
+    }
+}
+
+describe('DiagramGeometryService surface growth', () => {
+    it.each([
+        { field: 'x' as const, value: 20, expectedOriginX: 20, expectedOriginY: 0 },
+        { field: 'y' as const, value: 20, expectedOriginX: 0, expectedOriginY: 20 },
+    ])('grows $field edge without moving stored node', ({ field, value, expectedOriginX, expectedOriginY }) => {
+        const { geometry, session } = createHarness(edgeGrowthDiagram())
+        const initialWidth = geometry.getSurfaceFieldSnapshot('width')
+        const initialHeight = geometry.getSurfaceFieldSnapshot('height')
+        session.setViewportScale(1.5)
+        session.setNodeField('moving', field, value)
+
+        expect(geometry.getSurfaceFieldSnapshot('originX')).toBe(expectedOriginX)
+        expect(geometry.getSurfaceFieldSnapshot('originY')).toBe(expectedOriginY)
+        expect(geometry.getSurfaceFieldSnapshot('width')).toBe(initialWidth + expectedOriginX)
+        expect(geometry.getSurfaceFieldSnapshot('height')).toBe(initialHeight + expectedOriginY)
+        expect(geometry.getNodeGeometryFieldSnapshot('moving', field)).toBe(value)
+    })
+
+    it('grows right, bottom, and both corner edges only when entered', () => {
+        const { geometry, session } = createHarness(edgeGrowthDiagram())
+        const initialWidth = geometry.getSurfaceFieldSnapshot('width')
+        const initialHeight = geometry.getSurfaceFieldSnapshot('height')
+        session.setNodeField('moving', 'x', 200)
+        expect(geometry.getSurfaceFieldSnapshot('width')).toBeGreaterThan(initialWidth)
+        expect(geometry.getSurfaceFieldSnapshot('height')).toBe(initialHeight)
+        session.setNodeField('moving', 'y', 200)
+        expect(geometry.getSurfaceFieldSnapshot('height')).toBeGreaterThan(initialHeight)
+
+        session.setNodeField('moving', 'x', -20)
+        session.setNodeField('moving', 'y', -20)
+        expect(geometry.getSurfaceFieldSnapshot('originX')).toBe(60)
+        expect(geometry.getSurfaceFieldSnapshot('originY')).toBe(60)
+        expect(session.setNodeField('moving', 'x', -20)).toBe(false)
+    })
+})
 
 /** Records every geometry event the service dispatches, so a test can assert the exact notification set of one edit. */
 function recordGeometryEvents(geometry: DiagramGeometryService) {
@@ -174,6 +238,34 @@ function groupBoxSnapshot(geometry: DiagramGeometryService, groupId: string) {
 }
 
 describe('DiagramGeometryService', () => {
+    it('publishes only changed mindmap ring geometry and incident curves after adding a connection', () => {
+        const { geometry, session } = createHarness(mindmapDiagram(), () => 'root-child')
+        const detachedBefore = nodeBox(geometry, 'detached')
+        const detachedEvents = vi.fn()
+        const childEvents = vi.fn()
+        geometry.subscribeNodeGeometryField('detached', 'x', detachedEvents)
+        geometry.subscribeNodeGeometryField('child', 'y', childEvents)
+
+        expect(session.createEdge({ from: 'root', kind: 'connection', to: 'child' })).toBe('root-child')
+
+        expect(nodeBox(geometry, 'detached')).toEqual(detachedBefore)
+        expect(detachedEvents).not.toHaveBeenCalled()
+        expect(childEvents).toHaveBeenCalled()
+        expect(geometry.getEdgeControlPointSnapshot('root-child')).not.toBeNull()
+        expect(geometry.getEdgeLabelPlacementSnapshot('a-child')).not.toBeNull()
+    })
+
+    it('updates mindmap ellipse endpoints and labels after independent resize', () => {
+        const { geometry, session } = createHarness(mindmapDiagram())
+        const routeBefore = geometry.getEdgeRouteSnapshot('a-child')
+        const labelBefore = geometry.getEdgeLabelPlacementSnapshot('a-child')
+
+        expect(session.setNodeSize('a', 120, 80)).toBe(true)
+        expect(nodeBox(geometry, 'a')).toMatchObject({ width: 120, height: 80 })
+        expect(geometry.getEdgeRouteSnapshot('a-child')).not.toEqual(routeBefore)
+        expect(geometry.getEdgeLabelPlacementSnapshot('a-child')).not.toEqual(labelBefore)
+    })
+
     it('builds the initial positioned view from the started session', () => {
         const { geometry } = createHarness()
 
@@ -220,7 +312,7 @@ describe('DiagramGeometryService', () => {
     ] as const)('reconnects dependency edge %s without rerouting other edges', (edgeId, oldTargetId, otherEdgeId, fanInChange) => {
         const { geometry, session } = createHarness(editableDependencyDiagram())
         const edge = session.getEdgeSnapshot(edgeId)
-        const targetAttachment = session.getConnectionPointSnapshot(edgeId, 'targetAttachment')
+        const targetAttachment = session.getEdgeSnapshot(edgeId)?.targetAttachment
         const otherRoute = geometry.getEdgeRouteSnapshot(otherEdgeId)
         const unrelatedRoute = geometry.getEdgeRouteSnapshot('auxiliary-sink')
         const oldTargetFanIn = geometry.getNodeGeometryFieldSnapshot(oldTargetId, 'fanIn') as number
@@ -230,7 +322,7 @@ describe('DiagramGeometryService', () => {
         expect(session.reconnectEdgeEndpoint(edgeId, 'targetAttachment', 'sink')).toBe(true)
 
         expect(session.getEdgeSnapshot(edgeId)).toBe(edge)
-        expect(session.getConnectionPointSnapshot(edgeId, 'targetAttachment')).toBe(targetAttachment)
+        expect(session.getEdgeSnapshot(edgeId)?.targetAttachment).toBe(targetAttachment)
         expect(geometry.getNodeGeometryFieldSnapshot(oldTargetId, 'fanIn')).toBe(oldTargetFanIn - fanInChange)
         expect(geometry.getNodeGeometryFieldSnapshot('sink', 'fanIn')).toBe(sinkFanIn + fanInChange)
         expect(geometry.getEdgeRouteSnapshot(otherEdgeId)).toBe(otherRoute)
@@ -253,7 +345,7 @@ describe('DiagramGeometryService', () => {
         const targetFanIn = geometry.getNodeGeometryFieldSnapshot(targetId, 'fanIn') as number
         const dispatched = recordGeometryEvents(geometry)
 
-        expect(session.removeEdge(edgeId)).toBe(true)
+        expect(session.removeObjects([{ objectId: edgeId, objectKind: 'edge' }])).toBe(true)
 
         expect(geometry.getEdgeRouteSnapshot(edgeId)).toHaveLength(0)
         expect(geometry.getNodeGeometryFieldSnapshot(targetId, 'fanIn')).toBe(targetFanIn - fanInChange)
@@ -455,7 +547,7 @@ describe('DiagramGeometryService', () => {
     it('drops the view entries of a removed node and its incident edges only', () => {
         const { geometry, session } = createHarness()
 
-        session.removeNode('store')
+        session.removeObjects([{ objectId: 'store', objectKind: 'node' }])
 
         expect(geometry.getNodeGeometryFieldSnapshot('store', 'x')).toBeNull()
         expect(geometry.getEdgeRouteSnapshot('orders-store')).toHaveLength(0)
@@ -486,7 +578,7 @@ describe('DiagramGeometryService', () => {
         const responseHeight = geometry.getFragmentGeometryFieldSnapshot('response', 'height')
         const dispatched = recordGeometryEvents(geometry)
 
-        expect(session.setFragmentRegionField('transaction', 0, 'guard', 'approved')).toBe(true)
+        expect(session.updateFragment('transaction', { operator: 'opt', regions: [{ edgeIds: ['orders-store'], guard: 'approved' }] })).toBe(true)
 
         expect(geometry.getFragmentGuardPositionsSnapshot('transaction')).toEqual([
             { guard: 'approved', y: expect.any(Number) },
@@ -496,7 +588,7 @@ describe('DiagramGeometryService', () => {
         expect(dispatched).toEqual(['geometry:fragment:transaction:guardPositions'])
 
         dispatched.length = 0
-        expect(session.addFragmentRegionEdge('transaction', 0, 'store-orders')).toBe(true)
+        expect(session.updateFragment('transaction', { operator: 'opt', regions: [{ edgeIds: ['orders-store', 'store-orders'], guard: 'approved' }] })).toBe(true)
 
         expect(geometry.getFragmentGeometryFieldSnapshot('transaction', 'height')).toBeGreaterThan(56)
         expect(geometry.getFragmentGeometryFieldSnapshot('response', 'height')).toBe(responseHeight)
@@ -550,7 +642,7 @@ describe('DiagramGeometryService', () => {
         const guards = geometry.getFragmentGuardPositionsSnapshot('transaction')
         const dispatched = recordGeometryEvents(geometry)
 
-        expect(session.removeEdge('orders-store')).toBe(true)
+        expect(session.removeObjects([{ objectId: 'orders-store', objectKind: 'edge' }])).toBe(true)
 
         expect({
             height: geometry.getFragmentGeometryFieldSnapshot('transaction', 'height'),
@@ -598,10 +690,10 @@ describe('DiagramGeometryService', () => {
         expect(geometry.getEdgeRouteSnapshot(insertedId)).not.toBe(insertedRoute)
 
         const routeBeforeDelete = geometry.getEdgeRouteSnapshot('orders-store')
-        expect(session.removeEdge(insertedId)).toBe(true)
+        expect(session.removeObjects([{ objectId: insertedId, objectKind: 'edge' }])).toBe(true)
         expect(geometry.getEdgeRouteSnapshot(insertedId)).toHaveLength(0)
         expect(geometry.getEdgeRouteSnapshot('orders-store')).not.toBe(routeBeforeDelete)
-        expect(session.getFragmentRegionEdgeIdsSnapshot('transaction', 0)).toEqual(['orders-store'])
+        expect((session.getFragmentSnapshot('transaction')?.regions[0]?.edgeIds ?? null)).toEqual(['orders-store'])
     })
 
     it('derives an activation bar from a newly matched call and success pair', () => {
@@ -626,6 +718,15 @@ describe('DiagramGeometryService', () => {
             dependency: dependencyDiagram(),
             entity: entityDiagram(),
             flow: flowDiagram(),
+            mindmap: {
+                edges: [{ from: 'root', id: 'root-topic', kind: 'connection', to: 'topic' }],
+                groups: [],
+                meta: { description: 'Ideas', title: 'Ideas', type: 'mindmap', version: 1 },
+                nodes: [
+                    { id: 'root', kind: 'root', label: 'Root', role: 'focal' },
+                    { id: 'topic', kind: 'topic', label: 'Topic', role: 'backend' },
+                ],
+            },
             sequence: sequenceDiagram(),
         }
         for (const diagram of Object.values(diagrams)) {

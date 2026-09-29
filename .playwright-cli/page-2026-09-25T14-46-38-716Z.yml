@@ -1,0 +1,86 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - button [ref=f1e80] [cursor=pointer]
+        - tablist [ref=f1e82]:
+          - tab [selected] [ref=f1e83] [cursor=pointer]: Home
+          - tab [ref=f1e84] [cursor=pointer]: Run
+        - button [ref=f1e85] [cursor=pointer]
+        - button [ref=f1e86] [cursor=pointer]
+      - tabpanel [ref=f1e28]:
+        - generic [ref=f1e29]:
+          - generic [ref=f1e32]:
+            - group [ref=f1e87]:
+              - group [ref=f1e34]:
+                - button [pressed] [ref=f1e88] [cursor=pointer]:
+                  - generic [ref=f1e38]: Board
+                - button [ref=f1e89] [cursor=pointer]:
+                  - generic [ref=f1e42]: List
+                - button [ref=f1e90] [cursor=pointer]:
+                  - generic [ref=f1e46]: Diagrams
+                - button [ref=f1e91] [cursor=pointer]:
+                  - generic [ref=f1e50]: Stats
+            - separator [ref=f1e51]
+            - group [ref=f1e92]:
+              - button [ref=f1e94] [cursor=pointer]
+              - generic [ref=f1e58]:
+                - combobox [disabled] [ref=f1e96]
+                - textbox [disabled]
+                - group
+              - generic [ref=f1e97]:
+                - button [disabled]
+              - generic [ref=f1e98]:
+                - button [disabled]
+              - generic [ref=f1e99]:
+                - button [disabled]
+            - separator [ref=f1e63]
+            - group [ref=f1e100]:
+              - button [ref=f1e102] [cursor=pointer]
+              - generic [ref=f1e103]:
+                - button [disabled]: Connecting
+          - button [ref=f1e104] [cursor=pointer]
+    - region [ref=f1e105]:
+      - generic [ref=f1e76]:
+        - heading [level=2] [ref=f1e106]: No project open
+        - paragraph [ref=f1e78]: Open a GitHub repository or local folder to work with project cards.
+        - button [ref=f1e107] [cursor=pointer]: Open project...
+  - dialog [active] [ref=f1e110]:
+    - heading "Open project" [level=2] [ref=f1e111]
+    - generic [ref=f1e113]:
+      - group "Project kind" [ref=f1e114]:
+        - button "Repository" [pressed] [ref=f1e115] [cursor=pointer]
+        - button "Folder" [ref=f1e118] [cursor=pointer]
+      - generic [ref=f1e121]:
+        - generic [ref=f1e122]: Repository access
+        - generic [ref=f1e123]:
+          - combobox "Repository access" [ref=f1e124] [cursor=pointer]: Personal
+          - textbox: personal
+          - group:
+            - generic: Repository access
+      - generic [ref=f1e125]:
+        - generic [ref=f1e126]: Filter repositories
+        - textbox "Filter repositories" [disabled] [ref=f1e128]
+      - generic [ref=f1e129]:
+        - generic: Repository
+        - generic [ref=f1e130]:
+          - combobox "Repository" [disabled] [ref=f1e131]
+          - textbox [disabled]
+          - group:
+            - generic: Repository
+      - separator [ref=f1e132]
+      - heading "Personal repository lookup" [level=6] [ref=f1e133]
+      - generic [ref=f1e134]:
+        - generic [ref=f1e135]:
+          - generic [ref=f1e136]: Owner
+          - textbox "Owner" [disabled] [ref=f1e138]
+        - generic [ref=f1e139]:
+          - generic [ref=f1e140]: Repository
+          - textbox "Repository" [disabled] [ref=f1e142]
+      - button "Load branches" [disabled]
+      - generic [ref=f1e143]:
+        - generic [ref=f1e144]: Branch
+        - textbox "Branch" [ref=f1e146]
+    - generic [ref=f1e147]:
+      - button "Cancel" [ref=f1e148] [cursor=pointer]
+      - button "Open" [disabled]
