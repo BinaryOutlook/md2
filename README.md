@@ -146,6 +146,17 @@ md² is still an evolving concept — see [design/architecture/initial descripti
 
 The Diagrams view supports architecture, dependency, sequence, flowchart, state, entity, and mindmap diagrams. Start from an empty diagram or run a diagram action, then select **Edit diagram** to change nodes, connections, groups, and other diagram details. Review changes before saving an edited copy or sending the changes to an agent. [Learn how diagrams work](https://jan-bogaerts.github.io/md2/guide/diagrams/).
 
+## Mobile use
+
+md² runs in your phone's browser while the desktop app stays open and handles files, Git, and agents. No phone app is needed.
+
+1. Open a project in the desktop app and click **Serve**.
+2. Open the menu beside **Serve** and scan its QR code, or open the IP address link on your phone. Both devices must be on the same network. Prefer the IP link if the `.local` hostname does not resolve.
+
+<img width="220" alt="Mobile board with feature cards" src="file:///C:/Users/janbo/AppData/Local/Programs/desktop/resources/app.asar/desktop/renderer/screenshots/mobile2/Screenshot_20260921_201056_Chrome.jpg" /> <img width="220" alt="Mobile card editor" src="file:///C:/Users/janbo/AppData/Local/Programs/desktop/resources/app.asar/desktop/renderer/screenshots/mobile2/Screenshot_20260921_201336_Chrome.jpg" /> <img width="220" alt="Mobile agent conversation" src="file:///C:/Users/janbo/AppData/Local/Programs/desktop/resources/app.asar/desktop/renderer/screenshots/mobile2/Screenshot_20260921_201401_Chrome.jpg" />
+
+Internet access through a Cloudgate gateway is planned but not yet available. For now, **Serve** connects devices on the same network; see the [remote-control guide](docs/guide/remote-control.md).
+
 ## Getting started
 
 1. [Download and install the latest Windows release](https://github.com/jan-bogaerts/md2/releases/latest), or follow the [source setup](https://jan-bogaerts.github.io/md2/contributing/development-setup/) on macOS or Linux.
