@@ -447,6 +447,30 @@
   "origin": {
     "kind": "project"
   },
-  "records": [],
+  "records": [
+    {
+      "commits": [],
+      "completedAt": "2026-09-29T08:18:29.261Z",
+      "conversationIds": [
+        "agent-65854c35-8bf4-494c-910a-09242c148cdc"
+      ],
+      "details": {
+        "agent": "codex",
+        "model": "gpt-6-sol",
+        "permissionMode": "approve-for-me",
+        "thinkingLevel": "medium",
+        "type": "agent"
+      },
+      "runId": "action-dca60b30-2169-4514-b39c-3a144b0405cc",
+      "origin": {
+        "kind": "project"
+      },
+      "rootActionId": "65ad68d5-4ad3-4afe-b861-0bbb00d2505e",
+      "rootActionLabel": "write release note",
+      "rootConversationId": "agent-65854c35-8bf4-494c-910a-09242c148cdc",
+      "startedAt": "2026-09-29T08:09:19.744Z",
+      "status": "cancelled"
+    }
+  ],
   "version": 5
 }
