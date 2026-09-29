@@ -9,7 +9,6 @@ affects:
 agents:
   - design/releases/0_7_0/card__faf847ea-ef5f-4ace-a894-9a30c39692b4.json
 policy:
-branch: f_362_schedule_action_as_popup
 changedFiles:
   - app/src/components/actions/run/popup/action_popup.test.tsx
   - app/src/components/actions/run/popup/action_popup_bottom_row.grouped.test.tsx
