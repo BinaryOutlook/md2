@@ -1,7 +1,6 @@
 ---
 internalId: 95c868e6-f9b9-41b2-bee7-db272d949a6e
 ---
-
 # MD2 0.7.0
 
 ## New features
@@ -11,7 +10,7 @@ internalId: 95c868e6-f9b9-41b2-bee7-db272d949a6e
 * Pin conversations for quick access.
 * View project agent instructions in one place.
 * Schedule actions by time, account reset, or card status.
-* Run actions across an ordered sequence of cards.
+* Create sequences to automatically run actions on a list of cards
 * View and manage active schedules.
 * Open cards and files in File Explorer.
 * Switch statistics between charts and tables.
