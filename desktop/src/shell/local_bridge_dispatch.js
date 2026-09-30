@@ -73,6 +73,7 @@ function createLocalBridgeDispatch(dependencies) {
         worktreeService,
     } = dependencies;
     let currentLocalProject = null;
+    let projectServicesReady = false;
     let closeCardStateWatcher = null;
     const conversationViewEvents = new ConversationViewEvents();
     const cardStateTracker = new CardStateTracker({
@@ -140,7 +141,7 @@ function createLocalBridgeDispatch(dependencies) {
     }
 
     async function activateProject(project) {
-        if (isCurrentProject(project)) return;
+        if (isCurrentProject(project) && projectServicesReady) return;
 
         const conflictSession = mergeConflictService?.getInternalSession();
         const sameConflictProject = conflictSession
@@ -158,12 +159,13 @@ function createLocalBridgeDispatch(dependencies) {
             await worktreeService.abortConflict({ sessionId: conflictSession.id });
         }
 
-        currentLocalProject = project;
         // The project config is read here, once, and the resolved paths are handed to each service.
         // The runner starts before the scheduler: a schedule reconciled by the scheduler can fire a
         // timer immediately, and firing calls into the runner.
         const projectConfig = await localGitService.loadProjectConfig(project);
         const projectPaths = resolveProjectPaths(projectConfig);
+        projectServicesReady = false;
+        currentLocalProject = project;
         await startCardStateDetection(project, projectPaths.projectFolder);
         if (actionRunnerService) await actionRunnerService.startProject(project, projectPaths, projectConfig?.states);
         if (actionSchedulerService) await actionSchedulerService.startProject(project, projectPaths, projectConfig);
@@ -174,6 +176,7 @@ function createLocalBridgeDispatch(dependencies) {
             const { agentProfiles } = readDesktopConfig(desktopConfigStore);
             agentRunnerService.requestProjectUsageRefresh(project, agentProfiles);
         }
+        projectServicesReady = true;
     }
 
     const dataBridge = {
@@ -256,10 +259,7 @@ function createLocalBridgeDispatch(dependencies) {
             const rootPath = await openProjectFolder();
             if (!rootPath) return null;
 
-            const project = await localGitService.resolveLocalProject(rootPath);
-            await activateProject(project);
-
-            return project;
+            return localGitService.resolveLocalProject(rootPath);
         },
         addWorktree: (project, folderPath) => worktreeService.add(project, folderPath),
         prepareWorktree: (request) => {
@@ -347,14 +347,13 @@ function createLocalBridgeDispatch(dependencies) {
         },
         onWorktreesChanged: (callback) => worktreeService.subscribe(callback),
         refreshWorktrees: (project) => worktreeService.refreshRemote(project),
-        resolveProject: async (project) => {
-            const resolvedProject = await localGitService.resolveLocalProject(project.rootPath);
-            await activateProject(resolvedProject);
-
-            return resolvedProject;
-        },
+        resolveProject: (project) => localGitService.resolveLocalProject(project.rootPath),
         saveActionSchedules: (project, actionsFolder, schedules) => localGitService.saveActionSchedules(project, actionsFolder, schedules),
-        saveProjectConfig: (project, config) => localGitService.saveProjectConfig(project, config),
+        saveProjectConfig: async (project, config) => {
+            await localGitService.saveProjectConfig(project, config);
+            // Reload paths and states on the next activation, without interrupting running actions here.
+            if (isCurrentProject(project)) projectServicesReady = false;
+        },
         saveDesktopConfig: (values) => saveDesktopConfig(desktopConfigStore, values),
         selectProjectSubFolder: (rootPath) => {
             if (!openProjectSubFolder) throw new Error('Project folder picker is not available');

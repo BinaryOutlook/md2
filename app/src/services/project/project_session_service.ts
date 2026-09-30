@@ -477,6 +477,10 @@ export class ProjectSessionService extends EventTarget {
             const existingFilePaths = new Set(await storage.listRepositoryFiles(resolution.project))
             const existingFolders = new Set(folderPathsOf([...existingFilePaths]))
             const missingFolders = resolvedSetupFolders(projectConfig).filter((folder) => !existingFolders.has(folder))
+            // Folder creation activates local services, which require a complete project configuration.
+            // Flush the previous project while its backend is still active.
+            await projectPersistenceService.flushPendingChanges()
+            await storage.saveProjectConfig(resolution.project, projectConfig)
             const project = await storage.createProject(resolution.project, missingFolders)
             const defaultActionFiles = createDefaultActionFiles(resolvedConfig.actionsFolder)
                 .filter(({ path }) => !existingFilePaths.has(path))

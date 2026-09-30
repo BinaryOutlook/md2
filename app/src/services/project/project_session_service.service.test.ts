@@ -577,6 +577,19 @@ describe('ProjectSessionService storage activation', () => {
         mockProjectOpen()
         configService.init()
         const bridge = createDataBridge()
+        const flush = vi.spyOn(projectPersistenceService, 'flushPendingChanges').mockResolvedValue()
+        vi.mocked(bridge.createProject).mockImplementation(async (project) => {
+            expect(flush).toHaveBeenCalled()
+            expect(bridge.saveProjectConfig).toHaveBeenCalledWith(project, expect.objectContaining({
+                states: DEFAULT_PROJECT_CONFIG.states,
+                cardTypes: DEFAULT_PROJECT_CONFIG.cardTypes,
+                projectFolder: 'design',
+            }))
+            expect(flush.mock.invocationCallOrder[0])
+                .toBeLessThan(vi.mocked(bridge.saveProjectConfig).mock.invocationCallOrder[0])
+
+            return project
+        })
         window.md2Data = bridge
         const service = new ProjectSessionService()
         const project = { branch: 'main', id: 'local', rootPath: 'C:/repo' }
