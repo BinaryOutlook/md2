@@ -1,5 +1,8 @@
 const { spawn } = require('node:child_process');
 const electron = require('electron');
+const { prepareNativeHelpers } = require('./prepare_native_helpers');
+
+prepareNativeHelpers();
 
 const DEVELOPMENT_APP_URL = 'http://localhost:5173';
 const env = { ...process.env };

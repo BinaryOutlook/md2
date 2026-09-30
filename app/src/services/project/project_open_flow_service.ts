@@ -1,4 +1,5 @@
 import type { BranchReference, ProjectReference, RepositoryReference } from '../../data/data_types'
+import { unwrapBridgeResult } from '../../data/bridge_error_rehydration'
 import { getElectronDataBridge } from '../../data/electron_data_bridge'
 import {
     readRecentLocalRepositories,
@@ -174,7 +175,7 @@ export class ProjectOpenFlowService extends EventTarget {
         }
 
         try {
-            const project = await bridge.openProjectFolder()
+            const project = unwrapBridgeResult(await bridge.openProjectFolder())
             if (project) await this.openResolvedProject('local', project)
         } catch (error) {
             dialogService.error(error, { fallbackMessage: 'Local project selection failed' })
@@ -229,7 +230,7 @@ export class ProjectOpenFlowService extends EventTarget {
         if (!bridge?.selectProjectSubFolder || !rootPath) return null
 
         try {
-            const pickedFolder = await bridge.selectProjectSubFolder(rootPath)
+            const pickedFolder = unwrapBridgeResult(await bridge.selectProjectSubFolder(rootPath))
             if (pickedFolder === null) return null
 
             const repositoryRelativePath = toRepositoryRelativePath(rootPath, pickedFolder)
@@ -280,7 +281,7 @@ export class ProjectOpenFlowService extends EventTarget {
         }
         try {
             const normalizedPath = rootPath.trim()
-            const project = await bridge.resolveProject({ branch: '', id: normalizedPath, rootPath: normalizedPath })
+            const project = unwrapBridgeResult(await bridge.resolveProject({ branch: '', id: normalizedPath, rootPath: normalizedPath }))
             await this.openResolvedProject('local', project)
         } catch (error) {
             dialogService.error(error, { fallbackMessage: 'Local project selection failed' })

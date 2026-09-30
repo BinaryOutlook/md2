@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { serializeBridgeError } from '../../../../shared/bridge_errors.mjs'
+import { dialogService } from '../dialog_service'
 import type { ElectronDataBridge } from '../../data/electron_data_bridge'
 import { RECENT_LOCAL_REPOSITORIES_STORAGE_KEY } from '../../data/recent_local_repositories'
 import { applicationStorage } from '../storage/application_storage'
@@ -37,6 +39,43 @@ describe('ProjectOpenFlowService', () => {
         vi.restoreAllMocks()
         window.md2Data = undefined
         window.localStorage.removeItem(RECENT_LOCAL_REPOSITORIES_STORAGE_KEY)
+    })
+
+    it.each(['picker', 'path'] as const)('reports the original %s error without treating it as a project', async (source) => {
+        const failure = serializeBridgeError(new Error('Selected folder is not a Git repository'))
+        window.md2Data = {
+            openProjectFolder: vi.fn(async () => failure),
+            resolveProject: vi.fn(async () => failure),
+        } as unknown as ElectronDataBridge
+        const openProject = vi.spyOn(projectSessionService, 'openProject').mockResolvedValue(null)
+        const reportError = vi.spyOn(dialogService, 'error')
+        const service = new ProjectOpenFlowService()
+        service.show()
+
+        if (source === 'picker') await service.chooseLocalFolder()
+        else await service.submit({ source: 'local', rootPath: '/projects/example' })
+
+        expect(reportError).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Selected folder is not a Git repository' }),
+            { fallbackMessage: 'Local project selection failed' },
+        )
+        expect(openProject).not.toHaveBeenCalled()
+    })
+
+    it('reports the original subfolder picker error and keeps the setup form', async () => {
+        window.md2Data = {selectProjectSubFolder: vi.fn(async () => serializeBridgeError(new Error('Folder picker unavailable')))} as unknown as ElectronDataBridge
+        const reportError = vi.spyOn(dialogService, 'error')
+        const resolution = folderSetupResolution()
+        const service = new ProjectOpenFlowService()
+        service.show({ resolution })
+
+        await expect(service.browseFolder('projectFolder', resolution.values)).resolves.toBeNull()
+
+        expect(reportError).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Folder picker unavailable' }),
+            { fallbackMessage: 'Project folder selection failed' },
+        )
+        expect(service.getPhase()).toBe('folder-setup')
     })
 
     it('closes the input phase before loading and keeps it closed through recent-project persistence', async () => {
