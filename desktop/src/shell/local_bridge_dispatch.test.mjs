@@ -297,9 +297,9 @@ describe('createLocalBridgeDispatch', () => {
         diffService.generateWorktreeDiff.mockResolvedValue(result);
         await dispatch.dataBridge.loadProject(project, 'design');
 
-        await expect(dispatch.actionBridge.generateWorktreeDiff({ worktree: 1 })).resolves.toBe(result);
+        await expect(dispatch.actionBridge.generateWorktreeDiff({ worktree: 1, worktreeBranch: 'feature' })).resolves.toBe(result);
 
-        expect(diffService.generateWorktreeDiff).toHaveBeenCalledWith(project, { worktree: 1 }, worktreeService);
+        expect(diffService.generateWorktreeDiff).toHaveBeenCalledWith(project, { worktree: 1, worktreeBranch: 'feature' }, worktreeService);
         expect(localGitService.appendAndCommitSystemActivity).not.toHaveBeenCalled();
     });
 
@@ -532,16 +532,16 @@ describe('createLocalBridgeDispatch', () => {
     it('delegates card worktree preparation', async () => {
         const { dispatch, worktreeService } = createDispatch();
         const project = { branch: 'main', id: 'local', rootPath: 'C:/repo' };
-        const request = { branchName: 'card-title', project, worktree: 1 };
+        const request = { branchName: 'card-title', project, worktree: 1, worktreeBranch: 'feature' };
 
         await expect(dispatch.dataBridge.prepareWorktree(request)).resolves.toBeUndefined();
-        expect(worktreeService.prepare).toHaveBeenCalledWith(project, 1, 'card-title');
+        expect(worktreeService.prepare).toHaveBeenCalledWith(project, 'feature', 'card-title');
     });
 
     it('delegates card worktree lifecycle operations', async () => {
         const { dispatch, localGitService, worktreeService } = createDispatch();
         const project = { branch: 'main', id: 'local', rootPath: 'C:/repo' };
-        const request = { project, worktree: 1 };
+        const request = { project, worktree: 1, worktreeBranch: 'feature' };
 
         await dispatch.dataBridge.commitWorktree({ ...request, message: 'F-1: Card' });
         await dispatch.dataBridge.discardWorktreeChanges(request);
@@ -551,13 +551,13 @@ describe('createLocalBridgeDispatch', () => {
         await dispatch.dataBridge.pushWorktree(request);
         await dispatch.dataBridge.refreshWorktrees(project);
 
-        expect(worktreeService.commit).toHaveBeenCalledWith(project, 1, 'F-1: Card');
-        expect(worktreeService.discard).toHaveBeenCalledWith(project, 1);
-        expect(worktreeService.integrate).toHaveBeenCalledWith(project, 1, { branchName: null, deleteBranch: false });
+        expect(worktreeService.commit).toHaveBeenCalledWith(project, 'feature', 'F-1: Card');
+        expect(worktreeService.discard).toHaveBeenCalledWith(project, 'feature');
+        expect(worktreeService.integrate).toHaveBeenCalledWith(project, 'feature', { branchName: null, deleteBranch: false });
         expect(worktreeService.synchronize).not.toHaveBeenCalled();
-        expect(worktreeService.park).toHaveBeenCalledWith(project, 1);
-        expect(worktreeService.pull).toHaveBeenCalledWith(project, 1);
-        expect(worktreeService.push).toHaveBeenCalledWith(project, 1);
+        expect(worktreeService.park).toHaveBeenCalledWith(project, 'feature');
+        expect(worktreeService.pull).toHaveBeenCalledWith(project, 'feature');
+        expect(worktreeService.push).toHaveBeenCalledWith(project, 'feature');
         expect(worktreeService.refreshRemote).toHaveBeenCalledWith(project);
         expect(localGitService.appendAndCommitSystemActivity).not.toHaveBeenCalled();
     });
@@ -565,12 +565,12 @@ describe('createLocalBridgeDispatch', () => {
     it('tracks a card integration under its stable internal id', async () => {
         const { dispatch, localGitService, worktreeService } = createDispatch();
         const project = { branch: 'main', id: 'local', rootPath: 'C:/repo' };
-        const request = { cardInternalId: 'stable-card-id', project, projectFolder: 'design', worktree: 1 };
+        const request = { cardInternalId: 'stable-card-id', project, projectFolder: 'design', worktree: 1, worktreeBranch: 'feature' };
 
         await dispatch.dataBridge.integrateWorktree(request);
 
         const origin = { cardInternalId: 'stable-card-id', kind: 'card' };
-        expect(worktreeService.integrate).toHaveBeenCalledWith(project, 1, {
+        expect(worktreeService.integrate).toHaveBeenCalledWith(project, 'feature', {
             branchName: null,
             cardInternalId: 'stable-card-id',
             deleteBranch: false,
@@ -598,7 +598,7 @@ describe('createLocalBridgeDispatch', () => {
             },
             'Record Integrate into project activity',
         );
-        expect(worktreeService.synchronize).toHaveBeenCalledWith(project, 1);
+        expect(worktreeService.synchronize).toHaveBeenCalledWith(project, 'feature');
         expect(localGitService.appendAndCommitSystemActivity.mock.invocationCallOrder[0])
             .toBeLessThan(worktreeService.synchronize.mock.invocationCallOrder[0]);
     });
@@ -612,7 +612,7 @@ describe('createLocalBridgeDispatch', () => {
             cardInternalId: 'card-1',
             project,
             projectFolder: 'design',
-            worktree: 1,
+            worktree: 1, worktreeBranch: 'feature',
         })).rejects.toThrow('Worktree integrated, but card history tracking failed: activity commit failed');
 
         expect(worktreeService.integrate).toHaveBeenCalledOnce();
@@ -628,11 +628,11 @@ describe('createLocalBridgeDispatch', () => {
             cardInternalId: 'card-1',
             project,
             projectFolder: 'design',
-            worktree: 1,
+            worktree: 1, worktreeBranch: 'feature',
         })).rejects.toThrow('Worktree integrated and card history tracked, but linked worktree synchronization failed: reset failed');
 
         expect(localGitService.appendAndCommitSystemActivity).toHaveBeenCalledOnce();
-        expect(worktreeService.synchronize).toHaveBeenCalledWith(project, 1);
+        expect(worktreeService.synchronize).toHaveBeenCalledWith(project, 'feature');
         expect(worktreeService.park).not.toHaveBeenCalled();
     });
 
@@ -645,7 +645,7 @@ describe('createLocalBridgeDispatch', () => {
             cardInternalId: 'card-1',
             project,
             projectFolder: 'design',
-            worktree: 1,
+            worktree: 1, worktreeBranch: 'feature',
         })).rejects.toThrow('squash failed');
 
         expect(localGitService.appendAndCommitSystemActivity).not.toHaveBeenCalled();
@@ -655,14 +655,14 @@ describe('createLocalBridgeDispatch', () => {
     it('returns paused conflict without writing integration activity', async () => {
         const { dispatch, localGitService, worktreeService } = createDispatch();
         const project = { branch: 'main', id: 'local', rootPath: 'C:/repo' };
-        const session = { conflictedPaths: ['src/file.js'], id: 'session-1', operation: 'integrate', phase: 'squash', repositoryRoot: 'C:/repo', worktree: 1 };
+        const session = { conflictedPaths: ['src/file.js'], id: 'session-1', operation: 'integrate', phase: 'squash', repositoryRoot: 'C:/repo', worktree: 1, worktreeBranch: 'feature' };
         worktreeService.integrate.mockResolvedValueOnce({ session, status: 'conflict' });
 
         await expect(dispatch.dataBridge.integrateWorktree({
             cardInternalId: 'card-1',
             project,
             projectFolder: 'design',
-            worktree: 1,
+            worktree: 1, worktreeBranch: 'feature',
         })).resolves.toEqual({ session, status: 'conflict' });
 
         expect(localGitService.appendAndCommitSystemActivity).not.toHaveBeenCalled();
@@ -676,7 +676,7 @@ describe('createLocalBridgeDispatch', () => {
             projectBranch: 'main',
             projectId: 'local',
             projectRoot: 'C:/repo',
-            worktree: 1,
+            worktree: 1, worktreeBranch: 'feature',
         };
         worktreeService.continueConflict.mockResolvedValueOnce({ branch: 'main', commit: 'a'.repeat(40), session, status: 'completed' });
         localGitService.appendAndCommitSystemActivity.mockRejectedValueOnce(new Error('disk full'));
@@ -701,7 +701,7 @@ describe('createLocalBridgeDispatch', () => {
             projectBranch: project.branch,
             projectId: project.id,
             projectRoot: project.rootPath,
-            worktree: 1,
+            worktree: 1, worktreeBranch: 'feature',
         };
         const retrySession = { ...initialSession, metadata: { ...initialSession.metadata, activityTracked: true } };
         worktreeService.continueConflict
