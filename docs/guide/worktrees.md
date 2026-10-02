@@ -23,6 +23,8 @@ If the assigned branch is missing, ambiguous, locked, prunable, detached, or oth
 
 After external disk cleanup, refresh the worktree list in Project settings. If your assigned checkout still exists, continue normally. Otherwise restore it on its stored branch or explicitly select another valid worktree from the indicator. Selecting **Primary** on an unavailable assignment clears its card metadata without running Git in another checkout. md² does not automatically recreate or prune deleted worktrees.
 
+After clearing or changing a card's assignment, close and reopen any action popup for that card so its execution context uses the current selection.
+
 Before launching an action or operating on an assignment, the desktop checks fresh Git registrations, the checkout's branch, and its repository. Conflict recovery uses the branch and checkout captured when the operation paused, even if other registrations have changed.
 
 ## Working from the card
