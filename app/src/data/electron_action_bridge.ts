@@ -96,6 +96,9 @@ export interface AgentActionRunHistoryEntry extends ActionRunHistoryEntryBase {
     permissionMode?: PermissionMode
     rootConversationId: string
     thinkingLevel?: ThinkingLevel
+    speedMode?: SpeedMode;
+    acknowledgedModel?: string;
+    acknowledgedServiceTier?: string | null;
     type: 'agent'
 }
 
@@ -188,6 +191,7 @@ export interface ElectronActionBridge {
     loadActionRunRecoverySnapshot?(rendererRunIds: string[]): Promise<ActionRunRecoverySnapshot>
     loadCardActivity?(request: CardActivityRequest): Promise<CardActivityFile>
     loadAgentAvailability?(): Promise<Record<string, AgentAvailability>>
+    loadAgentModelCatalog?(request: AgentModelCatalogRequest): Promise<AgentModelCatalog>;
     onActionConversationViewed?(callback: (event: ActionConversationViewedEvent) => void): () => void
     onActionRun(callback: (event: ActionRunEvent) => void): () => void
     openInEditor(request: OpenInEditorRequest): Promise<void>
@@ -238,3 +242,5 @@ export function hasActiveScheduleBackend() {
 export function hasSequenceScheduleBackend() {
     return !!getElectronActionBridge()?.registerSequenceSchedule
 }
+import type { AgentModelCatalog, AgentModelCatalogRequest } from './agent_model_catalog';
+import type { SpeedMode } from './agent_profiles';

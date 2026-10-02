@@ -113,6 +113,7 @@ function useCardFieldByInternalId<T>(
 const selectTitle = (card: Card | null) => card?.header.title ?? null
 const selectBody = (card: Card | null) => card?.content ?? null
 const selectPolicy = (card: Card | null) => card?.header.policy ?? null
+const selectWorktreeIndex = (card: Card | null) => card?.header.worktree ?? null;
 const CARD_METADATA_FIELDS: CardField[] = ['identity', 'policy', 'status', 'title', 'worktree']
 
 /** Reads only title primitive for one card. */
@@ -128,6 +129,11 @@ export function useCardBody(path: string | null, service: DataService = dataServ
 /** Reads only policy map reference for one card. */
 export function useCardPolicy(path: string | null, service: DataService = dataService) {
     return useCardField(path, 'policy', selectPolicy, service)
+}
+
+/** Read the assignment by canonical card identity without subscribing to its body or activity. */
+export function useCardWorktreeIndexByInternalId(internalId: string | null, service: DataService = dataService) {
+    return useCardFieldByInternalId(internalId, 'worktree', selectWorktreeIndex, service);
 }
 
 /** Reads stable worktree projection for one card. */
