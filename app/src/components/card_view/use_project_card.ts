@@ -13,6 +13,7 @@ import {
 } from '../../services/data/data_service'
 
 export interface CardWorktreeSnapshot {
+    branch: string | null | undefined;
     error: string | null | undefined
     value: string | null | undefined
     worktree: number | null | undefined
@@ -141,9 +142,13 @@ export function useCardWorktree(path: string | null, service: DataService = data
     const snapshotRef = useRef<CardWorktreeSnapshot | null>(null)
     const select = useCallback((card: Card | null) => {
         if (!card) return null
-        const next = { error: card.header.worktreeError, value: card.header.worktreeValue, worktree: card.header.worktree }
+        const next = {
+            branch: card.header.branch, error: card.header.worktreeError,
+            value: card.header.worktreeValue, worktree: card.header.worktree,
+        };
         const previous = snapshotRef.current
         const unchanged = previous
+            && previous.branch === next.branch
             && previous.error === next.error
             && previous.value === next.value
             && previous.worktree === next.worktree
@@ -206,6 +211,7 @@ function sameCardMetadata(previous: CardMetadataSnapshot, card: Card) {
         && header.status === card.header.status
         && header.title === card.header.title
         && header.policy === card.header.policy
+        && header.branch === card.header.branch
         && header.worktree === card.header.worktree
         && header.worktreeError === card.header.worktreeError
         && header.worktreeValue === card.header.worktreeValue
@@ -216,6 +222,7 @@ function cardMetadataSnapshot(card: Card): CardMetadataSnapshot {
     const header = {
         after: source.after,
         author: source.author,
+        branch: source.branch,
         id: source.id,
         internalId: source.internalId,
         owner: source.owner,

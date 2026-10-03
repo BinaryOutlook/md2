@@ -143,6 +143,7 @@ export interface DiffResult {
 
 export interface WorktreeDiffRequest {
     worktree: number
+    worktreeBranch: string;
 }
 
 export interface WorktreeDiffResult {
