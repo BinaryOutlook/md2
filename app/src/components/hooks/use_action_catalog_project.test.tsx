@@ -1,9 +1,9 @@
-import { cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActionContext } from '../../data/action_context';
 import type { WorktreeRecord } from '../../data/data_types';
 import { ActionRunSettingsStore } from '../../services/actions/action_run_settings_service';
-import { dataService } from '../../services/data/data_service';
+import { cardCollectionFieldChangedEvent, dataService } from '../../services/data/data_service';
 import { mergeConflictService } from '../../services/project/merge_conflict_service';
 import { worktreeService } from '../../services/project/worktree_service';
 import { useActionCatalogProject } from './use_action_catalog_project';
@@ -25,10 +25,11 @@ describe('action model discovery checkout', () => {
     beforeEach(() => {
         vi.spyOn(dataService, 'getState').mockReturnValue({
             project,
-            snapshot: { activeCards: [{ header: { internalId: 'card-1', worktree: 1 } }] },
+            snapshot: { activeCards: [{ header: { branch: 'topic', internalId: 'card-1', worktree: 1 } }] },
         } as unknown as ReturnType<typeof dataService.getState>);
         vi.spyOn(worktreeService, 'getRecords').mockReturnValue(worktrees);
         vi.spyOn(worktreeService, 'getProjectActionWorktree').mockReturnValue(1);
+        vi.spyOn(worktreeService, 'getProjectActionWorktreeBranch').mockReturnValue('topic');
         vi.spyOn(mergeConflictService, 'getSnapshot').mockReturnValue({ busy: false, session: null });
     });
 
@@ -50,7 +51,7 @@ describe('action model discovery checkout', () => {
     it('blocks an unavailable assigned checkout instead of discovering in another one', () => {
         vi.mocked(worktreeService.getRecords).mockReturnValue([]);
 
-        expect(catalogContext('card', 'card-1')).toEqual({ error: 'Selected worktree is unavailable', project: null });
+        expect(catalogContext('card', 'card-1')).toEqual({error: 'Assigned worktree branch "topic" is unavailable. Select a worktree again.', project: null});
     });
 
     it('uses the active conflict checkout and its branch', () => {
@@ -67,5 +68,60 @@ describe('action model discovery checkout', () => {
 
     it('blocks conflict discovery when its session is no longer active', () => {
         expect(catalogContext('merge-conflict')).toEqual({error: 'Merge conflict model discovery requires an active session', project: null});
+    });
+
+    it('follows the card branch after cleanup changes its numeric position', () => {
+        vi.mocked(dataService.getState).mockReturnValue({
+            project,
+            snapshot: { activeCards: [{ header: { branch: 'topic', internalId: 'card-1', worktree: 2 } }] },
+        } as unknown as ReturnType<typeof dataService.getState>);
+        vi.mocked(worktreeService.getRecords).mockReturnValue([
+            ...worktrees, { branch: 'other', path: '/other', valid: true },
+        ] as WorktreeRecord[]);
+
+        expect(catalogContext('card', 'card-1').project).toEqual({ branch: 'topic', id: '/worktree', rootPath: '/worktree' });
+    });
+
+    it('blocks a missing card branch even when another checkout occupies its old position', () => {
+        vi.mocked(dataService.getState).mockReturnValue({
+            project,
+            snapshot: { activeCards: [{ header: { branch: 'topic', internalId: 'card-1', worktree: 1 } }] },
+        } as unknown as ReturnType<typeof dataService.getState>);
+        vi.mocked(worktreeService.getRecords).mockReturnValue([{ branch: 'other', path: '/other', valid: true }] as WorktreeRecord[]);
+
+        expect(catalogContext('card', 'card-1')).toEqual({error: 'Assigned worktree branch "topic" is unavailable. Select a worktree again.', project: null});
+    });
+
+    it('blocks a missing project branch even when another checkout occupies its old position', () => {
+        vi.mocked(worktreeService.getRecords).mockReturnValue([{ branch: 'other', path: '/other', valid: true }] as WorktreeRecord[]);
+
+        expect(catalogContext('project')).toEqual({error: 'Assigned worktree branch "topic" is unavailable. Select a worktree again.', project: null});
+    });
+
+    it('uses the conflict checkout path when its numeric hint points at another checkout', () => {
+        vi.mocked(mergeConflictService.getSnapshot).mockReturnValue({busy: false, session: { ...conflict, worktree: 2 }});
+        vi.mocked(worktreeService.getRecords).mockReturnValue([
+            ...worktrees, { branch: 'other', path: '/other', valid: true },
+        ] as WorktreeRecord[]);
+
+        expect(catalogContext('merge-conflict').project).toEqual({ branch: 'topic', id: '/worktree', rootPath: '/worktree' });
+    });
+
+    it('updates discovery when the card branch changes without changing its numeric hint', () => {
+        const card = { header: { branch: 'topic', internalId: 'card-1', worktree: 1 } };
+        const projectState = {project, snapshot: { activeCards: [card] }} as unknown as ReturnType<typeof dataService.getState>;
+        vi.mocked(dataService.getState).mockReturnValue(projectState);
+        vi.mocked(worktreeService.getRecords).mockReturnValue([
+            ...worktrees, { branch: 'other', path: '/other', valid: true },
+        ] as WorktreeRecord[]);
+        const store = new ActionRunSettingsStore('review', 'card-1', 'card');
+        const { result } = renderHook(() => useActionCatalogProject(store));
+        expect(result.current.project?.rootPath).toBe('/worktree');
+        act(() => {
+            card.header.branch = 'other';
+            dataService.dispatchEvent(new Event(cardCollectionFieldChangedEvent('worktree')));
+        });
+
+        expect(result.current.project?.rootPath).toBe('/other');
     });
 });
