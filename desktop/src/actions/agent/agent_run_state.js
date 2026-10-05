@@ -144,6 +144,7 @@ function attachRunProtocol(run, {
             rootPath,
             providerConversationId,
             onCodexRuntimeEvent,
+            run.request.executionSettings,
             run.claudeUsageTracker,
         )
         : null;
